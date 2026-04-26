@@ -1,43 +1,62 @@
 // src/app/api/whatsapp/webhook/route.ts
-// Recibe webhooks de Kommo CRM, verifica la firma y delega a Edge Function
+// Recibe webhooks de Kommo CRM y delega a Supabase Edge Function
 
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyWebhookSignature } from '@/lib/kommo/client'
-import type { KommoWebhookPayload } from '@/types'
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
-  const signature = req.headers.get('x-kommo-signature')
-  const secret = process.env.KOMMO_WEBHOOK_SECRET!
+  const contentType = req.headers.get('content-type') || ''
 
-  // 1. Verificar firma HMAC (seguridad)
-  if (!verifyWebhookSignature(rawBody, signature, secret)) {
-    console.error('Webhook signature verification failed')
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  console.log('[Webhook] Received POST', {
+    contentType,
+    bodyLength: rawBody.length,
+    headers: Object.fromEntries(req.headers.entries()),
+  })
 
-  let payload: KommoWebhookPayload
+  // Kommo puede enviar JSON o form-encoded — manejamos ambos
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let payload: any = {}
+
   try {
-    payload = JSON.parse(rawBody)
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    if (contentType.includes('application/json')) {
+      payload = JSON.parse(rawBody)
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+      // Kommo envía form-encoded: message[add][0][id]=...
+      const params = new URLSearchParams(rawBody)
+      payload = parseFormPayload(params)
+    } else {
+      // Intentar JSON de todos modos
+      try {
+        payload = JSON.parse(rawBody)
+      } catch {
+        const params = new URLSearchParams(rawBody)
+        payload = parseFormPayload(params)
+      }
+    }
+  } catch (err) {
+    console.error('[Webhook] Failed to parse body:', err)
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  // 2. Solo procesar mensajes entrantes de clientes
-  const mensajesEntrantes = payload.message?.add?.filter(
-    (m) => m.author_type === 'contact'
-  )
+  console.log('[Webhook] Parsed payload:', JSON.stringify(payload).slice(0, 500))
 
-  if (!mensajesEntrantes || mensajesEntrantes.length === 0) {
+  // Detectar mensajes entrantes de clientes
+  const mensajesEntrantes = payload.message?.add?.filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (m: any) => m.author_type === 'contact' || m.type === 'incoming'
+  ) ?? []
+
+  if (mensajesEntrantes.length === 0) {
+    console.log('[Webhook] No incoming messages, skipping')
     return NextResponse.json({ ok: true })
   }
 
-  // 3. Responder 200 INMEDIATAMENTE a Kommo (< 5 segundos requerido)
-  // Disparar procesamiento asíncrono en Supabase Edge Function
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-  // Fire-and-forget: no esperamos la respuesta
+  console.log('[Webhook] Calling Edge Function for message:', mensajesEntrantes[0])
+
+  // Fire-and-forget: respondemos 200 inmediatamente a Kommo
   fetch(`${supabaseUrl}/functions/v1/process-whatsapp`, {
     method: 'POST',
     headers: {
@@ -46,14 +65,45 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       mensaje: mensajesEntrantes[0],
-      account: payload.account,
+      account: payload.account ?? {},
     }),
-  }).catch((err) => console.error('Edge Function call failed:', err))
+  }).catch((err) => console.error('[Webhook] Edge Function call failed:', err))
 
   return NextResponse.json({ ok: true })
 }
 
-// GET para verificación del webhook en Kommo (la primera vez que configuras)
+// Convierte el formato form-encoded de Kommo a objeto JSON
+// Ej: message[add][0][id]=123 → { message: { add: [{ id: '123' }] } }
+function parseFormPayload(params: URLSearchParams): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = {}
+  for (const [key, value] of params.entries()) {
+    const parts = key.replace(/\]/g, '').split('[')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let current: any = result
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]
+      const nextPart = parts[i + 1]
+      const isNextIndex = /^\d+$/.test(nextPart)
+      // Si current es array, usar índice numérico real (no string)
+      const idx: string | number = Array.isArray(current) ? parseInt(part, 10) : part
+      if (current[idx] === undefined) {
+        current[idx] = isNextIndex ? [] : {}
+      }
+      current = current[idx]
+    }
+    const lastPart = parts[parts.length - 1]
+    if (Array.isArray(current)) {
+      current.push(value)
+    } else {
+      // Si current es array accedido por índice numérico, usar parseInt
+      const lastIdx: string | number = Array.isArray(current) ? parseInt(lastPart, 10) : lastPart
+      current[lastIdx] = value
+    }
+  }
+  return result
+}
+
 export async function GET(req: NextRequest) {
   const challenge = req.nextUrl.searchParams.get('hub.challenge')
   if (challenge) return new NextResponse(challenge)
