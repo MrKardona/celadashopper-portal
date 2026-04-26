@@ -1,7 +1,7 @@
 // src/app/api/whatsapp/webhook/route.ts
 // Recibe webhooks de Kommo CRM y delega a Supabase Edge Function
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
@@ -56,18 +56,26 @@ export async function POST(req: NextRequest) {
 
   console.log('[Webhook] Calling Edge Function for message:', mensajesEntrantes[0])
 
-  // Fire-and-forget: respondemos 200 inmediatamente a Kommo
-  fetch(`${supabaseUrl}/functions/v1/process-whatsapp`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${serviceKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      mensaje: mensajesEntrantes[0],
-      account: payload.account ?? {},
-    }),
-  }).catch((err) => console.error('[Webhook] Edge Function call failed:', err))
+  // Usar after() para garantizar que el fetch se complete aunque respondamos 200 primero
+  // Esto resuelve el problema de fire-and-forget en serverless (fetch cancelado al terminar)
+  after(async () => {
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/process-whatsapp`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          mensaje: mensajesEntrantes[0],
+          account: payload.account ?? {},
+        }),
+      })
+      console.log('[Webhook] Edge Function responded:', res.status)
+    } catch (err) {
+      console.error('[Webhook] Edge Function call failed:', err)
+    }
+  })
 
   return NextResponse.json({ ok: true })
 }
