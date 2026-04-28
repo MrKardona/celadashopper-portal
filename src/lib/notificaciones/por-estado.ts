@@ -4,10 +4,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const ESTADO_A_EVENTO: Record<string, string> = {
   recibido_usa: 'paquete_recibido_usa',
@@ -30,6 +32,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
   if (!evento) return
 
   try {
+    const supabase = getSupabase()
     // Cargar paquete + perfil del cliente + plantilla en paralelo
     const [paqueteRes, plantillaRes] = await Promise.all([
       supabase

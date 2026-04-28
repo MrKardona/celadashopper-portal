@@ -3,12 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import NavAdmin from '@/components/admin/NavAdmin'
 
-const supabaseAdmin = createAdmin(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseAdmin() {
+  return createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const supabaseAdmin = getSupabaseAdmin()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

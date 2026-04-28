@@ -6,10 +6,12 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 interface Props {
   params: Promise<{ id: string }>
@@ -17,6 +19,7 @@ interface Props {
 
 export async function PATCH(req: NextRequest, { params }: Props) {
   const { id } = await params
+  const supabaseAdmin = getSupabaseAdmin()
 
   // Verificar que el usuario es admin
   const supabase = await createServerClient()

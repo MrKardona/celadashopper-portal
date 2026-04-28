@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 import { Package, Search } from 'lucide-react'
 
 const ESTADOS = [
@@ -26,6 +28,7 @@ interface Props {
 export default async function AdminPaquetesPage({ searchParams }: Props) {
   const params = await searchParams
   const { estado, bodega, q } = params
+  const supabaseAdmin = getSupabaseAdmin()
 
   let query = supabaseAdmin
     .from('paquetes')

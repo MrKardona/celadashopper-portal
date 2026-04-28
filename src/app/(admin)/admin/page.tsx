@@ -1,15 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import { Package, Clock, Plane, AlertTriangle, Users } from 'lucide-react'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 import Link from 'next/link'
 import { ESTADO_LABELS, ESTADO_COLORES } from '@/types'
 
 export default async function AdminDashboard() {
+  const supabase = getSupabaseAdmin()
   const [conteoRes, recientesRes, alertasRes, clientesRes] = await Promise.all([
     // Conteo por estado (solo activos)
     supabase

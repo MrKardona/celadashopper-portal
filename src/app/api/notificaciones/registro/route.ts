@@ -7,10 +7,12 @@ import { createClient } from '@supabase/supabase-js'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
 import { sendEmail } from '@/lib/email/send'
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín',
@@ -150,6 +152,7 @@ function buildEmailHtml(params: {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin()
     // Autenticar usuario
     const supabase = await createServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()

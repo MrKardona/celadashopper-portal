@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 import { Users, Search } from 'lucide-react'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 import { Badge } from '@/components/ui/badge'
 
 interface Props {
@@ -15,6 +17,7 @@ interface Props {
 export default async function AdminClientesPage({ searchParams }: Props) {
   const params = await searchParams
   const { q, ciudad } = params
+  const supabaseAdmin = getSupabaseAdmin()
 
   let query = supabaseAdmin
     .from('perfiles')

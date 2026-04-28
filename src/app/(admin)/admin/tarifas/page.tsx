@@ -1,12 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import TarifasForm from '@/components/admin/TarifasForm'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export default async function AdminTarifasPage() {
+  const supabase = getSupabaseAdmin()
   const { data: tarifas } = await supabase
     .from('categorias_tarifas')
     .select('*')

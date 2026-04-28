@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 import Link from 'next/link'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 import { ArrowLeft, Package, MapPin, Scale, DollarSign, Calendar, Camera } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +26,7 @@ interface Props {
 
 export default async function AdminPaqueteDetalle({ params }: Props) {
   const { id } = await params
+  const supabase = getSupabaseAdmin()
 
   const [paqueteRes, fotosRes, eventosRes] = await Promise.all([
     supabase
