@@ -1,5 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+
+// Cliente admin para leer roles sin que RLS interfiera
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -29,7 +36,7 @@ export async function middleware(request: NextRequest) {
 
   // Rutas publicas
   const publicPaths = ['/login', '/register', '/']
-  const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith('/api/auth'))
+  const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith('/api/auth') || pathname.startsWith('/api/whatsapp'))
 
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url))
@@ -39,9 +46,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Verificar roles para rutas protegidas
+  // Verificar roles para rutas protegidas (service role para saltar RLS)
   if (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente'))) {
-    const { data: perfil } = await supabase
+    const { data: perfil } = await supabaseAdmin
       .from('perfiles')
       .select('rol')
       .eq('id', user.id)

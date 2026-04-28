@@ -93,6 +93,11 @@ export interface TarifaCategoria {
   categoria: CategoriaProducto
   nombre_display: string
   tarifa_por_libra: number
+  precio_fijo?: number
+  tarifa_tipo: 'por_libra' | 'fijo_por_unidad' | 'especial'
+  seguro_porcentaje: number
+  descripcion?: string
+  activo: boolean
 }
 
 export interface Notificacion {

@@ -199,72 +199,88 @@ Escala cuando: paquete dañado, negociación de precios, problemas de pago, clie
       { telefono, cliente_id: perfil?.id || null, rol: 'agente', mensaje: agentResponse.respuesta, accion_ejecutada: agentResponse.accion, escalada: agentResponse.accion === 'escalar' },
     ])
 
-    // 8. Enviar respuesta via Salesbot: guardar en campo "Respuesta Bot" + mover lead a etapa "BOT Listo"
-    // El Salesbot "ENVIAR RESPUESTA CLAUDE" se dispara cuando el lead entra a la etapa BOT Listo
-    // y envía el contenido de {{Respuesta Bot}} por WhatsApp automáticamente
-    const BOT_LISTO_STAGE_ID = 105067216  // Etapa "BOT Listo" en pipeline 10274719
-    const RESPUESTA_BOT_FIELD_ID = 1023745 // Campo personalizado "Respuesta Bot" en leads
+    // 8. Enviar respuesta via Salesbot:
+    // 1) Guardar respuesta en campo "Respuesta Bot" (field_id 1023745)
+    // 2) Mover lead a etapa "BOT Listo" → dispara Salesbot que envía {{leads.cf_1023745}} por WhatsApp
+    const BOT_LISTO_STAGE_ID = 105067216
+    const NUEVA_CONSULTA_STAGE_ID = 78801083
+    const RESPUESTA_BOT_FIELD_ID = 1023745
 
-    console.log('[step8] Buscando lead para contact_id:', mensaje.contact_id)
+    console.log('[step8] Buscando lead via talks API | contact_id:', mensaje.contact_id)
     let enviado = false
+    let leadId: number | undefined
 
+    // Obtener lead via Talks API (más confiable)
     try {
-      // Buscar el lead activo del contacto
-      const leadsRes = await fetch(
-        `https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads?filter[contact_id]=${mensaje.contact_id}&limit=1&order[id]=desc`,
+      const talksRes = await fetch(
+        `https://${KOMMO_DOMAIN}.kommo.com/api/v4/talks?filter[contact_id]=${mensaje.contact_id}&filter[is_in_work]=true&limit=1`,
         { headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}` } }
       )
-      const leadsData = await leadsRes.json()
-      const lead = leadsData?._embedded?.leads?.[0]
-      const leadId = lead?.id
-      const prevStatusId = lead?.status_id
-
-      console.log('[step8] Lead encontrado:', leadId, '| etapa actual:', prevStatusId)
-
-      if (leadId) {
-        // Paso A: Guardar respuesta en campo "Respuesta Bot"
-        const updateRes = await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/${leadId}`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            custom_fields_values: [{
-              field_id: RESPUESTA_BOT_FIELD_ID,
-              values: [{ value: agentResponse.respuesta }],
-            }],
-          }),
-        })
-        console.log('[step8] Campo Respuesta Bot actualizado:', updateRes.status)
-
-        // Paso B: Mover lead a etapa "BOT Listo" — esto dispara el Salesbot
-        const stageRes = await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/${leadId}`, {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            status_id: BOT_LISTO_STAGE_ID,
-            pipeline_id: 10274719,
-          }),
-        })
-        console.log('[step8] Lead movido a BOT Listo:', stageRes.status)
-        if (stageRes.ok) enviado = true
+      const talksData = await talksRes.json()
+      const activeTalk = talksData?._embedded?.talks?.[0]
+      if (activeTalk?.entity_id) {
+        leadId = activeTalk.entity_id
+        console.log('[step8] Lead via talks:', leadId)
       }
     } catch (e) {
-      console.error('[step8] Error moviendo lead:', e)
+      console.error('[step8] Error talks API:', e)
     }
 
-    // Fallback si no encontramos el lead
+    // Fallback: element_id del webhook
+    if (!leadId) {
+      const webhookLeadId = mensaje.element_id || mensaje.entity_id
+      if (webhookLeadId) leadId = parseInt(webhookLeadId as string)
+    }
+
+    if (leadId) {
+      // Paso A: Guardar respuesta en campo "Respuesta Bot"
+      const updateRes = await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          custom_fields_values: [{ field_id: RESPUESTA_BOT_FIELD_ID, values: [{ value: agentResponse.respuesta }] }],
+        }),
+      })
+      console.log('[step8] Campo actualizado:', updateRes.status)
+
+      // Paso B: Si ya está en BOT Listo, reset primero (Salesbot necesita cambio real de etapa)
+      const currentLeadRes = await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/${leadId}`, {
+        headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}` },
+      })
+      const currentLeadData = await currentLeadRes.json()
+      if (currentLeadData?.status_id === BOT_LISTO_STAGE_ID) {
+        console.log('[step8] Reset a Nueva consulta primero')
+        await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/${leadId}`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status_id: NUEVA_CONSULTA_STAGE_ID, pipeline_id: 10274719 }),
+        })
+      }
+
+      // Paso C: Mover a BOT Listo → dispara Salesbot
+      const stageRes = await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status_id: BOT_LISTO_STAGE_ID, pipeline_id: 10274719 }),
+      })
+      console.log('[step8] Movido a BOT Listo:', stageRes.status)
+      if (stageRes.ok) enviado = true
+    }
+
+    // Fallback: nota interna
     if (!enviado) {
-      const entityId = mensaje.entity_id || mensaje.element_id
+      const entityId = leadId || mensaje.entity_id || mensaje.element_id
       if (entityId) {
         await fetch(`https://${KOMMO_DOMAIN}.kommo.com/api/v4/leads/notes`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${KOMMO_API_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify([{
-            entity_id: parseInt(entityId as string),
+            entity_id: Number(entityId),
             note_type: 'common',
             params: { text: `🤖 BOT RESPONDERÍA: ${agentResponse.respuesta}` },
           }]),
         })
-        console.log('[step8] Fallback: nota guardada en lead')
+        console.log('[step8] Fallback nota guardada')
       }
     }
 

@@ -78,6 +78,13 @@ export default function ReportarPage() {
       return
     }
 
+    // Disparar notificaciones (WhatsApp + email) en background — no bloquear UX
+    fetch('/api/notificaciones/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tracking_casilla: data.tracking_casilla }),
+    }).catch(() => {/* Silencioso — la notificación es best-effort */})
+
     setExito({ tracking: data.tracking_casilla })
   }
 

@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   // Cargar tarifas
   const { data: tarifas } = await supabase
     .from('categorias_tarifas')
-    .select('nombre_display, tarifa_por_libra')
+    .select('nombre_display, tarifa_por_libra, precio_fijo, tarifa_tipo')
     .eq('activo', true)
 
   const ahora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' })
@@ -65,7 +65,11 @@ Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU.,
 `
 
   ;(tarifas || []).forEach(t => {
-    doc += `- ${t.nombre_display}: $${t.tarifa_por_libra} USD/lb\n`
+    if (t.tarifa_tipo === 'fijo_por_unidad') {
+      doc += `- ${t.nombre_display}: $${t.precio_fijo} USD fijo por unidad\n`
+    } else {
+      doc += `- ${t.nombre_display}: $${t.tarifa_por_libra} USD/lb\n`
+    }
   })
 
   doc += `\n## ESTADOS DE PAQUETES
