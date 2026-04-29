@@ -40,7 +40,8 @@ function extractMessages(body: KommoWebhookPayload): KommoMessage[] {
     msgs.push({
       lead_id: leadId,
       contact_id: m.contact_id ?? 0,
-      talk_id: m.talk_id,  // ID numérico de la conversación → /api/v4/talks/{id}/messages
+      talk_id: m.talk_id,    // ID numérico de la conversación
+      chat_id: m.chat_id,    // UUID del canal WhatsApp
       text: m.text,
       author_type: m.author?.type ?? 'contact',
       author_id: m.author?.id ?? 0,
@@ -76,9 +77,10 @@ export async function POST(req: NextRequest) {
       const msgText = params.get('message[add][0][text]')
       const authorId = params.get('message[add][0][author_id]')
       const authorType = params.get('message[add][0][author_type]') ?? 'contact'
-      // talk_id = ID numérico de la conversación activa → usar con /api/v4/talks/{id}/messages
-      // chat_id = UUID del canal (no sirve para responder)
+      // talk_id = ID numérico de la conversación activa
+      // chat_id = UUID del canal WhatsApp
       const talkIdNumerico = params.get('message[add][0][talk_id]') ?? undefined
+      const chatIdUUID = params.get('message[add][0][chat_id]') ?? undefined
 
       if (elementId && msgText) {
         body = {
@@ -91,7 +93,8 @@ export async function POST(req: NextRequest) {
                 id: authorId ? parseInt(authorId) : 0,
                 type: authorType,
               },
-              talk_id: talkIdNumerico,  // ID numérico para /api/v4/talks/{id}/messages
+              talk_id: talkIdNumerico,
+              chat_id: chatIdUUID,
             }],
           },
         }

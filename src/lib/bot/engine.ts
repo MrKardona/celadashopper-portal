@@ -11,7 +11,8 @@ import { BOT_CONFIG, ESTADO_TEXTO } from './config'
 export interface KommoMessage {
   lead_id: number
   contact_id: number
-  talk_id?: string
+  talk_id?: string   // ID numérico de la conversación activa (e.g. "9146")
+  chat_id?: string   // UUID del canal WhatsApp (e.g. "5cf5cddc-...")
   text: string
   author_type: string  // 'contact' = cliente, 'user' = agente/bot
   author_id: number
@@ -229,20 +230,44 @@ async function analizarMensaje(texto: string): Promise<ClaudeAnalysis> {
 
 // ── Enviar mensaje por Kommo API ──────────────────────────────
 
-export async function enviarMensajeKommo(leadId: number, texto: string, talkId?: string): Promise<void> {
+export async function enviarMensajeKommo(
+  leadId: number,
+  texto: string,
+  talkId?: string,
+  chatId?: string,
+  contactId?: number
+): Promise<void> {
   const headers = {
     'Authorization': `Bearer ${process.env.KOMMO_API_TOKEN}`,
     'Content-Type': 'application/json',
   }
 
-  // 1. Intentar con /api/v4/talks/{talkId}/messages (conversación activa → sale por WhatsApp)
+  // 1. Chats API con array body (formato estándar de Kommo v4)
+  if (chatId) {
+    const chatRes = await fetch(
+      `https://celadashopper.kommo.com/api/v4/chats/${chatId}/messages`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify([{ text: texto }]),  // array format
+      }
+    )
+    if (chatRes.ok) {
+      console.log(`[bot] Mensaje enviado por chats API (chatId=${chatId}) lead ${leadId}`)
+      return
+    }
+    const chatErr = await chatRes.text()
+    console.warn(`[bot] Chats API (array) falló (${chatRes.status}): ${chatErr.slice(0, 300)}`)
+  }
+
+  // 2. Talks API con body plano
   if (talkId) {
     const talksRes = await fetch(
       `https://celadashopper.kommo.com/api/v4/talks/${talkId}/messages`,
       {
         method: 'POST',
         headers,
-        body: JSON.stringify({ text: texto }),
+        body: JSON.stringify([{ text: texto }]),
       }
     )
     if (talksRes.ok) {
@@ -250,45 +275,50 @@ export async function enviarMensajeKommo(leadId: number, texto: string, talkId?:
       return
     }
     const talksErr = await talksRes.text()
-    console.warn(`[bot] Talks API falló (${talksRes.status}): ${talksErr.slice(0, 200)}`)
+    console.warn(`[bot] Talks API falló (${talksRes.status}): ${talksErr.slice(0, 300)}`)
   }
 
-  // 2. Fallback: endpoint de mensajes del lead
-  const res = await fetch(
-    `https://celadashopper.kommo.com/api/v4/leads/${leadId}/messages`,
-    {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ text: texto }),
+  // 3. Contacts messages endpoint
+  if (contactId) {
+    const contactRes = await fetch(
+      `https://celadashopper.kommo.com/api/v4/contacts/${contactId}/messages`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify([{ text: texto }]),
+      }
+    )
+    if (contactRes.ok) {
+      console.log(`[bot] Mensaje enviado por contacts (contactId=${contactId}) lead ${leadId}`)
+      return
     }
-  )
-
-  if (res.ok) {
-    console.log(`[bot] Mensaje enviado vía lead messages lead ${leadId}`)
-    return
+    const contactErr = await contactRes.text()
+    console.warn(`[bot] Contacts API falló (${contactRes.status}): ${contactErr.slice(0, 300)}`)
   }
 
-  const err = await res.text()
-  console.error(`[bot] Error enviando mensaje Kommo lead ${leadId}:`, err)
-
-  // 3. Último fallback: nota en el CRM
-  await fetch(
+  // 4. Último fallback: nota en el CRM (visible en Kommo, no llega por WhatsApp)
+  const noteRes = await fetch(
     `https://celadashopper.kommo.com/api/v4/leads/${leadId}/notes`,
     {
       method: 'POST',
       headers,
-      body: JSON.stringify({
+      body: JSON.stringify([{
         note_type: 'common',
-        params: { text: `[BOT] ${texto}` },
-      }),
+        params: { text: `[BOT→WhatsApp pending] ${texto}` },
+      }]),
     }
   )
+  if (noteRes.ok) {
+    console.warn(`[bot] Solo se guardó nota CRM (no WhatsApp) lead ${leadId}`)
+  } else {
+    console.error(`[bot] Hasta la nota falló lead ${leadId}:`, await noteRes.text())
+  }
 }
 
 // ── Motor principal: procesar un mensaje entrante ─────────────
 
 export async function procesarMensaje(msg: KommoMessage): Promise<void> {
-  const { lead_id, contact_id, talk_id, text, author_type, author_id } = msg
+  const { lead_id, contact_id, talk_id, chat_id, text, author_type, author_id } = msg
 
   // 1. Ignorar mensajes propios del bot/agentes para evitar loops
   if (author_type === 'user') return
@@ -299,8 +329,8 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
 
   console.log(`[bot] Mensaje lead ${lead_id} talk ${talk_id}: "${texto.slice(0, 80)}"`)
 
-  // Helper: enviar respuesta usando el talkId cuando esté disponible
-  const enviar = (respuesta: string) => enviarMensajeKommo(lead_id, respuesta, talk_id)
+  // Helper: enviar respuesta probando todos los canales disponibles
+  const enviar = (respuesta: string) => enviarMensajeKommo(lead_id, respuesta, talk_id, chat_id, contact_id)
 
   // 2. Buscar cliente en Supabase
   const cliente = await buscarCliente(contact_id)
