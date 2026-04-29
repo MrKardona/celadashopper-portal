@@ -235,22 +235,22 @@ export async function enviarMensajeKommo(leadId: number, texto: string, talkId?:
     'Content-Type': 'application/json',
   }
 
-  // 1. Intentar con el endpoint de chats (sale por WhatsApp cuando hay talkId)
+  // 1. Intentar con /api/v4/talks/{talkId}/messages (conversación activa → sale por WhatsApp)
   if (talkId) {
-    const chatRes = await fetch(
-      `https://celadashopper.kommo.com/api/v4/chats/${talkId}/messages`,
+    const talksRes = await fetch(
+      `https://celadashopper.kommo.com/api/v4/talks/${talkId}/messages`,
       {
         method: 'POST',
         headers,
         body: JSON.stringify({ text: texto }),
       }
     )
-    if (chatRes.ok) {
-      console.log(`[bot] Mensaje enviado por chat (talkId=${talkId}) lead ${leadId}`)
+    if (talksRes.ok) {
+      console.log(`[bot] Mensaje enviado por talks (talkId=${talkId}) lead ${leadId}`)
       return
     }
-    const chatErr = await chatRes.text()
-    console.warn(`[bot] Chat API falló (${chatRes.status}): ${chatErr.slice(0, 200)}`)
+    const talksErr = await talksRes.text()
+    console.warn(`[bot] Talks API falló (${talksRes.status}): ${talksErr.slice(0, 200)}`)
   }
 
   // 2. Fallback: endpoint de mensajes del lead
