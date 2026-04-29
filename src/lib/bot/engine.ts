@@ -229,6 +229,24 @@ async function analizarMensaje(texto: string): Promise<ClaudeAnalysis> {
 }
 
 // ── Enviar mensaje por Kommo API ──────────────────────────────
+// Estrategia (en orden de prioridad):
+// 1. POST /api/v4/chats/{uuid}/messages (body objeto JSON)
+// 2. POST /api/v4/talks/{numeric}/reply  (endpoint alternativo)
+// 3. POST /api/v4/chats/{uuid}/messages (body array)
+// 4. POST /api/v4/leads/{id}/talks       (crear/continuar talk)
+// 5. POST nota CRM como fallback visible
+
+async function logChatInfo(chatId: string, authHeader: string): Promise<void> {
+  try {
+    const r = await fetch(`https://celadashopper.kommo.com/api/v4/chats/${chatId}`, {
+      headers: { Authorization: authHeader },
+    })
+    const body = await r.text()
+    console.log(`[bot] GET chat/${chatId}: status=${r.status} body=${body.slice(0, 400)}`)
+  } catch (e) {
+    console.log(`[bot] GET chat info error: ${e}`)
+  }
+}
 
 export async function enviarMensajeKommo(
   leadId: number,
@@ -237,81 +255,85 @@ export async function enviarMensajeKommo(
   chatId?: string,
   contactId?: number
 ): Promise<void> {
+  const token = process.env.KOMMO_API_TOKEN
+  const authHeader = `Bearer ${token}`
   const headers = {
-    'Authorization': `Bearer ${process.env.KOMMO_API_TOKEN}`,
+    'Authorization': authHeader,
     'Content-Type': 'application/json',
   }
 
-  // 1. Chats API con array body (formato estándar de Kommo v4)
+  console.log(`[bot] enviar → lead=${leadId} talk=${talkId} chat=${chatId} contact=${contactId}`)
+
+  // ── Diagnóstico rápido: ver qué devuelve GET /chats/{uuid} ──────────────
   if (chatId) {
-    const chatRes = await fetch(
+    await logChatInfo(chatId, authHeader)
+  }
+
+  // ── Intento 1: POST /chats/{uuid}/messages con body OBJETO ──────────────
+  if (chatId) {
+    const body1 = JSON.stringify({ text: texto })
+    const r1 = await fetch(
       `https://celadashopper.kommo.com/api/v4/chats/${chatId}/messages`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify([{ text: texto }]),  // array format
-      }
+      { method: 'POST', headers, body: body1 }
     )
-    if (chatRes.ok) {
-      console.log(`[bot] Mensaje enviado por chats API (chatId=${chatId}) lead ${leadId}`)
-      return
-    }
-    const chatErr = await chatRes.text()
-    console.warn(`[bot] Chats API (array) falló (${chatRes.status}): ${chatErr.slice(0, 300)}`)
+    const t1 = await r1.text()
+    console.log(`[bot] chats/obj → ${r1.status}: ${t1.slice(0, 300)}`)
+    if (r1.ok) return
   }
 
-  // 2. Talks API con body plano
+  // ── Intento 2: POST /chats/{uuid}/messages con body ARRAY ───────────────
+  if (chatId) {
+    const body2 = JSON.stringify([{ text: texto }])
+    const r2 = await fetch(
+      `https://celadashopper.kommo.com/api/v4/chats/${chatId}/messages`,
+      { method: 'POST', headers, body: body2 }
+    )
+    const t2 = await r2.text()
+    console.log(`[bot] chats/arr → ${r2.status}: ${t2.slice(0, 300)}`)
+    if (r2.ok) return
+  }
+
+  // ── Intento 3: POST /talks/{numeric}/messages con body OBJETO ───────────
   if (talkId) {
-    const talksRes = await fetch(
+    const body3 = JSON.stringify({ text: texto })
+    const r3 = await fetch(
       `https://celadashopper.kommo.com/api/v4/talks/${talkId}/messages`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify([{ text: texto }]),
-      }
+      { method: 'POST', headers, body: body3 }
     )
-    if (talksRes.ok) {
-      console.log(`[bot] Mensaje enviado por talks (talkId=${talkId}) lead ${leadId}`)
-      return
-    }
-    const talksErr = await talksRes.text()
-    console.warn(`[bot] Talks API falló (${talksRes.status}): ${talksErr.slice(0, 300)}`)
+    const t3 = await r3.text()
+    console.log(`[bot] talks/obj → ${r3.status}: ${t3.slice(0, 300)}`)
+    if (r3.ok) return
   }
 
-  // 3. Contacts messages endpoint
-  if (contactId) {
-    const contactRes = await fetch(
-      `https://celadashopper.kommo.com/api/v4/contacts/${contactId}/messages`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify([{ text: texto }]),
-      }
+  // ── Intento 4: POST /leads/{id}/talks (crear mensaje saliente en talk) ───
+  if (talkId || chatId) {
+    const body4 = JSON.stringify({
+      talk_id: talkId ? parseInt(talkId) : undefined,
+      chat_id: chatId,
+      text: texto,
+    })
+    const r4 = await fetch(
+      `https://celadashopper.kommo.com/api/v4/leads/${leadId}/talks`,
+      { method: 'POST', headers, body: body4 }
     )
-    if (contactRes.ok) {
-      console.log(`[bot] Mensaje enviado por contacts (contactId=${contactId}) lead ${leadId}`)
-      return
-    }
-    const contactErr = await contactRes.text()
-    console.warn(`[bot] Contacts API falló (${contactRes.status}): ${contactErr.slice(0, 300)}`)
+    const t4 = await r4.text()
+    console.log(`[bot] leads/talks → ${r4.status}: ${t4.slice(0, 300)}`)
+    if (r4.ok) return
   }
 
-  // 4. Último fallback: nota en el CRM (visible en Kommo, no llega por WhatsApp)
-  const noteRes = await fetch(
+  // ── Intento 5: nota CRM (visible en Kommo, NO llega al cliente por WA) ──
+  const noteBody = JSON.stringify([{
+    note_type: 'common',
+    params: { text: `🤖 BOT (envío WA pendiente): ${texto}` },
+  }])
+  const rNote = await fetch(
     `https://celadashopper.kommo.com/api/v4/leads/${leadId}/notes`,
-    {
-      method: 'POST',
-      headers,
-      body: JSON.stringify([{
-        note_type: 'common',
-        params: { text: `[BOT→WhatsApp pending] ${texto}` },
-      }]),
-    }
+    { method: 'POST', headers, body: noteBody }
   )
-  if (noteRes.ok) {
-    console.warn(`[bot] Solo se guardó nota CRM (no WhatsApp) lead ${leadId}`)
+  if (rNote.ok) {
+    console.warn(`[bot] ⚠️ Solo nota CRM (no WhatsApp) lead=${leadId}. Revisar logs para corregir endpoint.`)
   } else {
-    console.error(`[bot] Hasta la nota falló lead ${leadId}:`, await noteRes.text())
+    console.error(`[bot] ❌ Hasta nota falló lead=${leadId}:`, await rNote.text())
   }
 }
 
