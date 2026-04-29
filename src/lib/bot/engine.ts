@@ -229,45 +229,66 @@ async function analizarMensaje(texto: string): Promise<ClaudeAnalysis> {
 
 // ── Enviar mensaje por Kommo API ──────────────────────────────
 
-export async function enviarMensajeKommo(leadId: number, texto: string): Promise<void> {
-  // Intentar enviar como mensaje del chat (sale por WhatsApp)
+export async function enviarMensajeKommo(leadId: number, texto: string, talkId?: string): Promise<void> {
+  const headers = {
+    'Authorization': `Bearer ${process.env.KOMMO_API_TOKEN}`,
+    'Content-Type': 'application/json',
+  }
+
+  // 1. Intentar con el endpoint de chats (sale por WhatsApp cuando hay talkId)
+  if (talkId) {
+    const chatRes = await fetch(
+      `https://celadashopper.kommo.com/api/v4/chats/${talkId}/messages`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text: texto }),
+      }
+    )
+    if (chatRes.ok) {
+      console.log(`[bot] Mensaje enviado por chat (talkId=${talkId}) lead ${leadId}`)
+      return
+    }
+    const chatErr = await chatRes.text()
+    console.warn(`[bot] Chat API falló (${chatRes.status}): ${chatErr.slice(0, 200)}`)
+  }
+
+  // 2. Fallback: endpoint de mensajes del lead
   const res = await fetch(
     `https://celadashopper.kommo.com/api/v4/leads/${leadId}/messages`,
     {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.KOMMO_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ text: texto }),
     }
   )
 
-  if (!res.ok) {
-    const err = await res.text()
-    console.error(`[bot] Error enviando mensaje Kommo lead ${leadId}:`, err)
-    // Fallback: agregar como nota visible en el lead
-    await fetch(
-      `https://celadashopper.kommo.com/api/v4/leads/${leadId}/notes`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.KOMMO_API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          note_type: 'common',
-          params: { text: `[BOT] ${texto}` },
-        }),
-      }
-    )
+  if (res.ok) {
+    console.log(`[bot] Mensaje enviado vía lead messages lead ${leadId}`)
+    return
   }
+
+  const err = await res.text()
+  console.error(`[bot] Error enviando mensaje Kommo lead ${leadId}:`, err)
+
+  // 3. Último fallback: nota en el CRM
+  await fetch(
+    `https://celadashopper.kommo.com/api/v4/leads/${leadId}/notes`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        note_type: 'common',
+        params: { text: `[BOT] ${texto}` },
+      }),
+    }
+  )
 }
 
 // ── Motor principal: procesar un mensaje entrante ─────────────
 
 export async function procesarMensaje(msg: KommoMessage): Promise<void> {
-  const { lead_id, contact_id, text, author_type, author_id } = msg
+  const { lead_id, contact_id, talk_id, text, author_type, author_id } = msg
 
   // 1. Ignorar mensajes propios del bot/agentes para evitar loops
   if (author_type === 'user') return
@@ -276,14 +297,17 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
   const texto = text?.trim()
   if (!texto || texto.length < 2) return
 
-  console.log(`[bot] Mensaje lead ${lead_id}: "${texto.slice(0, 80)}"`)
+  console.log(`[bot] Mensaje lead ${lead_id} talk ${talk_id}: "${texto.slice(0, 80)}"`)
+
+  // Helper: enviar respuesta usando el talkId cuando esté disponible
+  const enviar = (respuesta: string) => enviarMensajeKommo(lead_id, respuesta, talk_id)
 
   // 2. Buscar cliente en Supabase
   const cliente = await buscarCliente(contact_id)
 
   // 3. Detectar keywords rápidas (sin gastar API de Claude)
   if (contieneKeyword(texto, BOT_CONFIG.escalarSiDice)) {
-    await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.escalarHumano)
+    await enviar(BOT_CONFIG.mensajes.escalarHumano)
     return
   }
 
@@ -292,11 +316,9 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
   const hace5min = Date.now() - 5 * 60 * 1000
 
   if (pendiente && pendiente.timestamp > hace5min) {
-    // El cliente está respondiendo a una solicitud de confirmación
     const analisis = await analizarMensaje(texto)
 
     if (analisis.intencion === 'confirmacion' && analisis.confirmacion_positiva) {
-      // Confirma → guardar pre-alerta
       if (cliente) {
         const ok = await crearPreAlerta(
           cliente.id,
@@ -307,7 +329,7 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
         )
         if (ok) {
           pendienteConfirmacion.delete(lead_id)
-          await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.trackingGuardado, {
+          await enviar(render(BOT_CONFIG.mensajes.trackingGuardado, {
             tracking: pendiente.tracking,
             tienda: pendiente.tienda || 'No especificada',
           }))
@@ -315,23 +337,21 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
         }
       }
     } else if (analisis.intencion === 'confirmacion' && analisis.confirmacion_positiva === false) {
-      // Cancela
       pendienteConfirmacion.delete(lead_id)
-      await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.trackingCancelado)
+      await enviar(BOT_CONFIG.mensajes.trackingCancelado)
       return
     }
-    // Si no fue una confirmación clara, continúa con análisis normal
   }
 
   // 5. Keywords rápidas para ver paquetes y casilla
   if (contieneKeyword(texto, BOT_CONFIG.verPaquetesSiDice)) {
     if (!cliente) {
-      await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.clienteNoEncontrado)
+      await enviar(BOT_CONFIG.mensajes.clienteNoEncontrado)
       return
     }
     const paquetes = await getPaquetesCliente(cliente.id)
     if (paquetes.length === 0) {
-      await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.sinPaquetes)
+      await enviar(BOT_CONFIG.mensajes.sinPaquetes)
       return
     }
     const lista = paquetes.map(p => render(BOT_CONFIG.mensajes.unPaquete, {
@@ -341,16 +361,16 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
       costo: p.factura_pagada ? '✅ Pagado' : `$${p.costo_servicio} USD pendiente`,
       fecha: new Date(p.updated_at).toLocaleDateString('es-CO'),
     })).join('\n\n')
-    await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.paquetesActivos, { lista_paquetes: lista }))
+    await enviar(render(BOT_CONFIG.mensajes.paquetesActivos, { lista_paquetes: lista }))
     return
   }
 
   if (contieneKeyword(texto, BOT_CONFIG.casillaSiDice)) {
     if (!cliente) {
-      await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.clienteNoEncontrado)
+      await enviar(BOT_CONFIG.mensajes.clienteNoEncontrado)
       return
     }
-    await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.casilla, {
+    await enviar(render(BOT_CONFIG.mensajes.casilla, {
       casilla: cliente.numero_casilla,
       direccion_bodega: process.env.CELADASHOPPER_USA_ADDRESS ?? '8164 NW 108TH PL, Doral, FL 33178',
     }))
@@ -366,7 +386,6 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     const tienda = analisis.tienda ?? 'No especificada'
     const descripcion = analisis.descripcion ?? 'Sin descripción'
 
-    // Guardar en memoria esperando confirmación
     pendienteConfirmacion.set(lead_id, {
       tracking,
       tienda,
@@ -375,29 +394,21 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     })
 
     if (analisis.tienda || analisis.descripcion) {
-      // Tenemos suficiente info → pedir confirmación completa
-      await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.confirmacionTracking, {
-        tracking,
-        tienda,
-        descripcion,
-      }))
+      await enviar(render(BOT_CONFIG.mensajes.confirmacionTracking, { tracking, tienda, descripcion }))
     } else {
-      // Solo tenemos el tracking → pedir más info
-      await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.confirmacionTrackingSolo, {
-        tracking,
-      }))
+      await enviar(render(BOT_CONFIG.mensajes.confirmacionTrackingSolo, { tracking }))
     }
     return
   }
 
   if (analisis.intencion === 'ver_paquetes') {
     if (!cliente) {
-      await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.clienteNoEncontrado)
+      await enviar(BOT_CONFIG.mensajes.clienteNoEncontrado)
       return
     }
     const paquetes = await getPaquetesCliente(cliente.id)
     if (paquetes.length === 0) {
-      await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.sinPaquetes)
+      await enviar(BOT_CONFIG.mensajes.sinPaquetes)
       return
     }
     const lista = paquetes.map(p => render(BOT_CONFIG.mensajes.unPaquete, {
@@ -407,23 +418,23 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
       costo: p.factura_pagada ? '✅ Pagado' : `$${p.costo_servicio} USD pendiente`,
       fecha: new Date(p.updated_at).toLocaleDateString('es-CO'),
     })).join('\n\n')
-    await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.paquetesActivos, { lista_paquetes: lista }))
+    await enviar(render(BOT_CONFIG.mensajes.paquetesActivos, { lista_paquetes: lista }))
     return
   }
 
   if (analisis.intencion === 'escalar') {
-    await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.escalarHumano)
+    await enviar(BOT_CONFIG.mensajes.escalarHumano)
     return
   }
 
   // 7. Primer contacto sin cliente registrado
   if (!cliente) {
-    await enviarMensajeKommo(lead_id, BOT_CONFIG.mensajes.pedirNombre)
+    await enviar(BOT_CONFIG.mensajes.pedirNombre)
     return
   }
 
   // 8. No entendió
-  await enviarMensajeKommo(lead_id, render(BOT_CONFIG.mensajes.noEntendi, {
+  await enviar(render(BOT_CONFIG.mensajes.noEntendi, {
     nombre: cliente.nombre_completo.split(' ')[0],
   }))
 }
