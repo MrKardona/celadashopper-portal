@@ -12,111 +12,180 @@ export const BOT_CONFIG = {
   // {estado}, {costo} como variables dinámicas
   mensajes: {
 
-    bienvenida: `¡Hola {nombre}! 👋 Soy el asistente de *CeladaShopper*.
+    // Primer contacto: saludo sin pedir datos
+    bienvenida: `¡Hola! 👋 Bienvenido a *CeladaShopper*.
 
-Puedo ayudarte con:
-📦 Ver el estado de tus paquetes
-🔔 Registrar un nuevo pedido (pre-alerta)
-📍 Consultar tu número de casilla
+Soy tu asistente virtual y estoy aquí para ayudarte con tus envíos desde EE.UU. 🇺🇸📦
 
-¿En qué te ayudo hoy?`,
+¿En qué te puedo ayudar hoy?`,
 
-    pedirNombre: `¡Hola! 👋 Soy el asistente de *CeladaShopper*.
-Para ayudarte mejor, ¿cuál es tu nombre o correo registrado?`,
+    // Saludo cuando ya conocemos al cliente
+    bienvenidaConNombre: `¡Hola, {nombre}! 👋 Qué gusto saludarte.
 
-    confirmacionTracking: `¿Confirmas este pedido?
+¿En qué te puedo ayudar hoy?`,
+
+    // Se pide identificación SOLO cuando el cliente ya expresó qué quiere
+    // pero no está registrado o no lo encontramos
+    pedirIdentificacion: `Para consultar esa información necesito encontrar tu cuenta 🔍
+
+¿Me puedes dar el correo o número de teléfono con el que te registraste en CeladaShopper?`,
+
+    clienteNoEncontrado: `No encontré ninguna cuenta con esos datos 🤔
+
+Verifica que el correo o teléfono sea el mismo con el que te registraste. Si aún no tienes cuenta puedes crearla en:
+🌐 *portal.celadashopper.com*
+
+¿Quieres que te conecte con un asesor para ayudarte?`,
+
+    // Confirmación de tracking
+    confirmacionTracking: `Encontré este pedido, ¿lo confirmo? 📋
 
 📦 *Tienda:* {tienda}
 🔢 *Tracking:* {tracking}
 📝 *Descripción:* {descripcion}
 
-Responde *sí* para guardar o *no* para cancelar.`,
+Responde *sí* para registrarlo o *no* para cancelar.`,
 
     confirmacionTrackingSolo: `Encontré este número de tracking:
 🔢 *{tracking}*
 
-¿Es de alguna de estas tiendas? Escríbela o dime el nombre del producto para registrarlo.`,
+¿De qué tienda es y qué compraste? Así lo registro correctamente en tu cuenta.`,
 
-    trackingGuardado: `✅ ¡Pre-alerta registrada con éxito!
+    trackingGuardado: `✅ ¡Listo! Tu pre-alerta quedó registrada.
 
 🔢 *Tracking:* {tracking}
 📦 *Tienda:* {tienda}
 
-Te avisamos por aquí en cuanto llegue a nuestra bodega en Miami. 🏭`,
+En cuanto tu paquete llegue a nuestra bodega en Miami te aviso por aquí. ¡Cualquier cosa me escribes! 😊`,
 
-    trackingCancelado: `Entendido, no se guardó ningún pedido.
-Si necesitas registrarlo después, solo mándame el tracking. 👍`,
+    trackingCancelado: `Listo, no se guardó nada. Cuando quieras registrarlo solo mándame el tracking y listo 👍`,
 
-    paquetesActivos: `📦 *Tus paquetes activos:*
+    // Lista de paquetes
+    paquetesActivos: `Aquí están tus paquetes activos 📦
 
 {lista_paquetes}
 
-Si tienes alguna duda de algún paquete, escríbeme su tracking.`,
+Si tienes dudas sobre alguno escríbeme el número de tracking.`,
 
-    unPaquete: `📦 *{tracking}* — {tienda}
-📍 Estado: *{estado}*
-💰 Costo: {costo}
-🕐 Actualizado: {fecha}`,
+    unPaquete: `▫️ *{tracking}* — {tienda}
+   📍 {estado}
+   💰 {costo}
+   🕐 {fecha}`,
 
-    sinPaquetes: `No encontré paquetes activos en tu cuenta. 😊
+    sinPaquetes: `No tienes paquetes activos por el momento 😊
 
-Si ya hiciste un pedido, puedes registrar el tracking aquí mismo. Solo cópialo y pégalo.`,
+Si ya hiciste una compra en EE.UU. puedes registrar el tracking aquí mismo y nosotros hacemos el resto.`,
 
-    clienteNoEncontrado: `No encontré tu cuenta en nuestro sistema. 🤔
-
-¿Estás registrado en CeladaShopper? Si no tienes cuenta, puedes crearla en:
-🌐 portal.celadashopper.com`,
-
-    escalarHumano: `Entendido, te conecto con uno de nuestros asesores ahora mismo. 🙋
-
-Un momento por favor...`,
-
-    noEntendi: `No entendí bien tu mensaje 😅
-
-Puedes decirme:
-• Tu número de *tracking* para registrar un pedido
-• *"mis paquetes"* para ver el estado de tus envíos
-• *"asesor"* para hablar con una persona
-• *"casilla"* para ver tu número de casilla`,
-
+    // Casilla
     casilla: `Tu número de casilla es: *{casilla}* 📫
 
-Úsalo como dirección de entrega en tus compras en EE.UU.:
-📍 {direccion_bodega}
-Suite/Apt: {casilla}`,
+Úsala como dirección de entrega cuando compres en EE.UU.:
+
+📍 *8164 NW 108TH PL*
+*Doral, FL 33178*
+*Suite {casilla}*
+
+Cópiala tal como está en el formulario de la tienda. Si la tienda pide nombre de empresa puedes poner *CeladaShopper*. ¿Necesitas ayuda con algo más?`,
+
+    // Escalación
+    escalarHumano: `Claro, te conecto con uno de nuestros asesores ahora mismo 🙋‍♂️
+
+Un momento por favor, enseguida te atienden...`,
+
+    // No entendió
+    noEntendi: `Mmm, no entendí bien ese mensaje 😅
+
+Te cuento lo que puedo hacer:
+📦 *Ver tus paquetes* — solo escríbeme "mis paquetes"
+🔔 *Registrar un envío* — mándame el número de tracking
+📍 *Tu casilla* — escríbeme "mi casilla"
+🙋 *Hablar con un asesor* — escríbeme "asesor"
+
+¿En qué te puedo ayudar?`,
+
+    // Preguntas frecuentes
+    costoEnvio: `El costo del servicio depende del peso y dimensiones del paquete 📏
+
+Nuestra tarifa base es por libra. Para cotizaciones exactas escríbenos o consulta en:
+🌐 *portal.celadashopper.com*
+
+¿Quieres que te conecte con un asesor para una cotización?`,
+
+    tiempoEntrega: `El tiempo estimado de entrega desde que recibimos tu paquete en Miami es:
+
+✈️ *5 a 10 días hábiles* aproximadamente, dependiendo de aduana y transportadora.
+
+¿Tienes algún paquete específico del que quieras saber el estado?`,
+
+    comoFunciona: `¡Te explico cómo funciona CeladaShopper! 🛍️
+
+1️⃣ *Compras* en cualquier tienda de EE.UU. online
+2️⃣ *Usas tu casilla* como dirección de envío en Miami
+3️⃣ *Nosotros recibimos* tu paquete en nuestra bodega
+4️⃣ *Te avisamos* cuando llega y lo enviamos a Colombia
+5️⃣ *Recibes* tu paquete en casa 🏠
+
+¿Tienes cuenta con nosotros? Si no, créala gratis en *portal.celadashopper.com*`,
   },
 
   // ── PALABRAS QUE ESCALAN A UN AGENTE HUMANO ───────────────
-  // Si el cliente escribe alguna de estas, el bot transfiere a un asesor
   escalarSiDice: [
-    'asesor', 'agente', 'humano', 'persona', 'ayuda urgente',
-    'problema', 'reclamo', 'queja', 'perdido', 'perdio', 'perdió',
-    'daño', 'dañado', 'roto', 'error', 'devolucion', 'devolución',
-    'reembolso', 'fraude', 'robo', 'urgente',
+    'asesor', 'agente', 'humano', 'persona', 'quiero hablar',
+    'hablar con alguien', 'ayuda urgente', 'urgente',
+    'reclamo', 'queja', 'perdido', 'perdio', 'perdió', 'se perdio', 'se perdió',
+    'daño', 'dañado', 'roto', 'averiado',
+    'devolucion', 'devolución', 'reembolso', 'devolver',
+    'fraude', 'robo', 'estafa',
+    'no llega', 'no ha llegado', 'nunca llego', 'nunca llegó',
   ],
 
   // ── PALABRAS QUE MUESTRAN ESTADO DE PAQUETES ──────────────
   verPaquetesSiDice: [
-    'mis paquetes', 'mis pedidos', 'estado', 'donde esta', 'dónde está',
-    'cuando llega', 'cuándo llega', 'rastreo', 'seguimiento',
-    'mis envios', 'mis envíos', 'ver paquetes', 'que tengo',
-    'qué tengo', 'mis compras',
+    'mis paquetes', 'mis pedidos', 'mis envios', 'mis envíos',
+    'estado', 'estados', 'donde esta', 'dónde está', 'donde estan', 'dónde están',
+    'cuando llega', 'cuándo llega', 'cuando llegan', 'cuándo llegan',
+    'rastreo', 'seguimiento', 'tracking', 'rastrar', 'rastrear',
+    'ver paquetes', 'ver pedidos', 'que tengo', 'qué tengo',
+    'mis compras', 'lo mio', 'lo mío', 'mis cosas',
   ],
 
   // ── PALABRAS QUE MUESTRAN LA CASILLA ──────────────────────
   casillaSiDice: [
-    'casilla', 'casillero', 'mi casilla', 'mi numero', 'mi número',
-    'direccion', 'dirección', 'direccion bodega', 'address',
+    'casilla', 'casillero', 'mi casilla', 'mi casillero',
+    'mi numero', 'mi número', 'numero de casilla', 'número de casilla',
+    'direccion', 'dirección', 'mi direccion', 'mi dirección',
+    'bodega', 'direccion bodega', 'address', 'donde envio', 'dónde envío',
+    'donde mando', 'dónde mando', 'a donde envio', 'adonde mando',
+  ],
+
+  // ── PALABRAS SOBRE CÓMO FUNCIONA EL SERVICIO ──────────────
+  comoFuncionaSiDice: [
+    'como funciona', 'cómo funciona', 'como es', 'cómo es',
+    'que es celadashopper', 'qué es celadashopper',
+    'como puedo', 'cómo puedo', 'que hacen', 'qué hacen',
+    'me explicas', 'explicame', 'explícame',
+    'que es esto', 'qué es esto',
+  ],
+
+  // ── PALABRAS SOBRE TIEMPOS / COSTOS ───────────────────────
+  tiempoSiDice: [
+    'cuanto demora', 'cuánto demora', 'cuanto tarda', 'cuánto tarda',
+    'dias', 'días', 'semanas', 'tiempo de entrega', 'tiempo envio',
+    'cuando me llega', 'cuándo me llega',
+  ],
+
+  costoSiDice: [
+    'cuanto cuesta', 'cuánto cuesta', 'cuanto vale', 'cuánto vale',
+    'precio', 'tarifa', 'tarifas', 'costo', 'costos', 'cobran',
+    'cuanto cobran', 'cuánto cobran', 'valor del envio', 'valor envío',
   ],
 
   // ── CONFIGURACIÓN GENERAL ─────────────────────────────────
   config: {
     // ID del usuario de Kommo que aparece como remitente del bot
-    // (se obtiene del token JWT: sub = 12515183)
     kommoUserId: 12515183,
 
     // Máxima similitud para fuzzy matching de trackings (0-1)
-    // 0.8 = acepta hasta 20% de diferencia en caracteres
     fuzzyThreshold: 0.8,
 
     // Si el bot no reconoce el mensaje después de estos intentos,
@@ -124,45 +193,59 @@ Suite/Apt: {casilla}`,
     maxIntentosSinEntender: 2,
 
     // ── ESCALACIÓN A ASESOR HUMANO ───────────────────────────
-    // ID del pipeline principal "Embudo de ventas"
     kommoPipelineId: 10274719,
-    // ID de la etapa "Nueva consulta" → donde cae cuando pide asesor
+    // Etapa "Nueva consulta" → donde cae cuando pide asesor
     kommoStatusEscalacion: 78801083,
-    // ID del asesor humano (Stiven Cardona) que recibe los leads escalados
+    // Asesor humano (Stiven Cardona)
     kommoAsesorId: 12607411,
   },
 
-  // ── PROMPT DE CLAUDE (el cerebro del análisis) ────────────
-  // Puedes ajustar las instrucciones aquí para afinar el comportamiento
-  promptSistema: `Eres el asistente de análisis de mensajes para CeladaShopper,
-un servicio de casillero USA→Colombia. Tu ÚNICA función es analizar
-el mensaje de un cliente y retornar un JSON estructurado.
+  // ── PROMPT DE CLAUDE ──────────────────────────────────────
+  // Claude solo clasifica la intención, NO genera respuestas.
+  // Las respuestas están arriba en "mensajes".
+  promptSistema: `Eres el asistente de análisis de mensajes de CeladaShopper.
 
-TIPOS DE TRACKING VÁLIDOS (ejemplos de formato):
-- UPS: 1Z999AA10123456784
-- FedEx: 774899172137 o 9261290100130736401
-- USPS: 9400111899223397808498 o 9261290100130736401
-- DHL: 1234567890
-- Amazon: TBA123456789000
-- Shopify/tiendas: cualquier alfanumérico de 8+ caracteres
+SOBRE CELADASHOPPER:
+CeladaShopper es un servicio de casillero (mailbox forwarding) de EE.UU. a Colombia.
+Los clientes compran productos en tiendas online de EE.UU., usan su número de casilla
+como dirección de envío en Miami (8164 NW 108TH PL, Doral FL 33178, Suite [número]),
+y CeladaShopper recibe, consolida y envía los paquetes a Colombia.
+Los clientes pueden registrar "pre-alertas" (avisar que viene un paquete) con el tracking number.
+
+TU ÚNICA FUNCIÓN es analizar el mensaje del cliente y retornar un JSON estructurado.
+Hablan principalmente en español colombiano, a veces informal.
+
+INTENCIONES POSIBLES:
+- "tracking": el mensaje contiene un número de tracking para registrar un paquete
+- "ver_paquetes": quiere saber el estado de sus envíos/paquetes
+- "casilla": pregunta por su número de casilla o dirección de envío en USA
+- "escalar": quiere hablar con una persona o tiene un problema/queja
+- "confirmacion": está respondiendo sí o no a algo previo
+- "saludo": saludo genérico, primer mensaje, "hola", "buenos días", sin intención clara
+- "como_funciona": pregunta cómo funciona el servicio o qué es CeladaShopper
+- "costo": pregunta por precios, tarifas o costos
+- "tiempo": pregunta cuánto demora el envío
+- "otro": cualquier otro mensaje que no encaja arriba
+
+FORMATOS DE TRACKING RECONOCIDOS:
+- UPS: 1Z999AA10123456784 (empieza con 1Z)
+- FedEx: 774899172137, 9261290100130736401
+- USPS: 9400111899223397808498 (largo, 20-22 dígitos)
+- DHL: 1234567890 (10 dígitos)
+- Amazon: TBA123456789000 (empieza con TBA)
+- Otros: cualquier alfanumérico de 8+ caracteres que parezca código de paquete
 
 REGLAS:
-1. Si el mensaje contiene un número que parece tracking → intención "tracking"
-2. Si el cliente pregunta por sus paquetes/envíos/estado → intención "ver_paquetes"
-3. Si el cliente pide hablar con una persona o tiene una queja → intención "escalar"
-4. Si el mensaje es una confirmación (sí/no/si/ok) → intención "confirmacion"
-5. Si pregunta por su casilla o dirección → intención "casilla"
-6. Cualquier otro caso → intención "otro"
+1. Si hay un número que parece tracking → "tracking" (alta prioridad)
+2. Saludos como "hola", "buenos días", "qué tal", "hi", emojis solos → "saludo"
+3. Confirmaciones: sí/si/yes/ok/listo/confirmo/claro/dale/va → confirmacion_positiva: true
+4. Negaciones: no/nop/nope/cancela/cancel → confirmacion_positiva: false
+5. Preguntas sobre estado de paquetes → "ver_paquetes"
+6. Cualquier queja, problema, pérdida, daño → "escalar"
 
-EXTRACCIÓN DE DATOS:
-- tracking: extrae el número de tracking del texto (sin espacios, solo el código)
-- tienda: detecta la tienda si el cliente la menciona o si hay contexto (Amazon, Shein, Nike, etc.)
-- descripcion: extrae qué producto es si está mencionado
-- confirmacion_positiva: true si dice sí/si/yes/ok/listo/confirmo/correcto
-
-RESPONDE ÚNICAMENTE con este JSON, sin texto adicional:
+RESPONDE ÚNICAMENTE con este JSON (sin texto adicional, sin markdown):
 {
-  "intencion": "tracking" | "ver_paquetes" | "escalar" | "confirmacion" | "casilla" | "otro",
+  "intencion": "tracking" | "ver_paquetes" | "casilla" | "escalar" | "confirmacion" | "saludo" | "como_funciona" | "costo" | "tiempo" | "otro",
   "tracking": "CÓDIGO" | null,
   "tienda": "Nombre tienda" | null,
   "descripcion": "descripción producto" | null,
@@ -171,7 +254,7 @@ RESPONDE ÚNICAMENTE con este JSON, sin texto adicional:
 }`,
 }
 
-// ── MAPEO DE ESTADOS USACO/SUPABASE A TEXTO LEGIBLE ──────────
+// ── MAPEO DE ESTADOS A TEXTO LEGIBLE ─────────────────────────
 export const ESTADO_TEXTO: Record<string, string> = {
   // Estados internos Supabase
   esperando_en_usa:  '⏳ Esperando en USA',

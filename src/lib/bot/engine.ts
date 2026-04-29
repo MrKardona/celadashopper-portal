@@ -354,14 +354,30 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     await enviarNotaKommo(lead_id, respuesta)
   }
 
-  // 3. Detectar keywords rápidas (sin gastar API de Claude)
+  // 3. Escalación por keywords (sin gastar Claude)
   if (contieneKeyword(texto, BOT_CONFIG.escalarSiDice)) {
     await enviar(BOT_CONFIG.mensajes.escalarHumano)
     await escalarEnKommo(lead_id)
     return
   }
 
-  // 4. Verificar si hay un tracking pendiente de confirmación
+  // 4. Keywords rápidas de costo, tiempo, cómo funciona (no necesitan cuenta)
+  if (contieneKeyword(texto, BOT_CONFIG.costoSiDice)) {
+    await enviar(BOT_CONFIG.mensajes.costoEnvio)
+    return
+  }
+
+  if (contieneKeyword(texto, BOT_CONFIG.tiempoSiDice)) {
+    await enviar(BOT_CONFIG.mensajes.tiempoEntrega)
+    return
+  }
+
+  if (contieneKeyword(texto, BOT_CONFIG.comoFuncionaSiDice)) {
+    await enviar(BOT_CONFIG.mensajes.comoFunciona)
+    return
+  }
+
+  // 5. Verificar si hay un tracking pendiente de confirmación
   const pendiente = pendienteConfirmacion.get(lead_id)
   const hace5min = Date.now() - 5 * 60 * 1000
 
@@ -385,6 +401,10 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
           }))
           return
         }
+      } else {
+        // Tiene tracking pendiente pero no está registrado
+        await enviar(BOT_CONFIG.mensajes.pedirIdentificacion)
+        return
       }
     } else if (analisis.intencion === 'confirmacion' && analisis.confirmacion_positiva === false) {
       pendienteConfirmacion.delete(lead_id)
@@ -393,10 +413,10 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     }
   }
 
-  // 5. Keywords rápidas para ver paquetes y casilla
+  // 6. Keywords de paquetes y casilla
   if (contieneKeyword(texto, BOT_CONFIG.verPaquetesSiDice)) {
     if (!cliente) {
-      await enviar(BOT_CONFIG.mensajes.clienteNoEncontrado)
+      await enviar(BOT_CONFIG.mensajes.pedirIdentificacion)
       return
     }
     const paquetes = await getPaquetesCliente(cliente.id)
@@ -417,7 +437,7 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
 
   if (contieneKeyword(texto, BOT_CONFIG.casillaSiDice)) {
     if (!cliente) {
-      await enviar(BOT_CONFIG.mensajes.clienteNoEncontrado)
+      await enviar(BOT_CONFIG.mensajes.pedirIdentificacion)
       return
     }
     await enviar(render(BOT_CONFIG.mensajes.casilla, {
@@ -427,9 +447,21 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     return
   }
 
-  // 6. Análisis Claude para trackings y otros
+  // 7. Análisis Claude para trackings, saludos y otros
   const analisis = await analizarMensaje(texto)
   console.log(`[bot] Análisis:`, analisis)
+
+  // Saludo genérico o primer mensaje → bienvenida sin pedir datos
+  if (analisis.intencion === 'saludo' || analisis.intencion === 'otro') {
+    if (cliente) {
+      await enviar(render(BOT_CONFIG.mensajes.bienvenidaConNombre, {
+        nombre: cliente.nombre_completo.split(' ')[0],
+      }))
+    } else {
+      await enviar(BOT_CONFIG.mensajes.bienvenida)
+    }
+    return
+  }
 
   if (analisis.intencion === 'tracking' && analisis.tracking) {
     const tracking = analisis.tracking
@@ -453,7 +485,7 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
 
   if (analisis.intencion === 'ver_paquetes') {
     if (!cliente) {
-      await enviar(BOT_CONFIG.mensajes.clienteNoEncontrado)
+      await enviar(BOT_CONFIG.mensajes.pedirIdentificacion)
       return
     }
     const paquetes = await getPaquetesCliente(cliente.id)
@@ -472,20 +504,39 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     return
   }
 
+  if (analisis.intencion === 'casilla') {
+    if (!cliente) {
+      await enviar(BOT_CONFIG.mensajes.pedirIdentificacion)
+      return
+    }
+    await enviar(render(BOT_CONFIG.mensajes.casilla, {
+      casilla: cliente.numero_casilla,
+      direccion_bodega: process.env.CELADASHOPPER_USA_ADDRESS ?? '8164 NW 108TH PL, Doral, FL 33178',
+    }))
+    return
+  }
+
+  if (analisis.intencion === 'como_funciona') {
+    await enviar(BOT_CONFIG.mensajes.comoFunciona)
+    return
+  }
+
+  if (analisis.intencion === 'costo') {
+    await enviar(BOT_CONFIG.mensajes.costoEnvio)
+    return
+  }
+
+  if (analisis.intencion === 'tiempo') {
+    await enviar(BOT_CONFIG.mensajes.tiempoEntrega)
+    return
+  }
+
   if (analisis.intencion === 'escalar') {
     await enviar(BOT_CONFIG.mensajes.escalarHumano)
     await escalarEnKommo(lead_id)
     return
   }
 
-  // 7. Primer contacto sin cliente registrado
-  if (!cliente) {
-    await enviar(BOT_CONFIG.mensajes.pedirNombre)
-    return
-  }
-
-  // 8. No entendió
-  await enviar(render(BOT_CONFIG.mensajes.noEntendi, {
-    nombre: cliente.nombre_completo.split(' ')[0],
-  }))
+  // 8. No entendió — respuesta con menú
+  await enviar(BOT_CONFIG.mensajes.noEntendi)
 }
