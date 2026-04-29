@@ -301,6 +301,33 @@ async function enviarNotaKommo(leadId: number, texto: string): Promise<void> {
   }
 }
 
+// ── Escalar lead a asesor humano en Kommo ─────────────────────
+// Mueve el lead a "Nueva consulta" y lo asigna al asesor configurado
+
+async function escalarEnKommo(leadId: number): Promise<void> {
+  const token = process.env.KOMMO_API_TOKEN
+  const { kommoStatusEscalacion, kommoAsesorId } = BOT_CONFIG.config
+
+  const res = await fetch('https://celadashopper.kommo.com/api/v4/leads', {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify([{
+      id: leadId,
+      status_id: kommoStatusEscalacion,
+      responsible_user_id: kommoAsesorId,
+    }]),
+  })
+
+  if (res.ok) {
+    console.log(`[bot] ✅ Lead ${leadId} escalado → etapa "Nueva consulta", asignado a asesor ${kommoAsesorId}`)
+  } else {
+    console.warn(`[bot] ⚠️ No se pudo mover el lead ${leadId} en Kommo (${res.status}):`, await res.text())
+  }
+}
+
 // ── Motor principal: procesar un mensaje entrante ─────────────
 
 export async function procesarMensaje(msg: KommoMessage): Promise<void> {
@@ -330,6 +357,7 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
   // 3. Detectar keywords rápidas (sin gastar API de Claude)
   if (contieneKeyword(texto, BOT_CONFIG.escalarSiDice)) {
     await enviar(BOT_CONFIG.mensajes.escalarHumano)
+    await escalarEnKommo(lead_id)
     return
   }
 
@@ -446,6 +474,7 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
 
   if (analisis.intencion === 'escalar') {
     await enviar(BOT_CONFIG.mensajes.escalarHumano)
+    await escalarEnKommo(lead_id)
     return
   }
 

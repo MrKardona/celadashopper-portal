@@ -122,6 +122,14 @@ Suite/Apt: {casilla}`,
     // Si el bot no reconoce el mensaje después de estos intentos,
     // escala automáticamente a un asesor
     maxIntentosSinEntender: 2,
+
+    // ── ESCALACIÓN A ASESOR HUMANO ───────────────────────────
+    // ID del pipeline principal "Embudo de ventas"
+    kommoPipelineId: 10274719,
+    // ID de la etapa "Nueva consulta" → donde cae cuando pide asesor
+    kommoStatusEscalacion: 78801083,
+    // ID del asesor humano (Stiven Cardona) que recibe los leads escalados
+    kommoAsesorId: 12607411,
   },
 
   // ── PROMPT DE CLAUDE (el cerebro del análisis) ────────────
