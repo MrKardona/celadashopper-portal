@@ -8,13 +8,17 @@ import { procesarMensaje, type KommoMessage } from '@/lib/bot/engine'
 export const dynamic = 'force-dynamic'
 
 // Tipos del payload de webhook de Kommo (add_message)
+// Nota: en form-urlencoded, el lead ID viene como element_id (element_type=2)
 interface KommoWebhookPayload {
   message?: {
     add?: Array<{
       id?: string
-      talk_id?: string
+      chat_id?: string   // UUID para enviar por WhatsApp (form-urlencoded: chat_id)
+      talk_id?: string   // ID numérico legacy (no usar para envío)
       contact_id?: number
-      lead_id?: number
+      lead_id?: number   // en JSON directo
+      element_id?: number // en form-urlencoded (element_type=2 significa lead)
+      element_type?: number
       text?: string
       author?: {
         id?: number
@@ -23,8 +27,6 @@ interface KommoWebhookPayload {
       created_at?: number
     }>
   }
-  // Kommo también puede enviar en formato de form-urlencoded
-  // En ese caso viene como campos planos
 }
 
 function extractMessages(body: KommoWebhookPayload): KommoMessage[] {
@@ -32,11 +34,13 @@ function extractMessages(body: KommoWebhookPayload): KommoMessage[] {
   const adds = body?.message?.add ?? []
 
   for (const m of adds) {
-    if (!m.text || !m.lead_id) continue
+    // lead_id viene en JSON directo; element_id viene en form-urlencoded
+    const leadId = m.lead_id ?? m.element_id
+    if (!m.text || !leadId) continue
     msgs.push({
-      lead_id: m.lead_id,
+      lead_id: leadId,
       contact_id: m.contact_id ?? 0,
-      talk_id: m.talk_id,
+      talk_id: m.chat_id ?? m.talk_id,  // chat_id (UUID) tiene prioridad para WhatsApp
       text: m.text,
       author_type: m.author?.type ?? 'contact',
       author_id: m.author?.id ?? 0,
@@ -66,31 +70,32 @@ export async function POST(req: NextRequest) {
       params.forEach((v, k) => { allParams[k] = v })
       console.log('[kommo/inbox] Params recibidos:', JSON.stringify(allParams).slice(0, 500))
 
-      // Formato: message[add][0][text]=..., message[add][0][lead_id]=...
-      const leadId = params.get('message[add][0][lead_id]')
+      // Kommo envía element_id (lead ID) + element_type=2, no lead_id directamente
+      const elementId = params.get('message[add][0][element_id]') ?? params.get('message[add][0][lead_id]')
       const contactId = params.get('message[add][0][contact_id]')
       const msgText = params.get('message[add][0][text]')
       const authorId = params.get('message[add][0][author_id]')
       const authorType = params.get('message[add][0][author_type]') ?? 'contact'
-      const talkId = params.get('message[add][0][talk_id]') ?? undefined
+      // chat_id (UUID) = canal WhatsApp para responder; talk_id = ID numérico legacy
+      const chatId = params.get('message[add][0][chat_id]') ?? undefined
 
-      if (leadId && msgText) {
+      if (elementId && msgText) {
         body = {
           message: {
             add: [{
-              lead_id: parseInt(leadId),
+              element_id: parseInt(elementId),
               contact_id: contactId ? parseInt(contactId) : 0,
               text: msgText,
               author: {
                 id: authorId ? parseInt(authorId) : 0,
                 type: authorType,
               },
-              talk_id: talkId,
+              chat_id: chatId,
             }],
           },
         }
       } else {
-        console.log('[kommo/inbox] Form sin lead_id+text. leadId:', leadId, '| text:', msgText)
+        console.log('[kommo/inbox] Form sin element_id+text. elementId:', elementId, '| text:', msgText)
         body = {}
       }
     } else {
