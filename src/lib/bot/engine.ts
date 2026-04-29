@@ -333,6 +333,9 @@ async function escalarEnKommo(leadId: number): Promise<void> {
 export async function procesarMensaje(msg: KommoMessage): Promise<void> {
   const { lead_id, contact_id, talk_id, chat_id, text, author_type, author_id } = msg
 
+  // 0. Kill switch — poner BOT_DISABLED=true en Vercel para pausar el bot
+  if (process.env.BOT_DISABLED === 'true') return
+
   // 1. Ignorar mensajes propios del bot/agentes para evitar loops
   if (author_type === 'user') return
   if (author_id === BOT_CONFIG.config.kommoUserId) return
