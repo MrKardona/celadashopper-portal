@@ -162,7 +162,7 @@ async function clasificarMensaje(texto: string): Promise<Clasificacion> {
   const anthropic = getAnthropic()
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5',
       max_tokens: 150,
       system: BOT_CONFIG.promptClasificacion,
       messages: [{ role: 'user', content: texto }],
@@ -192,7 +192,7 @@ async function generarRespuesta(
 
   try {
     const msg = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5',
       max_tokens: 400,
       system: systemCompleto,
       messages: [{ role: 'user', content: mensajeCliente }],
