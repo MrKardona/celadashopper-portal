@@ -2,6 +2,7 @@
 // Webhook receptor de mensajes entrantes de Kommo → procesa con bot
 
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { procesarMensaje, type KommoMessage } from '@/lib/bot/engine'
 
 export const dynamic = 'force-dynamic'
@@ -96,11 +97,13 @@ export async function POST(req: NextRequest) {
   const messages = extractMessages(body)
 
   if (messages.length > 0) {
-    // Fire-and-forget: no esperamos a que termine para responder a Kommo
-    Promise.all(
-      messages.map(m =>
-        procesarMensaje(m).catch(err =>
-          console.error(`[kommo/inbox] Error procesando mensaje lead ${m.lead_id}:`, err)
+    // waitUntil: responde a Kommo de inmediato pero garantiza que el procesamiento complete
+    waitUntil(
+      Promise.all(
+        messages.map(m =>
+          procesarMensaje(m).catch(err =>
+            console.error(`[kommo/inbox] Error procesando mensaje lead ${m.lead_id}:`, err)
+          )
         )
       )
     )
