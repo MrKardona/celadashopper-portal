@@ -1,6 +1,6 @@
 // src/lib/bot/engine.ts
 // Motor del bot — NO necesitas editar este archivo
-// Lógica: analizar mensaje → Claude → Supabase → responder por Kommo
+// Lógica: analizar mensaje → Claude → Supabase → responder por Meta WhatsApp API
 
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
@@ -103,7 +103,7 @@ function contieneKeyword(texto: string, keywords: string[]): boolean {
 
 // ── Buscar cliente en Supabase por teléfono o email ───────────
 
-async function buscarCliente(kommoContactId: number): Promise<ClienteInfo | null> {
+async function buscarCliente(kommoContactId: number): Promise<{ cliente: ClienteInfo | null; phone: string | null }> {
   const supabase = getSupabase()
 
   // Buscar en Kommo el contacto para obtener su teléfono/email
@@ -111,7 +111,7 @@ async function buscarCliente(kommoContactId: number): Promise<ClienteInfo | null
     `https://celadashopper.kommo.com/api/v4/contacts/${kommoContactId}?with=leads`,
     { headers: { Authorization: `Bearer ${process.env.KOMMO_API_TOKEN}` } }
   )
-  if (!kommoRes.ok) return null
+  if (!kommoRes.ok) return { cliente: null, phone: null }
 
   const kommoContact = await kommoRes.json() as {
     name?: string
@@ -143,7 +143,7 @@ async function buscarCliente(kommoContactId: number): Promise<ClienteInfo | null
       .or(`whatsapp.ilike.%${telefono.slice(-10)}%,telefono.ilike.%${telefono.slice(-10)}%`)
       .eq('activo', true)
       .maybeSingle()
-    if (data) return data as ClienteInfo
+    if (data) return { cliente: data as ClienteInfo, phone: telefono }
   }
 
   if (email) {
@@ -153,10 +153,10 @@ async function buscarCliente(kommoContactId: number): Promise<ClienteInfo | null
       .eq('email', email)
       .eq('activo', true)
       .maybeSingle()
-    if (data) return data as ClienteInfo
+    if (data) return { cliente: data as ClienteInfo, phone: telefono }
   }
 
-  return null
+  return { cliente: null, phone: telefono }
 }
 
 // ── Obtener paquetes activos del cliente ───────────────────────
@@ -228,112 +228,76 @@ async function analizarMensaje(texto: string): Promise<ClaudeAnalysis> {
   }
 }
 
-// ── Enviar mensaje por Kommo API ──────────────────────────────
-// Estrategia (en orden de prioridad):
-// 1. POST /api/v4/chats/{uuid}/messages (body objeto JSON)
-// 2. POST /api/v4/talks/{numeric}/reply  (endpoint alternativo)
-// 3. POST /api/v4/chats/{uuid}/messages (body array)
-// 4. POST /api/v4/leads/{id}/talks       (crear/continuar talk)
-// 5. POST nota CRM como fallback visible
+// ── Enviar mensaje via Meta WhatsApp Cloud API ────────────────
+// Requiere env: META_WA_PHONE_ID, META_WA_TOKEN
+// El cliente debe haber enviado un mensaje primero (ventana de 24 h)
 
-async function logChatInfo(chatId: string, authHeader: string): Promise<void> {
+async function enviarPorMeta(phone: string, texto: string): Promise<boolean> {
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
+  if (!phoneId || !token) {
+    console.warn('[bot] META_WA_PHONE_ID o META_WA_TOKEN no configurados')
+    return false
+  }
+
+  // Asegura formato internacional sin + (ej: 573206639554)
+  const cleanPhone = phone.replace(/\D/g, '')
+
   try {
-    const r = await fetch(`https://celadashopper.kommo.com/api/v4/chats/${chatId}`, {
-      headers: { Authorization: authHeader },
-    })
-    const body = await r.text()
-    console.log(`[bot] GET chat/${chatId}: status=${r.status} body=${body.slice(0, 400)}`)
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${phoneId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: cleanPhone,
+          type: 'text',
+          text: { body: texto },
+        }),
+      }
+    )
+
+    const body = await res.text()
+    if (res.ok) {
+      console.log(`[bot] ✅ WhatsApp enviado via Meta API → ${cleanPhone}`)
+      return true
+    }
+    console.warn(`[bot] ⚠️ Meta API falló (${res.status}): ${body.slice(0, 300)}`)
+    return false
   } catch (e) {
-    console.log(`[bot] GET chat info error: ${e}`)
+    console.error('[bot] ❌ Meta API error:', e)
+    return false
   }
 }
 
-export async function enviarMensajeKommo(
-  leadId: number,
-  texto: string,
-  talkId?: string,
-  chatId?: string,
-  contactId?: number
-): Promise<void> {
+// ── Fallback: nota CRM en Kommo (solo si Meta falla) ─────────
+// No llega al cliente por WhatsApp, pero queda visible para agentes
+
+async function enviarNotaKommo(leadId: number, texto: string): Promise<void> {
   const token = process.env.KOMMO_API_TOKEN
-  const authHeader = `Bearer ${token}`
-  const headers = {
-    'Authorization': authHeader,
-    'Content-Type': 'application/json',
-  }
-
-  console.log(`[bot] enviar → lead=${leadId} talk=${talkId} chat=${chatId} contact=${contactId}`)
-
-  // ── Diagnóstico rápido: ver qué devuelve GET /chats/{uuid} ──────────────
-  if (chatId) {
-    await logChatInfo(chatId, authHeader)
-  }
-
-  // ── Intento 1: POST /chats/{uuid}/messages con body OBJETO ──────────────
-  if (chatId) {
-    const body1 = JSON.stringify({ text: texto })
-    const r1 = await fetch(
-      `https://celadashopper.kommo.com/api/v4/chats/${chatId}/messages`,
-      { method: 'POST', headers, body: body1 }
-    )
-    const t1 = await r1.text()
-    console.log(`[bot] chats/obj → ${r1.status}: ${t1.slice(0, 300)}`)
-    if (r1.ok) return
-  }
-
-  // ── Intento 2: POST /chats/{uuid}/messages con body ARRAY ───────────────
-  if (chatId) {
-    const body2 = JSON.stringify([{ text: texto }])
-    const r2 = await fetch(
-      `https://celadashopper.kommo.com/api/v4/chats/${chatId}/messages`,
-      { method: 'POST', headers, body: body2 }
-    )
-    const t2 = await r2.text()
-    console.log(`[bot] chats/arr → ${r2.status}: ${t2.slice(0, 300)}`)
-    if (r2.ok) return
-  }
-
-  // ── Intento 3: POST /talks/{numeric}/messages con body OBJETO ───────────
-  if (talkId) {
-    const body3 = JSON.stringify({ text: texto })
-    const r3 = await fetch(
-      `https://celadashopper.kommo.com/api/v4/talks/${talkId}/messages`,
-      { method: 'POST', headers, body: body3 }
-    )
-    const t3 = await r3.text()
-    console.log(`[bot] talks/obj → ${r3.status}: ${t3.slice(0, 300)}`)
-    if (r3.ok) return
-  }
-
-  // ── Intento 4: POST /leads/{id}/talks (crear mensaje saliente en talk) ───
-  if (talkId || chatId) {
-    const body4 = JSON.stringify({
-      talk_id: talkId ? parseInt(talkId) : undefined,
-      chat_id: chatId,
-      text: texto,
-    })
-    const r4 = await fetch(
-      `https://celadashopper.kommo.com/api/v4/leads/${leadId}/talks`,
-      { method: 'POST', headers, body: body4 }
-    )
-    const t4 = await r4.text()
-    console.log(`[bot] leads/talks → ${r4.status}: ${t4.slice(0, 300)}`)
-    if (r4.ok) return
-  }
-
-  // ── Intento 5: nota CRM (visible en Kommo, NO llega al cliente por WA) ──
   const noteBody = JSON.stringify([{
     note_type: 'common',
-    params: { text: `🤖 BOT (envío WA pendiente): ${texto}` },
+    params: { text: `🤖 BOT: ${texto}` },
   }])
-  const rNote = await fetch(
+  const res = await fetch(
     `https://celadashopper.kommo.com/api/v4/leads/${leadId}/notes`,
-    { method: 'POST', headers, body: noteBody }
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: noteBody,
+    }
   )
-  if (rNote.ok) {
-    console.warn(`[bot] ⚠️ Solo nota CRM (no WhatsApp) lead=${leadId}. Revisar logs para corregir endpoint.`)
+  if (res.ok) {
+    console.warn(`[bot] ⚠️ Mensaje guardado solo como nota CRM (no WhatsApp) lead=${leadId}`)
   } else {
-    console.error(`[bot] ❌ Hasta nota falló lead=${leadId}:`, await rNote.text())
+    console.error(`[bot] ❌ Nota CRM también falló lead=${leadId}:`, await res.text())
   }
 }
 
@@ -351,11 +315,17 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
 
   console.log(`[bot] Mensaje lead ${lead_id} talk ${talk_id}: "${texto.slice(0, 80)}"`)
 
-  // Helper: enviar respuesta probando todos los canales disponibles
-  const enviar = (respuesta: string) => enviarMensajeKommo(lead_id, respuesta, talk_id, chat_id, contact_id)
+  // 2. Buscar cliente en Supabase (también obtiene el teléfono del contacto en Kommo)
+  const { cliente, phone: waPhone } = await buscarCliente(contact_id)
 
-  // 2. Buscar cliente en Supabase
-  const cliente = await buscarCliente(contact_id)
+  // Helper: envía via Meta WhatsApp API; si no tiene teléfono o falla, guarda nota CRM
+  const enviar = async (respuesta: string) => {
+    if (waPhone) {
+      const ok = await enviarPorMeta(waPhone, respuesta)
+      if (ok) return
+    }
+    await enviarNotaKommo(lead_id, respuesta)
+  }
 
   // 3. Detectar keywords rápidas (sin gastar API de Claude)
   if (contieneKeyword(texto, BOT_CONFIG.escalarSiDice)) {
