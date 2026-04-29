@@ -50,15 +50,22 @@ export async function POST(req: NextRequest) {
 
   const contentType = req.headers.get('content-type') ?? ''
 
+  // Leer el body crudo siempre para poder loggearlo
+  const rawText = await req.text()
+  console.log(`[kommo/inbox] Content-Type: "${contentType}" | Body (300c): ${rawText.slice(0, 300)}`)
+
   try {
     if (contentType.includes('application/json')) {
-      body = await req.json() as KommoWebhookPayload
-    } else if (contentType.includes('application/x-www-form-urlencoded')) {
-      // Kommo a veces envía form-urlencoded
-      const text = await req.text()
-      const params = new URLSearchParams(text)
+      body = JSON.parse(rawText) as KommoWebhookPayload
+    } else if (contentType.includes('application/x-www-form-urlencoded') || rawText.includes('%5B') || rawText.includes('[')) {
+      // Kommo envía form-urlencoded (con o sin content-type correcto)
+      const params = new URLSearchParams(rawText)
 
-      // Reconstruir estructura desde los params de Kommo
+      // Log de todos los params para debugging
+      const allParams: Record<string, string> = {}
+      params.forEach((v, k) => { allParams[k] = v })
+      console.log('[kommo/inbox] Params recibidos:', JSON.stringify(allParams).slice(0, 500))
+
       // Formato: message[add][0][text]=..., message[add][0][lead_id]=...
       const leadId = params.get('message[add][0][lead_id]')
       const contactId = params.get('message[add][0][contact_id]')
@@ -83,10 +90,16 @@ export async function POST(req: NextRequest) {
           },
         }
       } else {
+        console.log('[kommo/inbox] Form sin lead_id+text. leadId:', leadId, '| text:', msgText)
         body = {}
       }
     } else {
-      body = await req.json().catch(() => ({})) as KommoWebhookPayload
+      // Intentar parsear como JSON de todos modos
+      try {
+        body = JSON.parse(rawText) as KommoWebhookPayload
+      } catch {
+        body = {}
+      }
     }
   } catch {
     return new NextResponse('Bad Request', { status: 400 })
