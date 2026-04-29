@@ -19,7 +19,7 @@ export interface KommoMessage {
 }
 
 interface ClaudeAnalysis {
-  intencion: 'tracking' | 'ver_paquetes' | 'escalar' | 'confirmacion' | 'casilla' | 'otro'
+  intencion: 'tracking' | 'ver_paquetes' | 'casilla' | 'escalar' | 'confirmacion' | 'saludo' | 'como_funciona' | 'costo' | 'tiempo' | 'otro'
   tracking: string | null
   tienda: string | null
   descripcion: string | null
