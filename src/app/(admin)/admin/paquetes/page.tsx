@@ -140,7 +140,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                   const perfil = p.perfiles as unknown as { nombre_completo: string; numero_casilla: string } | null
                   const peso = p.peso_facturable ?? p.peso_libras
                   return (
-                    <tr key={p.id} className="hover:bg-orange-50/40 transition-colors cursor-pointer">
+                    <tr key={p.id} className={`hover:bg-orange-50/40 transition-colors cursor-pointer ${!perfil ? 'bg-amber-50/60' : ''}`}>
                       <td className="px-4 py-3">
                         <Link href={`/admin/paquetes/${p.id}`} className="block">
                           <span className="font-mono text-xs text-orange-700 font-semibold">{p.tracking_casilla ?? '—'}</span>
@@ -148,8 +148,16 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/admin/paquetes/${p.id}`} className="block">
-                          <p className="font-medium text-gray-900 truncate max-w-[140px]">{perfil?.nombre_completo ?? '—'}</p>
-                          <p className="text-xs text-gray-400">{perfil?.numero_casilla}</p>
+                          {perfil ? (
+                            <>
+                              <p className="font-medium text-gray-900 truncate max-w-[140px]">{perfil.nombre_completo}</p>
+                              <p className="text-xs text-gray-400">{perfil.numero_casilla}</p>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                              ⏳ Sin asignar
+                            </span>
+                          )}
                         </Link>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">

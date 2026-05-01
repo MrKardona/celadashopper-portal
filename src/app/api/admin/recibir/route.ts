@@ -65,37 +65,88 @@ export async function GET(req: NextRequest) {
 }
 
 // POST: registrar recepción en bodega USA
+// Soporta dos modos:
+//   A) paquete_id → actualizar paquete existente ya encontrado
+//   B) sin_asignar: true → crear paquete nuevo sin cliente_id
 export async function POST(req: NextRequest) {
   const user = await verificarAdmin()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const body = await req.json() as {
-    paquete_id: string
-    peso_libras: number
+    // Modo A: paquete existente
+    paquete_id?: string
+    peso_libras?: number
     tracking_usaco?: string
     notas_internas?: string
+    // Modo B: sin asignar
+    sin_asignar?: boolean
+    descripcion?: string
+    tienda?: string
+    tracking_origen?: string
+    categoria?: string
+    bodega_destino?: string
   }
 
+  const admin = getSupabaseAdmin()
+
+  // ── MODO B: Crear paquete sin cliente ───────────────────────────────────
+  if (body.sin_asignar) {
+    const { descripcion, tienda, tracking_origen, categoria, bodega_destino, notas_internas } = body
+    const peso_libras = body.peso_libras
+
+    if (!descripcion || !peso_libras || peso_libras <= 0 || !categoria) {
+      return NextResponse.json({ error: 'descripcion, peso y categoria son requeridos' }, { status: 400 })
+    }
+
+    const { data: nuevo, error: insertErr } = await admin
+      .from('paquetes')
+      .insert({
+        cliente_id: null,
+        tienda: tienda ?? 'Sin especificar',
+        descripcion,
+        categoria,
+        bodega_destino: bodega_destino ?? 'medellin',
+        tracking_origen: tracking_origen ?? null,
+        peso_libras,
+        estado: 'recibido_usa',
+        fecha_recepcion_usa: new Date().toISOString(),
+        factura_pagada: false,
+      })
+      .select('id, tracking_casilla')
+      .single()
+
+    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
+
+    // Registrar evento
+    await admin.from('eventos_paquete').insert({
+      paquete_id: nuevo.id,
+      estado_anterior: null,
+      estado_nuevo: 'recibido_usa',
+      descripcion: notas_internas
+        ? `Recibido sin asignar. ${notas_internas}`
+        : 'Recibido en bodega USA — sin cliente asignado',
+      ubicacion: 'Miami, USA',
+    })
+
+    return NextResponse.json({ ok: true, tracking_casilla: nuevo.tracking_casilla })
+  }
+
+  // ── MODO A: Actualizar paquete existente ────────────────────────────────
   const { paquete_id, peso_libras, tracking_usaco, notas_internas } = body
 
   if (!paquete_id || !peso_libras || peso_libras <= 0) {
     return NextResponse.json({ error: 'paquete_id y peso_libras son requeridos' }, { status: 400 })
   }
 
-  const admin = getSupabaseAdmin()
-
-  // Verificar que el paquete existe y obtener estado actual
   const { data: paquete } = await admin
     .from('paquetes')
-    .select('id, estado, tracking_casilla, perfiles(nombre_completo)')
+    .select('id, estado, tracking_casilla')
     .eq('id', paquete_id)
     .single()
 
   if (!paquete) return NextResponse.json({ error: 'Paquete no encontrado' }, { status: 404 })
 
   const estadoAnterior = paquete.estado
-
-  // Actualizar paquete
   const updates: Record<string, unknown> = {
     estado: 'recibido_usa',
     peso_libras,
@@ -104,16 +155,9 @@ export async function POST(req: NextRequest) {
   }
   if (tracking_usaco) updates.tracking_usaco = tracking_usaco
 
-  const { error: updateError } = await admin
-    .from('paquetes')
-    .update(updates)
-    .eq('id', paquete_id)
+  const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
-  }
-
-  // Registrar evento de cambio de estado
   await admin.from('eventos_paquete').insert({
     paquete_id,
     estado_anterior: estadoAnterior,
@@ -124,8 +168,5 @@ export async function POST(req: NextRequest) {
     ubicacion: 'Miami, USA',
   })
 
-  return NextResponse.json({
-    ok: true,
-    tracking: paquete.tracking_casilla,
-  })
+  return NextResponse.json({ ok: true, tracking: paquete.tracking_casilla })
 }

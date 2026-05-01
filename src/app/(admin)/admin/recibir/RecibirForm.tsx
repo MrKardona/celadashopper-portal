@@ -1,7 +1,10 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { ScanBarcode, Search, CheckCircle2, AlertCircle, Package, Scale, Loader2, X } from 'lucide-react'
+import {
+  ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
+  Scale, Loader2, X, ClipboardList,
+} from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 
 interface PaqueteEncontrado {
@@ -31,6 +34,7 @@ interface PaqueteRecibido {
   cliente: string
   peso: number
   hora: string
+  sinAsignar?: boolean
 }
 
 const BODEGA_LABELS: Record<string, string> = {
@@ -39,49 +43,74 @@ const BODEGA_LABELS: Record<string, string> = {
   barranquilla: 'Barranquilla',
 }
 
+const CATEGORIAS = Object.entries(CATEGORIA_LABELS) as [CategoriaProducto, string][]
+const BODEGAS = [
+  { value: 'medellin', label: 'Medellín' },
+  { value: 'bogota', label: 'Bogotá' },
+  { value: 'barranquilla', label: 'Barranquilla' },
+]
+
 export default function RecibirForm() {
   const inputRef = useRef<HTMLInputElement>(null)
   const pesoRef = useRef<HTMLInputElement>(null)
+  const pesoManualRef = useRef<HTMLInputElement>(null)
 
+  // --- Estado: búsqueda normal ---
   const [tracking, setTracking] = useState('')
   const [buscando, setBuscando] = useState(false)
   const [paquete, setPaquete] = useState<PaqueteEncontrado | null>(null)
   const [errorBusqueda, setErrorBusqueda] = useState('')
 
+  // --- Estado: recepción normal ---
   const [peso, setPeso] = useState('')
   const [trackingUsaco, setTrackingUsaco] = useState('')
   const [notas, setNotas] = useState('')
-
   const [guardando, setGuardando] = useState(false)
+
+  // --- Estado: modo manual (sin casillero) ---
+  const [modoManual, setModoManual] = useState(false)
+  const [formManual, setFormManual] = useState({
+    descripcion: '',
+    tienda: '',
+    tracking_courier: '',
+    peso: '',
+    categoria: '' as CategoriaProducto | '',
+    bodega_destino: 'medellin',
+    notas: '',
+  })
+  const [guardandoManual, setGuardandoManual] = useState(false)
+
+  // --- Historial de sesión ---
   const [ultimoRecibido, setUltimoRecibido] = useState<PaqueteRecibido | null>(null)
   const [recibidosHoy, setRecibidosHoy] = useState<PaqueteRecibido[]>([])
 
-  // Auto-focus al cargar
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  useEffect(() => { inputRef.current?.focus() }, [])
 
-  // Cuando se encuentra un paquete, enfocar campo de peso
   useEffect(() => {
     if (paquete) {
       pesoRef.current?.focus()
-      // Prellenar peso si ya tiene
       if (paquete.peso_libras) setPeso(String(paquete.peso_libras))
     }
   }, [paquete])
 
+  useEffect(() => {
+    if (modoManual) {
+      // Pre-llenar tracking_courier con lo que se buscó
+      setFormManual(prev => ({ ...prev, tracking_courier: tracking }))
+      setTimeout(() => pesoManualRef.current?.focus(), 100)
+    }
+  }, [modoManual, tracking])
+
   const buscarPaquete = useCallback(async (valor: string) => {
     const q = valor.trim()
     if (!q) return
-
     setBuscando(true)
     setErrorBusqueda('')
     setPaquete(null)
-
+    setModoManual(false)
     try {
       const res = await fetch(`/api/admin/recibir?tracking=${encodeURIComponent(q)}`)
       const data = await res.json() as { paquete?: PaqueteEncontrado; error?: string }
-
       if (!res.ok || !data.paquete) {
         setErrorBusqueda(data.error ?? 'Paquete no encontrado')
       } else {
@@ -95,10 +124,7 @@ export default function RecibirForm() {
   }, [])
 
   function handleTrackingKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      buscarPaquete(tracking)
-    }
+    if (e.key === 'Enter') { e.preventDefault(); buscarPaquete(tracking) }
   }
 
   function limpiar() {
@@ -109,13 +135,15 @@ export default function RecibirForm() {
     setTrackingUsaco('')
     setNotas('')
     setUltimoRecibido(null)
+    setModoManual(false)
+    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '' })
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
+  // ── Confirmar recepción de paquete encontrado ────────────────────────────
   async function handleConfirmar(e: React.FormEvent) {
     e.preventDefault()
     if (!paquete || !peso) return
-
     setGuardando(true)
     try {
       const res = await fetch('/api/admin/recibir', {
@@ -128,13 +156,8 @@ export default function RecibirForm() {
           notas_internas: notas || undefined,
         }),
       })
-
       const data = await res.json() as { ok?: boolean; error?: string }
-
-      if (!res.ok || !data.ok) {
-        setErrorBusqueda(data.error ?? 'Error al guardar')
-        return
-      }
+      if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
 
       const nuevo: PaqueteRecibido = {
         id: paquete.id,
@@ -143,7 +166,6 @@ export default function RecibirForm() {
         peso: parseFloat(peso),
         hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
       }
-
       setUltimoRecibido(nuevo)
       setRecibidosHoy(prev => [nuevo, ...prev.slice(0, 29)])
       limpiar()
@@ -152,33 +174,76 @@ export default function RecibirForm() {
     }
   }
 
-  const yaRecibido = paquete?.estado === 'recibido_usa' || paquete?.estado === 'en_consolidacion' ||
-    paquete?.estado === 'listo_envio' || paquete?.estado === 'en_transito' ||
-    paquete?.estado === 'en_colombia' || paquete?.estado === 'en_bodega_local' ||
-    paquete?.estado === 'en_camino_cliente' || paquete?.estado === 'entregado'
+  // ── Guardar paquete manual (sin cliente asignado) ─────────────────────────
+  async function handleGuardarManual(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formManual.descripcion || !formManual.peso || !formManual.categoria) return
+    setGuardandoManual(true)
+    try {
+      const res = await fetch('/api/admin/recibir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sin_asignar: true,
+          descripcion: formManual.descripcion,
+          tienda: formManual.tienda || 'Sin especificar',
+          tracking_origen: formManual.tracking_courier || undefined,
+          peso_libras: parseFloat(formManual.peso),
+          categoria: formManual.categoria,
+          bodega_destino: formManual.bodega_destino,
+          notas_internas: formManual.notas || undefined,
+        }),
+      })
+      const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string }
+      if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
+
+      const nuevo: PaqueteRecibido = {
+        id: data.tracking_casilla ?? '',
+        tracking: data.tracking_casilla ?? 'S/N',
+        cliente: '⏳ Sin asignar',
+        peso: parseFloat(formManual.peso),
+        hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        sinAsignar: true,
+      }
+      setUltimoRecibido(nuevo)
+      setRecibidosHoy(prev => [nuevo, ...prev.slice(0, 29)])
+      limpiar()
+    } finally {
+      setGuardandoManual(false)
+    }
+  }
+
+  const yaRecibido = paquete && ['recibido_usa', 'en_consolidacion', 'listo_envio',
+    'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'].includes(paquete.estado)
 
   return (
     <div className="space-y-6 max-w-2xl">
 
-      {/* Éxito último recibido */}
+      {/* Notificación de éxito */}
       {ultimoRecibido && (
-        <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300">
-          <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+        <div className={`flex items-start gap-3 rounded-xl p-4 border animate-in fade-in slide-in-from-top-2 duration-300 ${
+          ultimoRecibido.sinAsignar
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-green-50 border-green-200'
+        }`}>
+          <CheckCircle2 className={`h-5 w-5 mt-0.5 flex-shrink-0 ${ultimoRecibido.sinAsignar ? 'text-amber-600' : 'text-green-600'}`} />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-green-800">¡Paquete recibido correctamente!</p>
-            <p className="text-sm text-green-700 mt-0.5">
+            <p className={`font-semibold ${ultimoRecibido.sinAsignar ? 'text-amber-800' : 'text-green-800'}`}>
+              {ultimoRecibido.sinAsignar ? 'Paquete registrado sin asignar' : '¡Paquete recibido correctamente!'}
+            </p>
+            <p className={`text-sm mt-0.5 ${ultimoRecibido.sinAsignar ? 'text-amber-700' : 'text-green-700'}`}>
               <span className="font-mono font-bold">{ultimoRecibido.tracking}</span>
               {' · '}{ultimoRecibido.cliente}
               {' · '}{ultimoRecibido.peso} lb
             </p>
           </div>
-          <button onClick={() => setUltimoRecibido(null)} className="text-green-500 hover:text-green-700">
+          <button onClick={() => setUltimoRecibido(null)} className="text-gray-400 hover:text-gray-600">
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Scanner de tracking */}
+      {/* Scanner */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <div className="flex items-center gap-2 text-gray-700 font-semibold">
           <ScanBarcode className="h-5 w-5 text-orange-600" />
@@ -186,46 +251,61 @@ export default function RecibirForm() {
         </div>
 
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              ref={inputRef}
-              type="text"
-              value={tracking}
-              onChange={e => {
-                setTracking(e.target.value)
-                setErrorBusqueda('')
-                if (paquete) { setPaquete(null); setPeso('') }
-              }}
-              onKeyDown={handleTrackingKeyDown}
-              placeholder="Escanear código de barras o escribir tracking..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            value={tracking}
+            onChange={e => {
+              setTracking(e.target.value)
+              setErrorBusqueda('')
+              if (paquete) { setPaquete(null); setPeso('') }
+              if (modoManual) setModoManual(false)
+            }}
+            onKeyDown={handleTrackingKeyDown}
+            placeholder="Escanear código de barras o escribir tracking..."
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-base font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+            autoComplete="off"
+            spellCheck={false}
+          />
           <button
             type="button"
             onClick={() => buscarPaquete(tracking)}
             disabled={!tracking.trim() || buscando}
-            className="px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
+            className="px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors flex items-center gap-2 font-medium"
           >
-            {buscando
-              ? <Loader2 className="h-4 w-4 animate-spin" />
-              : <Search className="h-4 w-4" />
-            }
+            {buscando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Buscar
           </button>
         </div>
 
-        {/* Error búsqueda */}
-        {errorBusqueda && (
-          <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-4 py-3 text-sm">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {errorBusqueda}
+        {/* Error: no encontrado → opción de recibir sin asignar */}
+        {errorBusqueda && !modoManual && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-4 py-3 text-sm">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {errorBusqueda}
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium text-amber-800">
+                ¿El paquete llegó sin casillero registrado?
+              </p>
+              <p className="text-xs text-amber-700">
+                Puedes registrarlo sin asignar. Cuando el cliente lo reporte en el portal,
+                el sistema lo asociará automáticamente y le notificará por WhatsApp.
+              </p>
+              <button
+                type="button"
+                onClick={() => setModoManual(true)}
+                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Recibir sin asignar
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Info del paquete encontrado */}
+        {/* Paquete encontrado */}
         {paquete && (
           <div className={`rounded-lg border p-4 space-y-3 ${yaRecibido ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
             <div className="flex items-start justify-between gap-2">
@@ -235,13 +315,10 @@ export default function RecibirForm() {
                   {paquete.tracking_casilla ?? paquete.tracking_origen ?? tracking}
                 </span>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                yaRecibido ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
-              }`}>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${yaRecibido ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
                 {ESTADO_LABELS[paquete.estado]}
               </span>
             </div>
-
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
                 <span className="text-gray-500">Cliente</span>
@@ -264,13 +341,11 @@ export default function RecibirForm() {
                 </div>
               )}
             </div>
-
             {paquete.notas_cliente && (
               <p className="text-xs text-gray-500 italic bg-white/60 rounded px-3 py-2">
                 Nota del cliente: {paquete.notas_cliente}
               </p>
             )}
-
             {yaRecibido && (
               <p className="text-sm text-amber-700 font-medium flex items-center gap-1">
                 <AlertCircle className="h-4 w-4" />
@@ -281,59 +356,168 @@ export default function RecibirForm() {
         )}
       </div>
 
-      {/* Formulario de recepción */}
+      {/* Formulario recepción normal */}
       {paquete && (
         <form onSubmit={handleConfirmar} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
           <div className="flex items-center gap-2 text-gray-700 font-semibold">
             <Scale className="h-5 w-5 text-orange-600" />
             Registrar recepción
           </div>
-
           <div className="grid grid-cols-2 gap-4">
-            {/* Peso */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">
-                Peso en libras <span className="text-red-500">*</span>
-              </label>
+              <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input
                   ref={pesoRef}
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="999"
-                  value={peso}
-                  onChange={e => setPeso(e.target.value)}
-                  placeholder="0.0"
-                  required
+                  type="number" step="0.1" min="0.1" max="999"
+                  value={peso} onChange={e => setPeso(e.target.value)}
+                  placeholder="0.0" required
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 pr-10"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">lb</span>
               </div>
             </div>
-
-            {/* Tracking USACO */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Tracking USACO <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input
-                type="text"
-                value={trackingUsaco}
-                onChange={e => setTrackingUsaco(e.target.value)}
-                placeholder="1Z..."
+                type="text" value={trackingUsaco} onChange={e => setTrackingUsaco(e.target.value)}
+                placeholder="1Z..." autoComplete="off"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <input
+                type="text" value={notas} onChange={e => setNotas(e.target.value)}
+                placeholder="Ej: Caja con daño leve, producto bien..."
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={!peso || parseFloat(peso) <= 0 || guardando}
+              className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
+            >
+              {guardando ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</> : <><CheckCircle2 className="h-5 w-5" />Confirmar recepción</>}
+            </button>
+            <button type="button" onClick={limpiar} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Formulario recepción manual (sin asignar) */}
+      {modoManual && (
+        <form onSubmit={handleGuardarManual} className="bg-white rounded-xl border border-amber-200 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-amber-700 font-semibold">
+              <ClipboardList className="h-5 w-5" />
+              Recibir sin asignar — datos del paquete
+            </div>
+            <button type="button" onClick={limpiar} className="text-gray-400 hover:text-gray-600">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+            Este paquete quedará en espera. Cuando el cliente lo reporte con el tracking <strong>{formManual.tracking_courier || 'del courier'}</strong>, el sistema lo asociará automáticamente y le enviará un WhatsApp.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Peso */}
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <input
+                  ref={pesoManualRef}
+                  type="number" step="0.1" min="0.1" max="999"
+                  value={formManual.peso}
+                  onChange={e => setFormManual(p => ({ ...p, peso: e.target.value }))}
+                  placeholder="0.0" required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">lb</span>
+              </div>
+            </div>
+
+            {/* Categoría */}
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">Categoría <span className="text-red-500">*</span></label>
+              <select
+                value={formManual.categoria}
+                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto }))}
+                required
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="">Seleccionar...</option>
+                {CATEGORIAS.map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Descripción */}
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-sm font-medium text-gray-700">Descripción física <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={formManual.descripcion}
+                onChange={e => setFormManual(p => ({ ...p, descripcion: e.target.value }))}
+                placeholder="Ej: Caja mediana Amazon, posible zapatillas"
+                required
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            {/* Tienda */}
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">Tienda <span className="text-gray-400 font-normal">(si se ve)</span></label>
+              <input
+                type="text"
+                value={formManual.tienda}
+                onChange={e => setFormManual(p => ({ ...p, tienda: e.target.value }))}
+                placeholder="Amazon, Nike..."
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+
+            {/* Tracking courier */}
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">Tracking courier <span className="text-gray-400 font-normal">(si tiene)</span></label>
+              <input
+                type="text"
+                value={formManual.tracking_courier}
+                onChange={e => setFormManual(p => ({ ...p, tracking_courier: e.target.value }))}
+                placeholder="1Z, 9400..."
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                 autoComplete="off"
               />
             </div>
 
-            {/* Notas internas */}
+            {/* Bodega destino */}
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">Bodega destino</label>
+              <select
+                value={formManual.bodega_destino}
+                onChange={e => setFormManual(p => ({ ...p, bodega_destino: e.target.value }))}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                {BODEGAS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </div>
+
+            {/* Notas */}
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input
                 type="text"
-                value={notas}
-                onChange={e => setNotas(e.target.value)}
-                placeholder="Ej: Caja con daño leve, producto bien..."
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                value={formManual.notas}
+                onChange={e => setFormManual(p => ({ ...p, notas: e.target.value }))}
+                placeholder="Estado del embalaje, observaciones..."
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
           </div>
@@ -341,33 +525,22 @@ export default function RecibirForm() {
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!peso || parseFloat(peso) <= 0 || guardando}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
+              disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual}
+              className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
             >
-              {guardando ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" />
-                  Confirmar recepción
-                </>
-              )}
+              {guardandoManual
+                ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</>
+                : <><CheckCircle2 className="h-5 w-5" />Guardar sin asignar</>
+              }
             </button>
-            <button
-              type="button"
-              onClick={limpiar}
-              className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
+            <button type="button" onClick={limpiar} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
               Cancelar
             </button>
           </div>
         </form>
       )}
 
-      {/* Historial de la sesión */}
+      {/* Historial sesión */}
       {recibidosHoy.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
@@ -377,11 +550,11 @@ export default function RecibirForm() {
             </span>
           </div>
           <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-            {recibidosHoy.map((r) => (
-              <div key={`${r.id}-${r.hora}`} className="flex items-center gap-3 px-5 py-3 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+            {recibidosHoy.map((r, i) => (
+              <div key={`${r.id}-${i}`} className="flex items-center gap-3 px-5 py-3 text-sm">
+                <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${r.sinAsignar ? 'text-amber-400' : 'text-green-500'}`} />
                 <span className="font-mono font-semibold text-orange-700 w-32 truncate">{r.tracking}</span>
-                <span className="flex-1 text-gray-600 truncate">{r.cliente}</span>
+                <span className={`flex-1 truncate ${r.sinAsignar ? 'text-amber-600 italic' : 'text-gray-600'}`}>{r.cliente}</span>
                 <span className="text-gray-500 font-medium">{r.peso} lb</span>
                 <span className="text-gray-400 text-xs w-12 text-right">{r.hora}</span>
               </div>

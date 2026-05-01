@@ -34,7 +34,7 @@ export default function ReportarPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [exito, setExito] = useState<{ tracking: string } | null>(null)
+  const [exito, setExito] = useState<{ tracking: string; match?: boolean } | null>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -58,46 +58,54 @@ export default function ReportarPage() {
       return
     }
 
-    const { data, error: err } = await supabase.from('paquetes').insert({
-      cliente_id: user.id,
-      tienda: form.tienda,
-      tracking_origen: form.tracking_origen || null,
-      descripcion: form.descripcion,
-      categoria: form.categoria,
-      valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
-      fecha_compra: form.fecha_compra || null,
-      fecha_estimada_llegada: form.fecha_estimada_llegada || null,
-      bodega_destino: form.bodega_destino,
-      notas_cliente: form.notas_cliente || null,
-    }).select('tracking_casilla').single()
+    const res = await fetch('/api/portal/reportar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tienda: form.tienda,
+        tracking_origen: form.tracking_origen || null,
+        descripcion: form.descripcion,
+        categoria: form.categoria,
+        valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
+        fecha_compra: form.fecha_compra || null,
+        fecha_estimada_llegada: form.fecha_estimada_llegada || null,
+        bodega_destino: form.bodega_destino,
+        notas_cliente: form.notas_cliente || null,
+      }),
+    })
 
     setLoading(false)
+    const data = await res.json() as { ok?: boolean; error?: string; tracking_casilla?: string; match?: boolean }
 
-    if (err) {
-      setError('Error al guardar el pedido. Intenta de nuevo.')
+    if (!res.ok || !data.ok) {
+      setError(data.error ?? 'Error al guardar el pedido. Intenta de nuevo.')
       return
     }
 
-    // Disparar notificaciones (WhatsApp + email) en background — no bloquear UX
-    fetch('/api/notificaciones/registro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tracking_casilla: data.tracking_casilla }),
-    }).catch(() => {/* Silencioso — la notificación es best-effort */})
-
-    setExito({ tracking: data.tracking_casilla })
+    setExito({ tracking: data.tracking_casilla ?? '', match: data.match })
   }
 
   if (exito) {
     return (
       <div className="max-w-lg mx-auto space-y-4">
-        <Card className="border-green-200 bg-green-50">
+        <Card className={exito.match ? 'border-orange-300 bg-orange-50' : 'border-green-200 bg-green-50'}>
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center gap-4">
-              <CheckCircle className="h-12 w-12 text-green-600" />
+              <CheckCircle className={`h-12 w-12 ${exito.match ? 'text-orange-500' : 'text-green-600'}`} />
               <div>
-                <h2 className="text-xl font-bold text-green-800">¡Pedido reportado!</h2>
-                <p className="text-green-700 mt-1">Tu paquete ha sido registrado exitosamente.</p>
+                {exito.match ? (
+                  <>
+                    <h2 className="text-xl font-bold text-orange-800">¡Tu paquete ya está aquí! 🎉</h2>
+                    <p className="text-orange-700 mt-1">
+                      Encontramos tu paquete en nuestra bodega de Miami. Te enviamos una notificación por WhatsApp con los detalles.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold text-green-800">¡Pedido reportado!</h2>
+                    <p className="text-green-700 mt-1">Tu paquete ha sido registrado exitosamente.</p>
+                  </>
+                )}
               </div>
               <div className="bg-white rounded-lg p-4 w-full border border-green-200">
                 <p className="text-sm text-gray-500">Número de seguimiento CeladaShopper</p>
