@@ -182,8 +182,11 @@ export default async function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="font-mono text-sm text-orange-900 space-y-1">
-            <p className="font-semibold">{perfil?.nombre_completo}</p>
-            <p>Casilla: {perfil?.numero_casilla}</p>
+            {nombre && <p className="font-semibold">{perfil?.nombre_completo}</p>}
+            {perfil?.numero_casilla
+              ? <p>Casilla: <span className="font-bold">{perfil.numero_casilla}</span></p>
+              : <p className="text-orange-400 text-xs italic">Número de casilla pendiente de asignación</p>
+            }
             <p className="text-orange-600 text-xs mt-2">
               Usa esta dirección al comprar en tiendas de USA. El número de casilla es tu identificador.
             </p>
