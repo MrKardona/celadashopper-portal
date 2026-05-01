@@ -36,7 +36,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
       id, tracking_casilla, descripcion, tienda, categoria,
       estado, bodega_destino, peso_facturable, peso_libras,
       costo_servicio, factura_pagada, created_at, updated_at,
-      perfiles(nombre_completo, numero_casilla)
+      perfiles!left(nombre_completo, numero_casilla)
     `)
     .order('created_at', { ascending: false })
     .limit(100)
