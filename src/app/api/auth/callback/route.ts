@@ -14,5 +14,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth`)
+  // Si falla, redirigir a recuperar con mensaje de error
+  const errorDest = next === '/nueva-contrasena' ? '/recuperar?error=expired' : '/login?error=auth'
+  return NextResponse.redirect(`${origin}${errorDest}`)
 }
