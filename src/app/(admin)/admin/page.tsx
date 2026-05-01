@@ -1,42 +1,36 @@
 import { createClient } from '@supabase/supabase-js'
 import { Package, Clock, Plane, AlertTriangle, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 import Link from 'next/link'
 import { ESTADO_LABELS, ESTADO_COLORES } from '@/types'
 
 export default async function AdminDashboard() {
-  const supabase = getSupabaseAdmin()
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: 'public' }, auth: { persistSession: false } }
+  )
+
   const [conteoRes, recientesRes, alertasRes, clientesRes] = await Promise.all([
-    // Conteo por estado (solo activos)
     supabase
       .from('paquetes')
       .select('estado')
       .not('estado', 'in', '("entregado","devuelto")'),
 
-    // Últimos 10 registrados
     supabase
       .from('paquetes')
-      .select('id, tracking_casilla, descripcion, estado, created_at, perfiles(nombre_completo)')
+      .select('id, tracking_casilla, descripcion, estado, cliente_id, created_at')
       .order('created_at', { ascending: false })
       .limit(10),
 
-    // Paquetes sin movimiento +7 días (activos)
     supabase
       .from('paquetes')
-      .select('id, tracking_casilla, descripcion, estado, updated_at, perfiles(nombre_completo)')
+      .select('id, tracking_casilla, descripcion, estado, cliente_id, updated_at')
       .not('estado', 'in', '("entregado","devuelto")')
       .lt('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
       .order('updated_at', { ascending: true })
       .limit(5),
 
-    // Total clientes activos
     supabase
       .from('perfiles')
       .select('id', { count: 'exact', head: true })
@@ -49,41 +43,37 @@ export default async function AdminDashboard() {
   const alertas = alertasRes.data ?? []
   const totalClientes = clientesRes.count ?? 0
 
-  // Calcular métricas
+  // Cargar nombres de clientes para recientes + alertas
+  const clienteIds = [...new Set([
+    ...recientes.map(p => p.cliente_id),
+    ...alertas.map(p => p.cliente_id),
+  ].filter(Boolean))]
+
+  let nombresMap: Record<string, string> = {}
+  if (clienteIds.length > 0) {
+    const { data: perfiles } = await supabase
+      .from('perfiles')
+      .select('id, nombre_completo')
+      .in('id', clienteIds)
+    if (perfiles) {
+      nombresMap = Object.fromEntries(perfiles.map(p => [p.id, p.nombre_completo]))
+    }
+  }
+
   const conteo = paquetes.reduce((acc, p) => {
     acc[p.estado] = (acc[p.estado] ?? 0) + 1
     return acc
   }, {} as Record<string, number>)
 
   const stats = [
-    {
-      label: 'Total activos',
-      value: paquetes.length,
-      icon: Package,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-    },
-    {
-      label: 'Recibidos USA',
-      value: conteo['recibido_usa'] ?? 0,
-      icon: Clock,
-      color: 'text-yellow-600',
-      bg: 'bg-yellow-50',
-    },
+    { label: 'Total activos', value: paquetes.length, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Recibidos USA', value: conteo['recibido_usa'] ?? 0, icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50' },
     {
       label: 'En tránsito',
       value: (conteo['en_transito'] ?? 0) + (conteo['en_consolidacion'] ?? 0) + (conteo['listo_envio'] ?? 0),
-      icon: Plane,
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
+      icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50',
     },
-    {
-      label: 'Clientes activos',
-      value: totalClientes,
-      icon: Users,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
-    },
+    { label: 'Clientes activos', value: totalClientes, icon: Users, color: 'text-green-600', bg: 'bg-green-50' },
   ]
 
   return (
@@ -134,7 +124,6 @@ export default async function AdminDashboard() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Alertas */}
         {alertas.length > 0 && (
           <Card className="border-amber-200">
             <CardHeader className="pb-3">
@@ -145,19 +134,16 @@ export default async function AdminDashboard() {
             </CardHeader>
             <CardContent className="space-y-2">
               {alertas.map(p => {
-                const perfil = p.perfiles as unknown as { nombre_completo: string } | null
-                const dias = Math.floor(
-                  (Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24)
-                )
+                const dias = Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))
                 return (
-                  <Link
-                    key={p.id}
-                    href={`/admin/paquetes/${p.id}`}
+                  <Link key={p.id} href={`/admin/paquetes/${p.id}`}
                     className="flex items-center justify-between p-2 rounded-lg hover:bg-amber-50 transition-colors"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{p.descripcion}</p>
-                      <p className="text-xs text-gray-500">{perfil?.nombre_completo} · {p.tracking_casilla}</p>
+                      <p className="text-xs text-gray-500">
+                        {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
+                      </p>
                     </div>
                     <span className="text-xs text-amber-600 font-medium ml-2 flex-shrink-0">{dias}d</span>
                   </Link>
@@ -167,7 +153,6 @@ export default async function AdminDashboard() {
           </Card>
         )}
 
-        {/* Recientes */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
@@ -178,24 +163,21 @@ export default async function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {recientes.map(p => {
-              const perfil = p.perfiles as unknown as { nombre_completo: string } | null
-              return (
-                <Link
-                  key={p.id}
-                  href={`/admin/paquetes/${p.id}`}
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{p.descripcion}</p>
-                    <p className="text-xs text-gray-500">{perfil?.nombre_completo} · {p.tracking_casilla}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${ESTADO_COLORES[p.estado as keyof typeof ESTADO_COLORES] ?? 'bg-gray-100 text-gray-700'}`}>
-                    {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
-                  </span>
-                </Link>
-              )
-            })}
+            {recientes.map(p => (
+              <Link key={p.id} href={`/admin/paquetes/${p.id}`}
+                className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{p.descripcion}</p>
+                  <p className="text-xs text-gray-500">
+                    {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
+                  </p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full ml-2 flex-shrink-0 ${ESTADO_COLORES[p.estado as keyof typeof ESTADO_COLORES] ?? 'bg-gray-100 text-gray-700'}`}>
+                  {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
+                </span>
+              </Link>
+            ))}
           </CardContent>
         </Card>
       </div>

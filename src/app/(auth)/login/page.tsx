@@ -23,7 +23,7 @@ export default function LoginPage() {
     setError('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError('Correo o contraseña incorrectos')
@@ -31,7 +31,19 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    // Leer rol directamente para redirigir al área correcta
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('rol')
+      .eq('id', data.user.id)
+      .single()
+
+    const rol = perfil?.rol ?? 'cliente'
+
+    if (rol === 'admin') router.push('/admin/paquetes')
+    else if (rol === 'agente_usa') router.push('/agente')
+    else router.push('/dashboard')
+
     router.refresh()
   }
 

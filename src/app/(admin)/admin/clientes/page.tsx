@@ -1,13 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Users, Search } from 'lucide-react'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 import { Badge } from '@/components/ui/badge'
 
 interface Props {
@@ -17,22 +10,48 @@ interface Props {
 export default async function AdminClientesPage({ searchParams }: Props) {
   const params = await searchParams
   const { q, ciudad } = params
-  const supabaseAdmin = getSupabaseAdmin()
 
-  let query = supabaseAdmin
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: 'public' }, auth: { persistSession: false } }
+  )
+
+  // Query 1: todos los clientes
+  let q1 = supabase
     .from('perfiles')
-    .select(`
-      id, nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, activo, created_at,
-      paquetes(id, estado)
-    `)
+    .select('id, nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, activo, created_at')
     .eq('rol', 'cliente')
     .order('nombre_completo')
 
-  if (ciudad) query = query.eq('ciudad', ciudad)
+  if (ciudad) q1 = q1.eq('ciudad', ciudad)
 
-  const { data: clientes } = await query
+  const { data: clientes } = await q1
   const lista = clientes ?? []
 
+  // Query 2: conteo de paquetes por cliente
+  const clienteIds = lista.map(c => c.id)
+  let paquetesMap: Record<string, { total: number; activos: number }> = {}
+
+  if (clienteIds.length > 0) {
+    const { data: paquetes } = await supabase
+      .from('paquetes')
+      .select('cliente_id, estado')
+      .in('cliente_id', clienteIds)
+
+    if (paquetes) {
+      for (const p of paquetes) {
+        if (!p.cliente_id) continue
+        if (!paquetesMap[p.cliente_id]) paquetesMap[p.cliente_id] = { total: 0, activos: 0 }
+        paquetesMap[p.cliente_id].total++
+        if (!['entregado', 'devuelto'].includes(p.estado)) {
+          paquetesMap[p.cliente_id].activos++
+        }
+      }
+    }
+  }
+
+  // Filtro texto
   const filtrados = q
     ? lista.filter(c => {
         const txt = `${c.nombre_completo} ${c.email} ${c.numero_casilla} ${c.ciudad ?? ''}`.toLowerCase()
@@ -109,9 +128,7 @@ export default async function AdminClientesPage({ searchParams }: Props) {
                 </tr>
               ) : (
                 filtrados.map(c => {
-                  const paquetes = (c.paquetes ?? []) as { id: string; estado: string }[]
-                  const activos = paquetes.filter(p => !['entregado', 'devuelto'].includes(p.estado)).length
-                  const total = paquetes.length
+                  const stats = paquetesMap[c.id] ?? { total: 0, activos: 0 }
                   return (
                     <tr key={c.id} className="hover:bg-orange-50/40 transition-colors">
                       <td className="px-4 py-3">
@@ -140,8 +157,8 @@ export default async function AdminClientesPage({ searchParams }: Props) {
                           href={`/admin/paquetes?q=${encodeURIComponent(c.nombre_completo)}`}
                           className="inline-flex items-center gap-1 hover:underline"
                         >
-                          <span className="font-bold text-gray-900">{activos}</span>
-                          <span className="text-gray-400 text-xs">/ {total}</span>
+                          <span className="font-bold text-gray-900">{stats.activos}</span>
+                          <span className="text-gray-400 text-xs">/ {stats.total}</span>
                         </Link>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell text-gray-400 text-xs">

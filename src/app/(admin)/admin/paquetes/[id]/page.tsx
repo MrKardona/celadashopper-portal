@@ -28,33 +28,29 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
   const { id } = await params
   const supabase = getSupabaseAdmin()
 
+  // Queries separadas para evitar problemas con PostgREST joins + RLS
   const [paqueteRes, fotosRes, eventosRes] = await Promise.all([
-    supabase
-      .from('paquetes')
-      .select(`*, perfiles(nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad)`)
-      .eq('id', id)
-      .single(),
-    supabase
-      .from('fotos_paquetes')
-      .select('*')
-      .eq('paquete_id', id)
-      .order('created_at'),
-    supabase
-      .from('eventos_paquete')
-      .select('*')
-      .eq('paquete_id', id)
-      .order('created_at', { ascending: false }),
+    supabase.from('paquetes').select('*').eq('id', id).single(),
+    supabase.from('fotos_paquetes').select('*').eq('paquete_id', id).order('created_at'),
+    supabase.from('eventos_paquete').select('*').eq('paquete_id', id).order('created_at', { ascending: false }),
   ])
 
   if (paqueteRes.error || !paqueteRes.data) notFound()
 
   const p = paqueteRes.data
-  const perfil = p.perfiles as {
-    nombre_completo: string; numero_casilla: string; email: string
-    whatsapp: string | null; telefono: string | null; ciudad: string | null
-  } | null
   const fotos = fotosRes.data ?? []
   const eventos = eventosRes.data ?? []
+
+  // Cargar perfil del cliente por separado si existe
+  let perfil: { nombre_completo: string; numero_casilla: string; email: string; whatsapp: string | null; telefono: string | null; ciudad: string | null } | null = null
+  if (p.cliente_id) {
+    const { data: perfilData } = await supabase
+      .from('perfiles')
+      .select('nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad')
+      .eq('id', p.cliente_id)
+      .single()
+    perfil = perfilData
+  }
 
   // Cargar tarifa de la categoría
   const { data: tarifa } = await supabase

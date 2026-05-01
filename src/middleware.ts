@@ -2,13 +2,12 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Cliente admin para leer roles sin que RLS interfiera
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function middleware(request: NextRequest) {
+  // Cliente admin creado dentro de la función para compatibilidad con Edge Runtime
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -42,23 +41,41 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (user && (pathname === '/login' || pathname === '/register')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // Rutas que requieren verificar el rol
+  const necesitaRol =
+    (user && (pathname === '/login' || pathname === '/register')) ||
+    (user && pathname === '/dashboard') ||
+    (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente')))
 
-  // Verificar roles para rutas protegidas (service role para saltar RLS)
-  if (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente'))) {
+  if (necesitaRol) {
     const { data: perfil } = await supabaseAdmin
       .from('perfiles')
       .select('rol')
-      .eq('id', user.id)
+      .eq('id', user!.id)
       .single()
 
-    if (pathname.startsWith('/admin') && perfil?.rol !== 'admin') {
+    const rol = perfil?.rol ?? 'cliente'
+
+    // Login/register → redirigir según rol
+    if (pathname === '/login' || pathname === '/register') {
+      if (rol === 'admin') return NextResponse.redirect(new URL('/admin/paquetes', request.url))
+      if (rol === 'agente_usa') return NextResponse.redirect(new URL('/agente', request.url))
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    if (pathname.startsWith('/agente') && !['admin', 'agente_usa'].includes(perfil?.rol ?? '')) {
+    // Admin en /dashboard → mandarlo a su área
+    if (pathname === '/dashboard' && rol === 'admin') {
+      return NextResponse.redirect(new URL('/admin/paquetes', request.url))
+    }
+    if (pathname === '/dashboard' && rol === 'agente_usa') {
+      return NextResponse.redirect(new URL('/agente', request.url))
+    }
+
+    // Proteger rutas /admin y /agente
+    if (pathname.startsWith('/admin') && rol !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    if (pathname.startsWith('/agente') && !['admin', 'agente_usa'].includes(rol)) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

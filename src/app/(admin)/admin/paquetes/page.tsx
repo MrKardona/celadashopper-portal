@@ -1,14 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
+import { Package, Search, Camera } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-import { Package, Search } from 'lucide-react'
 
 const ESTADOS = [
   'reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio',
@@ -28,30 +21,54 @@ interface Props {
 export default async function AdminPaquetesPage({ searchParams }: Props) {
   const params = await searchParams
   const { estado, bodega, q } = params
-  const supabaseAdmin = getSupabaseAdmin()
 
-  let query = supabaseAdmin
+  // Usamos service role con la opción db.schema para evitar problemas de RLS
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: 'public' }, auth: { persistSession: false } }
+  )
+
+  // Query 1: paquetes (sin join — service role directo)
+  let q1 = supabase
     .from('paquetes')
-    .select(`
-      id, tracking_casilla, descripcion, tienda, categoria,
-      estado, bodega_destino, peso_facturable, peso_libras,
-      costo_servicio, factura_pagada, created_at, updated_at,
-      perfiles!left(nombre_completo, numero_casilla)
-    `)
+    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, factura_pagada, created_at, updated_at')
     .order('created_at', { ascending: false })
-    .limit(100)
+    .limit(200)
 
-  if (estado) query = query.eq('estado', estado)
-  if (bodega) query = query.eq('bodega_destino', bodega)
+  if (estado) q1 = q1.eq('estado', estado)
+  if (bodega) q1 = q1.eq('bodega_destino', bodega)
 
-  const { data: paquetes } = await query
+  const { data: paquetes, error: errPaq } = await q1
   const lista = paquetes ?? []
 
-  // Filtro de búsqueda por texto (client-side sobre los resultados)
+  // Queries en paralelo: perfiles + primera foto de cada paquete
+  const paqueteIds = lista.map(p => p.id)
+  const clienteIds = [...new Set(lista.map(p => p.cliente_id).filter(Boolean))]
+
+  const [perfilesRes, fotosRes] = await Promise.all([
+    clienteIds.length > 0
+      ? supabase.from('perfiles').select('id, nombre_completo, numero_casilla').in('id', clienteIds)
+      : Promise.resolve({ data: [] }),
+    paqueteIds.length > 0
+      ? supabase.from('fotos_paquetes').select('paquete_id, url').in('paquete_id', paqueteIds).order('created_at')
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const perfilesMap: Record<string, { nombre_completo: string; numero_casilla: string }> =
+    Object.fromEntries((perfilesRes.data ?? []).map((p: { id: string; nombre_completo: string; numero_casilla: string }) => [p.id, p]))
+
+  // Primera foto por paquete
+  const fotosMap: Record<string, string> = {}
+  for (const f of (fotosRes.data ?? []) as { paquete_id: string; url: string }[]) {
+    if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+  }
+
+  // Filtro de búsqueda por texto
   const filtrados = q
     ? lista.filter(p => {
-        const perfil = p.perfiles as unknown as { nombre_completo: string; numero_casilla: string } | null
-        const txt =`${p.tracking_casilla} ${p.descripcion} ${p.tienda} ${perfil?.nombre_completo} ${perfil?.numero_casilla}`.toLowerCase()
+        const perfil = p.cliente_id ? perfilesMap[p.cliente_id] : null
+        const txt = `${p.tracking_casilla} ${p.descripcion} ${p.tienda} ${perfil?.nombre_completo ?? ''} ${perfil?.numero_casilla ?? ''}`.toLowerCase()
         return txt.includes(q.toLowerCase())
       })
     : lista
@@ -132,19 +149,37 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-gray-400">
                     <Package className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                    No hay paquetes con esos filtros
+                    {errPaq ? `Error: ${errPaq.message}` : 'No hay paquetes con esos filtros'}
                   </td>
                 </tr>
               ) : (
                 filtrados.map(p => {
-                  const perfil = p.perfiles as unknown as { nombre_completo: string; numero_casilla: string } | null
+                  const perfil = p.cliente_id ? perfilesMap[p.cliente_id] : null
                   const peso = p.peso_facturable ?? p.peso_libras
+                  const fotoUrl = fotosMap[p.id]
                   return (
                     <tr key={p.id} className={`hover:bg-orange-50/40 transition-colors cursor-pointer ${!perfil ? 'bg-amber-50/60' : ''}`}>
                       <td className="px-4 py-3">
-                        <Link href={`/admin/paquetes/${p.id}`} className="block">
-                          <span className="font-mono text-xs text-orange-700 font-semibold">{p.tracking_casilla ?? '—'}</span>
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          {fotoUrl ? (
+                            <a href={fotoUrl} target="_blank" rel="noopener noreferrer"
+                              className="flex-shrink-0 group relative"
+                              title="Ver foto en tamaño completo"
+                            >
+                              <img src={fotoUrl} alt="" className="h-9 w-9 rounded-md object-cover border border-gray-200 group-hover:opacity-80 transition-opacity" />
+                              <div className="absolute inset-0 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity">
+                                <Camera className="h-3.5 w-3.5 text-white" />
+                              </div>
+                            </a>
+                          ) : (
+                            <div className="h-9 w-9 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">
+                              <Camera className="h-4 w-4 text-gray-300" />
+                            </div>
+                          )}
+                          <Link href={`/admin/paquetes/${p.id}`} className="font-mono text-xs text-orange-700 font-semibold hover:underline">
+                            {p.tracking_casilla ?? '—'}
+                          </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/admin/paquetes/${p.id}`} className="block">

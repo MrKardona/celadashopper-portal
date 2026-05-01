@@ -37,10 +37,11 @@ export default function NuevaContrasenaPage() {
   const [sesionValida, setSesionValida] = useState<boolean | null>(null)
 
   // Verificar que hay sesión activa (viene del link de recuperación)
+  // Usamos getUser() que verifica con el servidor — más confiable que getSession()
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSesionValida(!!session)
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setSesionValida(!!user)
     })
   }, [])
 
@@ -146,7 +147,19 @@ export default function NuevaContrasenaPage() {
     )
   }
 
-  // Formulario principal (null = cargando sesión)
+  // Cargando — verificando sesión
+  if (sesionValida === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-white">
+        <div className="flex flex-col items-center gap-3 text-gray-400">
+          <div className="h-8 w-8 rounded-full border-4 border-orange-200 border-t-orange-500 animate-spin" />
+          <p className="text-sm">Verificando enlace...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Formulario principal
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-white">
       <div className="w-full max-w-md space-y-6">
@@ -281,7 +294,7 @@ export default function NuevaContrasenaPage() {
               <Button
                 type="submit"
                 className="w-full bg-orange-600 hover:bg-orange-700 h-11"
-                disabled={loading || !coinciden || seguridad.nivel < 2}
+                disabled={loading || password.length < 8 || !coinciden}
                 aria-busy={loading}
               >
                 {loading ? 'Guardando...' : 'Guardar nueva contraseña'}
