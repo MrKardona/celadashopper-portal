@@ -150,13 +150,16 @@ export async function POST(req: NextRequest) {
 
       const fotoUrl = fotos?.[0]?.url ?? null
 
+      const linkSeguimiento = `https://portal.celadashopper.com/paquetes/${matchId}`
+
       const captionOTexto =
         `¡Hola ${nombreCorto}! 🎉\n\n` +
         `*Tu paquete ya está en nuestra bodega de Miami* y lo acabamos de asociar a tu cuenta.\n\n` +
         `📦 *${body.descripcion}*\n` +
         (trackingOrigen ? `🚚 Tracking courier: *${trackingOrigen}*\n` : '') +
         `🔖 Tu número CeladaShopper: *${matchTracking}*\n\n` +
-        `Usa este número en el portal para hacerle seguimiento. Lo despacharemos pronto a Colombia. ✈️`
+        `👉 Sigue tu paquete aquí:\n${linkSeguimiento}\n\n` +
+        `Lo despacharemos pronto a Colombia. ✈️`
 
       if (fotoUrl) {
         // Enviar foto con caption (un solo mensaje con imagen + texto)
