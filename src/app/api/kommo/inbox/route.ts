@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { procesarMensaje, type KommoMessage } from '@/lib/bot/engine'
+import { isRateLimited } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,12 @@ function extractMessages(body: KommoWebhookPayload): KommoMessage[] {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limiting: 50 peticiones por segundo por IP
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return new NextResponse('Too Many Requests', { status: 429 })
+  }
+
   let body: KommoWebhookPayload
 
   const contentType = req.headers.get('content-type') ?? ''

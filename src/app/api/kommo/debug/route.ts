@@ -3,6 +3,7 @@
 // GET /api/kommo/debug?chat_id=UUID&talk_id=NUMERIC&lead_id=NUMERIC
 
 import { NextRequest, NextResponse } from 'next/server'
+import { isRateLimited } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,11 @@ async function kommoGet(path: string, token: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return new NextResponse('Too Many Requests', { status: 429 })
+  }
+
   const token = process.env.KOMMO_API_TOKEN
   if (!token) {
     return NextResponse.json({ error: 'KOMMO_API_TOKEN no configurado' }, { status: 500 })
