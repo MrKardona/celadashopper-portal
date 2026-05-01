@@ -154,8 +154,9 @@ export async function POST(req: NextRequest) {
         `¡Hola ${nombreCorto}! 🎉\n\n` +
         `*Tu paquete ya está en nuestra bodega de Miami* y lo acabamos de asociar a tu cuenta.\n\n` +
         `📦 *${body.descripcion}*\n` +
-        `🔖 Tracking CeladaShopper: *${matchTracking}*\n\n` +
-        `Lo despacharemos pronto a Colombia. Te avisamos cuando esté en camino. ✈️`
+        (trackingOrigen ? `🚚 Tracking courier: *${trackingOrigen}*\n` : '') +
+        `🔖 Tu número CeladaShopper: *${matchTracking}*\n\n` +
+        `Usa este número en el portal para hacerle seguimiento. Lo despacharemos pronto a Colombia. ✈️`
 
       if (fotoUrl) {
         // Enviar foto con caption (un solo mensaje con imagen + texto)
