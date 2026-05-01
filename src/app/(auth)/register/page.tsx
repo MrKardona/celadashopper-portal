@@ -78,13 +78,15 @@ export default function RegisterPage() {
     }
 
     // Actualizar datos adicionales del perfil
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
+    // Usamos data.user del signUp (disponible de inmediato) y también getUser() como respaldo
+    const userId = data?.user?.id
+    if (userId) {
       await supabase.from('perfiles').update({
+        nombre_completo: form.nombre_completo,
         telefono: form.telefono,
         whatsapp: form.whatsapp || form.telefono,
         ciudad: form.ciudad,
-      }).eq('id', user.id)
+      }).eq('id', userId)
     }
 
     router.push('/dashboard')

@@ -39,16 +39,24 @@ export default async function DashboardPage() {
     entregados: todos?.filter(p => p.estado === 'entregado').length ?? 0,
   }
 
+  // Nombre a mostrar: primer nombre real, o fallback
+  const nombre = perfil?.nombre_completo && perfil.nombre_completo !== perfil.email
+    ? perfil.nombre_completo.split(' ')[0]
+    : null
+
   return (
     <div className="space-y-6">
       {/* Bienvenida */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Hola, {perfil?.nombre_completo?.split(' ')[0]} <span aria-hidden="true">👋</span>
+            Hola{nombre ? `, ${nombre}` : ''} <span aria-hidden="true">👋</span>
           </h1>
           <p className="text-gray-500">
-            Tu casilla: <span className="font-semibold text-orange-600">{perfil?.numero_casilla}</span>
+            {perfil?.numero_casilla
+              ? <>Tu casilla: <span className="font-semibold text-orange-600">{perfil.numero_casilla}</span></>
+              : <span className="text-sm">Bienvenido a CeladaShopper</span>
+            }
           </p>
         </div>
         <Link
