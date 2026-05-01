@@ -14,22 +14,42 @@ function getSupabaseAdmin() {
   )
 }
 
-async function enviarWhatsapp(phone: string, texto: string): Promise<void> {
+async function enviarWhatsappTexto(phone: string, texto: string): Promise<void> {
   const phoneId = process.env.META_PHONE_NUMBER_ID
   const token = process.env.META_ACCESS_TOKEN
   if (!phoneId || !token) return
 
-  const numeroLimpio = phone.replace(/\D/g, '')
-  const numero = numeroLimpio.startsWith('57') ? numeroLimpio : `57${numeroLimpio}`
+  const numero = phone.replace(/\D/g, '')
+  const dest = numero.startsWith('57') ? numero : `57${numero}`
 
   await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messaging_product: 'whatsapp',
-      to: numero,
+      to: dest,
       type: 'text',
       text: { body: texto },
+    }),
+  })
+}
+
+async function enviarWhatsappImagen(phone: string, imageUrl: string, caption: string): Promise<void> {
+  const phoneId = process.env.META_PHONE_NUMBER_ID
+  const token = process.env.META_ACCESS_TOKEN
+  if (!phoneId || !token) return
+
+  const numero = phone.replace(/\D/g, '')
+  const dest = numero.startsWith('57') ? numero : `57${numero}`
+
+  await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: dest,
+      type: 'image',
+      image: { link: imageUrl, caption },
     }),
   })
 }
@@ -118,16 +138,32 @@ export async function POST(req: NextRequest) {
       ubicacion: 'Miami, USA',
     })
 
-    // Notificar por WhatsApp
+    // Notificar por WhatsApp (texto + foto si existe)
     if (phoneCliente) {
-      const msg =
+      // Buscar foto del paquete
+      const { data: fotos } = await admin
+        .from('fotos_paquetes')
+        .select('url')
+        .eq('paquete_id', matchId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+
+      const fotoUrl = fotos?.[0]?.url ?? null
+
+      const captionOTexto =
         `¡Hola ${nombreCorto}! 🎉\n\n` +
-        `Tenemos una buena noticia: *tu paquete ya está en nuestra bodega de Miami* y lo acabamos de asociar a tu cuenta.\n\n` +
+        `*Tu paquete ya está en nuestra bodega de Miami* y lo acabamos de asociar a tu cuenta.\n\n` +
         `📦 *${body.descripcion}*\n` +
         `🔖 Tracking CeladaShopper: *${matchTracking}*\n\n` +
         `Lo despacharemos pronto a Colombia. Te avisamos cuando esté en camino. ✈️`
 
-      enviarWhatsapp(phoneCliente, msg).catch(() => {/* best-effort */})
+      if (fotoUrl) {
+        // Enviar foto con caption (un solo mensaje con imagen + texto)
+        enviarWhatsappImagen(phoneCliente, fotoUrl, captionOTexto).catch(() => {/* best-effort */})
+      } else {
+        // Sin foto, solo texto
+        enviarWhatsappTexto(phoneCliente, captionOTexto).catch(() => {/* best-effort */})
+      }
     }
 
     return NextResponse.json({

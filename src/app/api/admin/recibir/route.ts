@@ -27,6 +27,15 @@ async function verificarAdmin() {
   return user
 }
 
+async function guardarFoto(admin: ReturnType<typeof getSupabaseAdmin>, paquete_id: string, foto_url: string) {
+  await admin.from('fotos_paquetes').insert({
+    paquete_id,
+    url: foto_url,
+    storage_path: foto_url,
+    descripcion: 'Foto recepción bodega Miami',
+  })
+}
+
 // GET: buscar paquete por tracking para previsualizar
 export async function GET(req: NextRequest) {
   const user = await verificarAdmin()
@@ -37,7 +46,6 @@ export async function GET(req: NextRequest) {
 
   const admin = getSupabaseAdmin()
 
-  // Buscar por tracking_casilla o tracking_origen (case-insensitive)
   const { data: paquetes } = await admin
     .from('paquetes')
     .select(`
@@ -54,7 +62,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Paquete no encontrado' }, { status: 404 })
   }
 
-  // Preferir coincidencia exacta
   const exacto = paquetes.find(
     p =>
       p.tracking_casilla?.toLowerCase() === tracking.toLowerCase() ||
@@ -85,13 +92,15 @@ export async function POST(req: NextRequest) {
     tracking_origen?: string
     categoria?: string
     bodega_destino?: string
+    // Ambos modos
+    foto_url?: string
   }
 
   const admin = getSupabaseAdmin()
 
   // ── MODO B: Crear paquete sin cliente ───────────────────────────────────
   if (body.sin_asignar) {
-    const { descripcion, tienda, tracking_origen, categoria, bodega_destino, notas_internas } = body
+    const { descripcion, tienda, tracking_origen, categoria, bodega_destino, notas_internas, foto_url } = body
     const peso_libras = body.peso_libras
 
     if (!descripcion || !peso_libras || peso_libras <= 0 || !categoria) {
@@ -117,6 +126,11 @@ export async function POST(req: NextRequest) {
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
+    // Guardar foto si existe
+    if (foto_url) {
+      await guardarFoto(admin, nuevo.id, foto_url)
+    }
+
     // Registrar evento
     await admin.from('eventos_paquete').insert({
       paquete_id: nuevo.id,
@@ -132,7 +146,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── MODO A: Actualizar paquete existente ────────────────────────────────
-  const { paquete_id, peso_libras, tracking_usaco, notas_internas } = body
+  const { paquete_id, peso_libras, tracking_usaco, notas_internas, foto_url } = body
 
   if (!paquete_id || !peso_libras || peso_libras <= 0) {
     return NextResponse.json({ error: 'paquete_id y peso_libras son requeridos' }, { status: 400 })
@@ -157,6 +171,11 @@ export async function POST(req: NextRequest) {
 
   const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+  // Guardar foto si existe
+  if (foto_url) {
+    await guardarFoto(admin, paquete_id, foto_url)
+  }
 
   await admin.from('eventos_paquete').insert({
     paquete_id,

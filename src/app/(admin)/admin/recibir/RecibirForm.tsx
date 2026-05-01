@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import {
   ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
-  Scale, Loader2, X, ClipboardList,
+  Scale, Loader2, X, ClipboardList, Camera, ImageIcon,
 } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 
@@ -54,6 +54,8 @@ export default function RecibirForm() {
   const inputRef = useRef<HTMLInputElement>(null)
   const pesoRef = useRef<HTMLInputElement>(null)
   const pesoManualRef = useRef<HTMLInputElement>(null)
+  const fotoInputRef = useRef<HTMLInputElement>(null)
+  const fotoInputManualRef = useRef<HTMLInputElement>(null)
 
   // --- Estado: búsqueda normal ---
   const [tracking, setTracking] = useState('')
@@ -66,6 +68,11 @@ export default function RecibirForm() {
   const [trackingUsaco, setTrackingUsaco] = useState('')
   const [notas, setNotas] = useState('')
   const [guardando, setGuardando] = useState(false)
+
+  // --- Foto (compartida entre ambos modos) ---
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  const [fotoUrl, setFotoUrl] = useState<string | null>(null)
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
 
   // --- Estado: modo manual (sin casillero) ---
   const [modoManual, setModoManual] = useState(false)
@@ -137,7 +144,39 @@ export default function RecibirForm() {
     setUltimoRecibido(null)
     setModoManual(false)
     setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '' })
+    setFotoPreview(null)
+    setFotoUrl(null)
+    setSubiendoFoto(false)
     setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Preview local inmediato
+    const preview = URL.createObjectURL(file)
+    setFotoPreview(preview)
+    setFotoUrl(null)
+    setSubiendoFoto(true)
+
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/foto', { method: 'POST', body: fd })
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
+      if (res.ok && data.url) {
+        setFotoUrl(data.url)
+      } else {
+        setFotoPreview(null)
+        setErrorBusqueda(data.error ?? 'Error subiendo foto')
+      }
+    } catch {
+      setFotoPreview(null)
+      setErrorBusqueda('Error de conexión al subir foto')
+    } finally {
+      setSubiendoFoto(false)
+    }
   }
 
   // ── Confirmar recepción de paquete encontrado ────────────────────────────
@@ -154,6 +193,7 @@ export default function RecibirForm() {
           peso_libras: parseFloat(peso),
           tracking_usaco: trackingUsaco || undefined,
           notas_internas: notas || undefined,
+          foto_url: fotoUrl || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string }
@@ -192,6 +232,7 @@ export default function RecibirForm() {
           categoria: formManual.categoria,
           bodega_destino: formManual.bodega_destino,
           notas_internas: formManual.notas || undefined,
+          foto_url: fotoUrl || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string }
@@ -394,10 +435,58 @@ export default function RecibirForm() {
               />
             </div>
           </div>
+          {/* Foto del paquete */}
+          <div className="space-y-1.5 col-span-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+              <Camera className="h-4 w-4 text-gray-400" />
+              Foto del paquete <span className="text-gray-400 font-normal">(recomendado)</span>
+            </label>
+            <input
+              ref={fotoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFotoChange}
+              className="hidden"
+            />
+            {!fotoPreview ? (
+              <button
+                type="button"
+                onClick={() => fotoInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-gray-200 rounded-lg py-4 text-sm text-gray-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
+              >
+                <ImageIcon className="h-4 w-4" />
+                Tomar o subir foto
+              </button>
+            ) : (
+              <div className="relative rounded-lg overflow-hidden border border-gray-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={fotoPreview} alt="Vista previa" className="w-full max-h-48 object-cover" />
+                {subiendoFoto && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  </div>
+                )}
+                {!subiendoFoto && fotoUrl && (
+                  <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Subida
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setFotoPreview(null); setFotoUrl(null); if (fotoInputRef.current) fotoInputRef.current.value = '' }}
+                  className="absolute top-2 left-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!peso || parseFloat(peso) <= 0 || guardando}
+              disabled={!peso || parseFloat(peso) <= 0 || guardando || subiendoFoto}
               className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
             >
               {guardando ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</> : <><CheckCircle2 className="h-5 w-5" />Confirmar recepción</>}
@@ -522,10 +611,58 @@ export default function RecibirForm() {
             </div>
           </div>
 
+          {/* Foto del paquete */}
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-gray-400" />
+                Foto del paquete <span className="text-gray-400 font-normal">(muy útil para identificarlo)</span>
+              </label>
+              <input
+                ref={fotoInputManualRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFotoChange}
+                className="hidden"
+              />
+              {!fotoPreview ? (
+                <button
+                  type="button"
+                  onClick={() => fotoInputManualRef.current?.click()}
+                  className="w-full border-2 border-dashed border-amber-200 rounded-lg py-4 text-sm text-amber-500 hover:border-amber-400 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  Tomar o subir foto
+                </button>
+              ) : (
+                <div className="relative rounded-lg overflow-hidden border border-amber-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={fotoPreview} alt="Vista previa" className="w-full max-h-48 object-cover" />
+                  {subiendoFoto && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
+                    </div>
+                  )}
+                  {!subiendoFoto && fotoUrl && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Subida
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setFotoPreview(null); setFotoUrl(null); if (fotoInputManualRef.current) fotoInputManualRef.current.value = '' }}
+                    className="absolute top-2 left-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual}
+              disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoFoto}
               className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
             >
               {guardandoManual
