@@ -59,6 +59,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="tu@email.com"
+                  autoComplete="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -70,13 +71,14 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
+              {error && <p role="alert" aria-live="polite" className="text-sm text-red-600">{error}</p>}
+              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading} aria-busy={loading}>
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>

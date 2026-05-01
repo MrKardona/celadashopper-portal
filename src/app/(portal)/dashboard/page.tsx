@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -45,17 +45,18 @@ export default async function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Hola, {perfil?.nombre_completo?.split(' ')[0]} 👋
+            Hola, {perfil?.nombre_completo?.split(' ')[0]} <span aria-hidden="true">👋</span>
           </h1>
           <p className="text-gray-500">
             Tu casilla: <span className="font-semibold text-orange-600">{perfil?.numero_casilla}</span>
           </p>
         </div>
-        <Link href="/reportar">
-          <Button className="bg-orange-600 hover:bg-orange-700 gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Reportar pedido
-          </Button>
+        <Link
+          href="/reportar"
+          className={buttonVariants({ variant: 'default' }) + ' bg-orange-600 hover:bg-orange-700 gap-2'}
+        >
+          <PlusCircle className="h-4 w-4" />
+          Reportar pedido
         </Link>
       </div>
 
@@ -68,7 +69,7 @@ export default async function DashboardPage() {
                 <Package className="h-5 w-5 text-gray-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.total} paquetes en total`}>{stats.total}</p>
                 <p className="text-xs text-gray-500">Total paquetes</p>
               </div>
             </div>
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
                 <Clock className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.activos}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.activos} paquetes en proceso`}>{stats.activos}</p>
                 <p className="text-xs text-gray-500">En proceso</p>
               </div>
             </div>
@@ -94,7 +95,7 @@ export default async function DashboardPage() {
                 <Truck className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.en_transito}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.en_transito} paquetes en tránsito`}>{stats.en_transito}</p>
                 <p className="text-xs text-gray-500">En tránsito</p>
               </div>
             </div>
@@ -107,7 +108,7 @@ export default async function DashboardPage() {
                 <CheckCircle className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.entregados}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.entregados} paquetes entregados`}>{stats.entregados}</p>
                 <p className="text-xs text-gray-500">Entregados</p>
               </div>
             </div>
@@ -128,11 +129,12 @@ export default async function DashboardPage() {
             <div className="text-center py-8">
               <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No tienes paquetes reportados aún</p>
-              <Link href="/reportar">
-                <Button variant="outline" className="mt-3 gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Reportar tu primer pedido
-                </Button>
+              <Link
+                href="/reportar"
+                className={buttonVariants({ variant: 'outline' }) + ' mt-3 gap-2'}
+              >
+                <PlusCircle className="h-4 w-4" />
+                Reportar tu primer pedido
               </Link>
             </div>
           ) : (
@@ -168,7 +170,7 @@ export default async function DashboardPage() {
       {/* Direccion bodega USA */}
       <Card className="bg-orange-50 border-orange-200">
         <CardHeader>
-          <CardTitle className="text-base text-orange-800">📦 Tu dirección de envío en USA</CardTitle>
+          <CardTitle className="text-base text-orange-800"><span aria-hidden="true">📦</span> Tu dirección de envío en USA</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="font-mono text-sm text-orange-900 space-y-1">
