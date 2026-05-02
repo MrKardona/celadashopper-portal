@@ -957,8 +957,8 @@ function PaquetesDisponibles({
                   {p.tracking_casilla}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 font-medium truncate">
-                    {p.cliente?.nombre_completo ?? '⏳ Sin cliente'}
+                  <p className={`text-sm truncate ${p.cliente ? 'text-gray-900 font-medium' : 'text-amber-700 italic font-medium'}`}>
+                    {p.cliente?.nombre_completo ?? '⏳ Sin cliente asignado'}
                     {p.cliente?.numero_casilla && (
                       <span className="text-gray-400 text-xs ml-1">({p.cliente.numero_casilla})</span>
                     )}
@@ -967,6 +967,12 @@ function PaquetesDisponibles({
                     {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
                   </p>
                 </div>
+                {/* Badge si no tiene cliente */}
+                {!p.cliente && (
+                  <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    Sin cliente
+                  </span>
+                )}
                 {/* Badge del estado del paquete */}
                 <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${estadoStyle.bg} ${estadoStyle.text}`}>
                   {estadoStyle.label}

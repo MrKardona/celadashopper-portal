@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     .select('id, tracking_casilla, tracking_origen, descripcion, categoria, peso_libras, cliente_id, bodega_destino, fecha_recepcion_usa, estado')
     .in('estado', estadosElegibles)
     .is('caja_id', null)
-    .not('cliente_id', 'is', null) // solo asignados (los sin asignar requieren paso previo)
+    // Permitimos paquetes sin cliente (huérfanos): se pueden despachar igualmente
     .order('fecha_recepcion_usa', { ascending: true })
     .limit(80)
 
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('estado', e)
       .is('caja_id', null)
-      .not('cliente_id', 'is', null)
+    // Cuenta también los paquetes sin cliente
     if (bodega && !todasBodegas) countQuery = countQuery.eq('bodega_destino', bodega)
     const { count } = await countQuery
     conteoPorEstado[e] = count ?? 0

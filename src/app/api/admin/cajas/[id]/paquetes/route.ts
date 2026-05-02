@@ -88,12 +88,7 @@ export async function POST(req: NextRequest, { params }: Props) {
       codigo: 'estado_invalido',
     }, { status: 400 })
   }
-  if (!paquete.cliente_id) {
-    return NextResponse.json({
-      error: 'Este paquete no tiene cliente asignado. Asígnalo primero.',
-      codigo: 'sin_cliente',
-    }, { status: 400 })
-  }
+  // Permitimos paquetes sin cliente (se podrán despachar y asignar después)
 
   // 4. Si la bodega del paquete no coincide con la de la caja, advertir
   if (paquete.bodega_destino !== caja.bodega_destino && !body.ignorar_bodega) {
