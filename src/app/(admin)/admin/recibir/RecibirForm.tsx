@@ -3,8 +3,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import {
   ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
-  Scale, Loader2, X, ClipboardList, Camera, ImageIcon,
+  Scale, Loader2, X, ClipboardList, Camera, ImageIcon, Video, VideoOff,
+  PackageOpen,
 } from 'lucide-react'
+import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 
 interface PaqueteEncontrado {
@@ -50,12 +52,37 @@ const BODEGAS = [
   { value: 'barranquilla', label: 'Barranquilla' },
 ]
 
+// ── Tipos para los 2 slots de foto ────────────────────────────────────────────
+type FotoSlot = 1 | 2
+
+interface FotoState {
+  preview: string | null
+  url: string | null
+  subiendo: boolean
+}
+
+const FOTO_LABELS: Record<FotoSlot, { titulo: string; subtitulo: string; icon: typeof Camera }> = {
+  1: { titulo: 'Foto del empaque', subtitulo: 'Con la guía / tracking visible', icon: Package },
+  2: { titulo: 'Foto del contenido', subtitulo: 'Paquete abierto — lo que llegó', icon: PackageOpen },
+}
+
 export default function RecibirForm() {
   const inputRef = useRef<HTMLInputElement>(null)
   const pesoRef = useRef<HTMLInputElement>(null)
   const pesoManualRef = useRef<HTMLInputElement>(null)
   const fotoInputRef = useRef<HTMLInputElement>(null)
+  const fotoInput2Ref = useRef<HTMLInputElement>(null)
   const fotoInputManualRef = useRef<HTMLInputElement>(null)
+  const fotoInputManual2Ref = useRef<HTMLInputElement>(null)
+
+  // Camera scanner refs
+  const videoScanRef = useRef<HTMLVideoElement>(null)
+  const scanControlsRef = useRef<IScannerControls | null>(null)
+
+  // Camera photo refs (shared for both slots)
+  const videoFotoRef = useRef<HTMLVideoElement>(null)
+  const canvasFotoRef = useRef<HTMLCanvasElement>(null)
+  const streamFotoRef = useRef<MediaStream | null>(null)
 
   // --- Estado: búsqueda normal ---
   const [tracking, setTracking] = useState('')
@@ -69,10 +96,19 @@ export default function RecibirForm() {
   const [notas, setNotas] = useState('')
   const [guardando, setGuardando] = useState(false)
 
-  // --- Foto (compartida entre ambos modos) ---
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
-  const [fotoUrl, setFotoUrl] = useState<string | null>(null)
-  const [subiendoFoto, setSubiendoFoto] = useState(false)
+  // --- Fotos: 2 slots independientes ---
+  const [foto1, setFoto1] = useState<FotoState>({ preview: null, url: null, subiendo: false })
+  const [foto2, setFoto2] = useState<FotoState>({ preview: null, url: null, subiendo: false })
+  // Para modo manual, mismos 2 slots
+  const [fotoManual1, setFotoManual1] = useState<FotoState>({ preview: null, url: null, subiendo: false })
+  const [fotoManual2, setFotoManual2] = useState<FotoState>({ preview: null, url: null, subiendo: false })
+
+  // --- Cámara scanner (código de barras) ---
+  const [camaraScanner, setCamaraScanner] = useState(false)
+  const [errorCamara, setErrorCamara] = useState('')
+
+  // --- Cámara foto: qué slot y qué contexto (normal | manual) ---
+  const [camaraSlot, setCamaraSlot] = useState<{ slot: FotoSlot; ctx: 'normal' | 'manual' } | null>(null)
 
   // --- Estado: modo manual (sin casillero) ---
   const [modoManual, setModoManual] = useState(false)
@@ -102,11 +138,141 @@ export default function RecibirForm() {
 
   useEffect(() => {
     if (modoManual) {
-      // Pre-llenar tracking_courier con lo que se buscó
       setFormManual(prev => ({ ...prev, tracking_courier: tracking }))
       setTimeout(() => pesoManualRef.current?.focus(), 100)
     }
   }, [modoManual, tracking])
+
+  // Limpiar cámaras al desmontar
+  useEffect(() => {
+    return () => {
+      scanControlsRef.current?.stop()
+      if (streamFotoRef.current) {
+        streamFotoRef.current.getTracks().forEach(t => t.stop())
+      }
+    }
+  }, [])
+
+  // ── Scanner de código de barras ──────────────────────────────────────────
+  async function iniciarScanner() {
+    setErrorCamara('')
+    setCamaraScanner(true)
+    await new Promise(r => setTimeout(r, 100))
+    try {
+      const reader = new BrowserMultiFormatReader()
+      const controls = await reader.decodeFromConstraints(
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoScanRef.current!,
+        (result) => {
+          if (result) {
+            const texto = result.getText()
+            controls.stop()
+            setCamaraScanner(false)
+            setTracking(texto)
+            buscarPaquete(texto)
+          }
+        }
+      )
+      scanControlsRef.current = controls
+    } catch {
+      setCamaraScanner(false)
+      setErrorCamara('No se pudo acceder a la cámara. Verifica los permisos.')
+    }
+  }
+
+  function detenerScanner() {
+    scanControlsRef.current?.stop()
+    scanControlsRef.current = null
+    setCamaraScanner(false)
+  }
+
+  // ── Cámara para foto ─────────────────────────────────────────────────────
+  async function iniciarCamaraFoto(slot: FotoSlot, ctx: 'normal' | 'manual') {
+    setErrorCamara('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      })
+      streamFotoRef.current = stream
+      setCamaraSlot({ slot, ctx })
+      await new Promise(r => setTimeout(r, 60))
+      if (videoFotoRef.current) {
+        videoFotoRef.current.srcObject = stream
+        await videoFotoRef.current.play()
+      }
+    } catch {
+      setCamaraSlot(null)
+      setErrorCamara('No se pudo acceder a la cámara. Verifica los permisos.')
+    }
+  }
+
+  function detenerCamaraFoto() {
+    if (streamFotoRef.current) {
+      streamFotoRef.current.getTracks().forEach(t => t.stop())
+      streamFotoRef.current = null
+    }
+    setCamaraSlot(null)
+  }
+
+  async function capturarFoto() {
+    if (!camaraSlot) return
+    const video = videoFotoRef.current
+    const canvas = canvasFotoRef.current
+    if (!video || !canvas) return
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0)
+
+    const { slot, ctx: context } = camaraSlot
+    detenerCamaraFoto()
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return
+      const file = new File([blob], `foto_${slot}_${Date.now()}.jpg`, { type: 'image/jpeg' })
+      await subirFoto(file, slot, context)
+    }, 'image/jpeg', 0.92)
+  }
+
+  // ── Upload helper ─────────────────────────────────────────────────────────
+  async function subirFoto(file: File, slot: FotoSlot, context: 'normal' | 'manual') {
+    const preview = URL.createObjectURL(file)
+    const setter = context === 'normal'
+      ? (slot === 1 ? setFoto1 : setFoto2)
+      : (slot === 1 ? setFotoManual1 : setFotoManual2)
+
+    setter({ preview, url: null, subiendo: true })
+
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/foto', { method: 'POST', body: fd })
+      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
+      if (res.ok && data.url) {
+        setter({ preview, url: data.url, subiendo: false })
+      } else {
+        setter({ preview: null, url: null, subiendo: false })
+        setErrorBusqueda(data.error ?? 'Error subiendo foto')
+      }
+    } catch {
+      setter({ preview: null, url: null, subiendo: false })
+      setErrorBusqueda('Error de conexión al subir foto')
+    }
+  }
+
+  // ── Foto desde archivo/galería ────────────────────────────────────────────
+  async function handleFotoChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+    slot: FotoSlot,
+    context: 'normal' | 'manual',
+  ) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await subirFoto(file, slot, context)
+    e.target.value = ''
+  }
 
   const buscarPaquete = useCallback(async (valor: string) => {
     const q = valor.trim()
@@ -134,6 +300,25 @@ export default function RecibirForm() {
     if (e.key === 'Enter') { e.preventDefault(); buscarPaquete(tracking) }
   }
 
+  function limpiarFotoSlot(slot: FotoSlot, context: 'normal' | 'manual') {
+    const setter = context === 'normal'
+      ? (slot === 1 ? setFoto1 : setFoto2)
+      : (slot === 1 ? setFotoManual1 : setFotoManual2)
+    setter({ preview: null, url: null, subiendo: false })
+    // limpiar input file correspondiente
+    const refs: Record<string, React.RefObject<HTMLInputElement | null>> = {
+      'normal-1': fotoInputRef,
+      'normal-2': fotoInput2Ref,
+      'manual-1': fotoInputManualRef,
+      'manual-2': fotoInputManual2Ref,
+    }
+    const ref = refs[`${context}-${slot}`]
+    if (ref?.current) ref.current.value = ''
+    if (camaraSlot?.slot === slot && camaraSlot?.ctx === context) {
+      detenerCamaraFoto()
+    }
+  }
+
   function limpiar() {
     setTracking('')
     setPaquete(null)
@@ -144,42 +329,15 @@ export default function RecibirForm() {
     setUltimoRecibido(null)
     setModoManual(false)
     setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '' })
-    setFotoPreview(null)
-    setFotoUrl(null)
-    setSubiendoFoto(false)
+    setFoto1({ preview: null, url: null, subiendo: false })
+    setFoto2({ preview: null, url: null, subiendo: false })
+    setFotoManual1({ preview: null, url: null, subiendo: false })
+    setFotoManual2({ preview: null, url: null, subiendo: false })
+    detenerCamaraFoto()
     setTimeout(() => inputRef.current?.focus(), 50)
   }
 
-  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Preview local inmediato
-    const preview = URL.createObjectURL(file)
-    setFotoPreview(preview)
-    setFotoUrl(null)
-    setSubiendoFoto(true)
-
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/admin/foto', { method: 'POST', body: fd })
-      const data = await res.json() as { ok?: boolean; url?: string; error?: string }
-      if (res.ok && data.url) {
-        setFotoUrl(data.url)
-      } else {
-        setFotoPreview(null)
-        setErrorBusqueda(data.error ?? 'Error subiendo foto')
-      }
-    } catch {
-      setFotoPreview(null)
-      setErrorBusqueda('Error de conexión al subir foto')
-    } finally {
-      setSubiendoFoto(false)
-    }
-  }
-
-  // ── Confirmar recepción de paquete encontrado ────────────────────────────
+  // ── Confirmar recepción ───────────────────────────────────────────────────
   async function handleConfirmar(e: React.FormEvent) {
     e.preventDefault()
     if (!paquete || !peso) return
@@ -193,12 +351,12 @@ export default function RecibirForm() {
           peso_libras: parseFloat(peso),
           tracking_usaco: trackingUsaco || undefined,
           notas_internas: notas || undefined,
-          foto_url: fotoUrl || undefined,
+          foto_url: foto1.url || undefined,
+          foto2_url: foto2.url || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string }
       if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
-
       const nuevo: PaqueteRecibido = {
         id: paquete.id,
         tracking: paquete.tracking_casilla ?? tracking,
@@ -214,7 +372,7 @@ export default function RecibirForm() {
     }
   }
 
-  // ── Guardar paquete manual (sin cliente asignado) ─────────────────────────
+  // ── Guardar manual ────────────────────────────────────────────────────────
   async function handleGuardarManual(e: React.FormEvent) {
     e.preventDefault()
     if (!formManual.descripcion || !formManual.peso || !formManual.categoria) return
@@ -232,12 +390,12 @@ export default function RecibirForm() {
           categoria: formManual.categoria,
           bodega_destino: formManual.bodega_destino,
           notas_internas: formManual.notas || undefined,
-          foto_url: fotoUrl || undefined,
+          foto_url: fotoManual1.url || undefined,
+          foto2_url: fotoManual2.url || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string }
       if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
-
       const nuevo: PaqueteRecibido = {
         id: data.tracking_casilla ?? '',
         tracking: data.tracking_casilla ?? 'S/N',
@@ -257,15 +415,158 @@ export default function RecibirForm() {
   const yaRecibido = paquete && ['recibido_usa', 'en_consolidacion', 'listo_envio',
     'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'].includes(paquete.estado)
 
+  const subiendoCualquiera = foto1.subiendo || foto2.subiendo || fotoManual1.subiendo || fotoManual2.subiendo
+
+  // ── Componente reutilizable para cada slot de foto ────────────────────────
+  function SlotFoto({
+    slot,
+    context,
+    accent = 'orange',
+  }: {
+    slot: FotoSlot
+    context: 'normal' | 'manual'
+    accent?: 'orange' | 'amber'
+  }) {
+    const fotoState = context === 'normal'
+      ? (slot === 1 ? foto1 : foto2)
+      : (slot === 1 ? fotoManual1 : fotoManual2)
+
+    const fileRef = context === 'normal'
+      ? (slot === 1 ? fotoInputRef : fotoInput2Ref)
+      : (slot === 1 ? fotoInputManualRef : fotoInputManual2Ref)
+
+    const isActiveCam = camaraSlot?.slot === slot && camaraSlot?.ctx === context
+    const ring = accent === 'amber' ? 'focus:ring-amber-500' : 'focus:ring-orange-500'
+    const dashed = accent === 'amber'
+      ? 'border-amber-200 text-amber-500 hover:border-amber-400 hover:text-amber-600'
+      : 'border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-500'
+    const badge = slot === 1
+      ? 'bg-blue-100 text-blue-700'
+      : 'bg-purple-100 text-purple-700'
+
+    const meta = FOTO_LABELS[slot]
+    const Icon = meta.icon
+
+    return (
+      <div className="space-y-1.5">
+        {/* Header slot */}
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${badge}`}>
+            <Icon className="h-3 w-3" />
+            Foto {slot}
+          </span>
+          <div>
+            <p className="text-sm font-medium text-gray-700 leading-tight">{meta.titulo}</p>
+            <p className="text-xs text-gray-400 leading-tight">{meta.subtitulo}</p>
+          </div>
+        </div>
+
+        {/* Canvas oculto para captura (shared, se renderiza aquí solo en slot 1 para no duplicar) */}
+        {slot === 1 && <canvas ref={canvasFotoRef} className="hidden" />}
+
+        {/* Vista previa de foto */}
+        {!isActiveCam && fotoState.preview && (
+          <div className="relative rounded-lg overflow-hidden border border-gray-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={fotoState.preview} alt={`Vista previa foto ${slot}`} className="w-full max-h-48 object-cover" />
+            {fotoState.subiendo && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 text-white animate-spin" />
+              </div>
+            )}
+            {!fotoState.subiendo && fotoState.url && (
+              <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Subida
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => limpiarFotoSlot(slot, context)}
+              className="absolute top-2 left-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
+        {/* Botones para agregar foto */}
+        {!isActiveCam && !fotoState.preview && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => iniciarCamaraFoto(slot, context)}
+              className={`border-2 border-dashed ${dashed} rounded-lg py-3 text-xs transition-colors flex flex-col items-center justify-center gap-1`}
+            >
+              <Video className="h-4 w-4" />
+              <span>Cámara</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className={`border-2 border-dashed ${dashed} rounded-lg py-3 text-xs transition-colors flex flex-col items-center justify-center gap-1`}
+            >
+              <ImageIcon className="h-4 w-4" />
+              <span>Galería</span>
+            </button>
+          </div>
+        )}
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={e => handleFotoChange(e, slot, context)}
+          className="hidden"
+        />
+      </div>
+    )
+  }
+
+  // ── Sección de cámara en vivo (compartida, se muestra en el contexto activo) ──
+  function CamaraVivo({ context }: { context: 'normal' | 'manual' }) {
+    if (!camaraSlot || camaraSlot.ctx !== context) return null
+    const slot = camaraSlot.slot
+    const meta = FOTO_LABELS[slot]
+    const Icon = meta.icon
+
+    return (
+      <div className="rounded-xl overflow-hidden border-2 border-orange-400 bg-black space-y-0">
+        <div className="px-3 py-2 bg-orange-600 flex items-center gap-2">
+          <Icon className="h-4 w-4 text-white" />
+          <span className="text-white text-sm font-medium">{meta.titulo} — {meta.subtitulo}</span>
+        </div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <div className="relative">
+          <video ref={videoFotoRef} className="w-full max-h-64 object-cover" playsInline muted />
+          <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={capturarFoto}
+              className="bg-white text-gray-900 font-bold px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2 hover:bg-orange-50 transition-colors"
+            >
+              <Camera className="h-5 w-5 text-orange-600" />
+              Capturar
+            </button>
+            <button
+              type="button"
+              onClick={detenerCamaraFoto}
+              className="bg-black/60 text-white p-2.5 rounded-full hover:bg-black/80"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
 
       {/* Notificación de éxito */}
       {ultimoRecibido && (
         <div className={`flex items-start gap-3 rounded-xl p-4 border animate-in fade-in slide-in-from-top-2 duration-300 ${
-          ultimoRecibido.sinAsignar
-            ? 'bg-amber-50 border-amber-200'
-            : 'bg-green-50 border-green-200'
+          ultimoRecibido.sinAsignar ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'
         }`}>
           <CheckCircle2 className={`h-5 w-5 mt-0.5 flex-shrink-0 ${ultimoRecibido.sinAsignar ? 'text-amber-600' : 'text-green-600'}`} />
           <div className="flex-1 min-w-0">
@@ -284,7 +585,7 @@ export default function RecibirForm() {
         </div>
       )}
 
-      {/* Scanner */}
+      {/* Scanner de tracking */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
         <div className="flex items-center gap-2 text-gray-700 font-semibold">
           <ScanBarcode className="h-5 w-5 text-orange-600" />
@@ -310,6 +611,18 @@ export default function RecibirForm() {
           />
           <button
             type="button"
+            onClick={camaraScanner ? detenerScanner : iniciarScanner}
+            title={camaraScanner ? 'Cerrar cámara' : 'Escanear con cámara'}
+            className={`px-4 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium border ${
+              camaraScanner
+                ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
+                : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-orange-50 hover:border-orange-400 hover:text-orange-600'
+            }`}
+          >
+            {camaraScanner ? <VideoOff className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+          </button>
+          <button
+            type="button"
             onClick={() => buscarPaquete(tracking)}
             disabled={!tracking.trim() || buscando}
             className="px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors flex items-center gap-2 font-medium"
@@ -319,7 +632,36 @@ export default function RecibirForm() {
           </button>
         </div>
 
-        {/* Error: no encontrado → opción de recibir sin asignar */}
+        {/* Visor de la cámara scanner */}
+        {camaraScanner && (
+          <div className="relative rounded-xl overflow-hidden bg-black border-2 border-orange-400">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video ref={videoScanRef} className="w-full max-h-64 object-cover" playsInline muted autoPlay />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="border-2 border-orange-400 rounded-lg w-3/4 h-24 opacity-70" />
+            </div>
+            <div className="absolute top-2 left-0 right-0 flex justify-center">
+              <span className="bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+                Apunta al código de barras
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={detenerScanner}
+              className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {errorCamara && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" /> {errorCamara}
+          </p>
+        )}
+
+        {/* Error: no encontrado */}
         {errorBusqueda && !modoManual && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-4 py-3 text-sm">
@@ -327,12 +669,9 @@ export default function RecibirForm() {
               {errorBusqueda}
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium text-amber-800">
-                ¿El paquete llegó sin casillero registrado?
-              </p>
+              <p className="text-sm font-medium text-amber-800">¿El paquete llegó sin casillero registrado?</p>
               <p className="text-xs text-amber-700">
-                Puedes registrarlo sin asignar. Cuando el cliente lo reporte en el portal,
-                el sistema lo asociará automáticamente y le notificará por WhatsApp.
+                Puedes registrarlo sin asignar. Cuando el cliente lo reporte, el sistema lo asociará y le notificará por WhatsApp.
               </p>
               <button
                 type="button"
@@ -435,58 +774,44 @@ export default function RecibirForm() {
               />
             </div>
           </div>
-          {/* Foto del paquete */}
-          <div className="space-y-1.5 col-span-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+
+          {/* ── Sección fotos ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
               <Camera className="h-4 w-4 text-gray-400" />
-              Foto del paquete <span className="text-gray-400 font-normal">(recomendado)</span>
-            </label>
-            <input
-              ref={fotoInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFotoChange}
-              className="hidden"
-            />
-            {!fotoPreview ? (
-              <button
-                type="button"
-                onClick={() => fotoInputRef.current?.click()}
-                className="w-full border-2 border-dashed border-gray-200 rounded-lg py-4 text-sm text-gray-400 hover:border-orange-300 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
-              >
-                <ImageIcon className="h-4 w-4" />
-                Tomar o subir foto
-              </button>
-            ) : (
-              <div className="relative rounded-lg overflow-hidden border border-gray-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fotoPreview} alt="Vista previa" className="w-full max-h-48 object-cover" />
-                {subiendoFoto && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 text-white animate-spin" />
-                  </div>
-                )}
-                {!subiendoFoto && fotoUrl && (
-                  <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Subida
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => { setFotoPreview(null); setFotoUrl(null); if (fotoInputRef.current) fotoInputRef.current.value = '' }}
-                  className="absolute top-2 left-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+              <span className="text-sm font-medium text-gray-700">
+                Fotos del paquete{' '}
+                <span className="text-gray-400 font-normal">— se enviarán al cliente</span>
+              </span>
+            </div>
+
+            {/* Cámara activa (para contexto normal) */}
+            <CamaraVivo context="normal" />
+
+            {/* Grid de 2 slots — solo si la cámara no está activa */}
+            {!camaraSlot && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <SlotFoto slot={1} context="normal" accent="orange" />
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <SlotFoto slot={2} context="normal" accent="orange" />
+                </div>
               </div>
+            )}
+
+            {/* Tip */}
+            {!foto1.preview && !foto2.preview && !camaraSlot && (
+              <p className="text-xs text-gray-400 text-center">
+                📸 Toma la foto del empaque antes de abrir y la del contenido después. Ambas se envían al cliente.
+              </p>
             )}
           </div>
 
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!peso || parseFloat(peso) <= 0 || guardando || subiendoFoto}
+              disabled={!peso || parseFloat(peso) <= 0 || guardando || subiendoCualquiera}
               className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
             >
               {guardando ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</> : <><CheckCircle2 className="h-5 w-5" />Confirmar recepción</>}
@@ -510,13 +835,10 @@ export default function RecibirForm() {
               <X className="h-4 w-4" />
             </button>
           </div>
-
           <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
             Este paquete quedará en espera. Cuando el cliente lo reporte con el tracking <strong>{formManual.tracking_courier || 'del courier'}</strong>, el sistema lo asociará automáticamente y le enviará un WhatsApp.
           </p>
-
           <div className="grid grid-cols-2 gap-4">
-            {/* Peso */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
               <div className="relative">
@@ -531,8 +853,6 @@ export default function RecibirForm() {
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">lb</span>
               </div>
             </div>
-
-            {/* Categoría */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Categoría <span className="text-red-500">*</span></label>
               <select
@@ -547,8 +867,6 @@ export default function RecibirForm() {
                 ))}
               </select>
             </div>
-
-            {/* Descripción */}
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Descripción física <span className="text-red-500">*</span></label>
               <input
@@ -560,8 +878,6 @@ export default function RecibirForm() {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
-
-            {/* Tienda */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Tienda <span className="text-gray-400 font-normal">(si se ve)</span></label>
               <input
@@ -572,8 +888,6 @@ export default function RecibirForm() {
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
-
-            {/* Tracking courier */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Tracking courier <span className="text-gray-400 font-normal">(si tiene)</span></label>
               <input
@@ -585,8 +899,6 @@ export default function RecibirForm() {
                 autoComplete="off"
               />
             </div>
-
-            {/* Bodega destino */}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Bodega destino</label>
               <select
@@ -597,8 +909,6 @@ export default function RecibirForm() {
                 {BODEGAS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
               </select>
             </div>
-
-            {/* Notas */}
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input
@@ -611,64 +921,38 @@ export default function RecibirForm() {
             </div>
           </div>
 
-          {/* Foto del paquete */}
-            <div className="space-y-1.5 col-span-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                <Camera className="h-4 w-4 text-gray-400" />
-                Foto del paquete <span className="text-gray-400 font-normal">(muy útil para identificarlo)</span>
-              </label>
-              <input
-                ref={fotoInputManualRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFotoChange}
-                className="hidden"
-              />
-              {!fotoPreview ? (
-                <button
-                  type="button"
-                  onClick={() => fotoInputManualRef.current?.click()}
-                  className="w-full border-2 border-dashed border-amber-200 rounded-lg py-4 text-sm text-amber-500 hover:border-amber-400 transition-colors flex items-center justify-center gap-2"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                  Tomar o subir foto
-                </button>
-              ) : (
-                <div className="relative rounded-lg overflow-hidden border border-amber-200">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={fotoPreview} alt="Vista previa" className="w-full max-h-48 object-cover" />
-                  {subiendoFoto && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Loader2 className="h-6 w-6 text-white animate-spin" />
-                    </div>
-                  )}
-                  {!subiendoFoto && fotoUrl && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Subida
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { setFotoPreview(null); setFotoUrl(null); if (fotoInputManualRef.current) fotoInputManualRef.current.value = '' }}
-                    className="absolute top-2 left-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
+          {/* ── Fotos modo manual ── */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-amber-500" />
+              <span className="text-sm font-medium text-amber-700">
+                Fotos del paquete <span className="text-amber-500 font-normal">(muy útil para identificarlo)</span>
+              </span>
             </div>
+
+            <CamaraVivo context="manual" />
+
+            {!camaraSlot && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <SlotFoto slot={1} context="manual" accent="amber" />
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <SlotFoto slot={2} context="manual" accent="amber" />
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoFoto}
+              disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoCualquiera}
               className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
             >
               {guardandoManual
                 ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</>
-                : <><CheckCircle2 className="h-5 w-5" />Guardar sin asignar</>
-              }
+                : <><CheckCircle2 className="h-5 w-5" />Guardar sin asignar</>}
             </button>
             <button type="button" onClick={limpiar} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
               Cancelar
