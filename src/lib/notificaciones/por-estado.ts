@@ -1,5 +1,6 @@
 // src/lib/notificaciones/por-estado.ts
-// Envía WhatsApp automático cuando un paquete cambia de estado
+// Envía WhatsApp automático al cliente ante cambios relevantes del paquete.
+// Estrategia: Meta directo primero (más confiable). Fallback a Kommo si falla.
 
 import { createClient } from '@supabase/supabase-js'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
@@ -13,8 +14,13 @@ function getSupabase() {
 
 const ESTADO_A_EVENTO: Record<string, string> = {
   recibido_usa: 'paquete_recibido_usa',
+  listo_envio: 'paquete_listo_envio',
   en_transito: 'paquete_en_transito',
+  en_colombia: 'paquete_en_colombia',
   en_bodega_local: 'paquete_listo_recoger',
+  en_camino_cliente: 'paquete_en_camino_cliente',
+  entregado: 'paquete_entregado',
+  retenido: 'paquete_retenido',
 }
 
 const BODEGA_LABELS: Record<string, string> = {
@@ -27,75 +33,177 @@ function rellenarPlantilla(plantilla: string, vars: Record<string, string>): str
   return plantilla.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
 }
 
+// ─── Envío vía Meta directo (preferido) ──────────────────────────────────────
+async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolean> {
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
+  if (!phoneId || !token) return false
+
+  const numero = phone.replace(/\D/g, '')
+  const dest = numero.startsWith('57') ? numero : `57${numero}`
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: dest,
+        type: 'text',
+        text: { body: mensaje },
+      }),
+    })
+    return res.ok
+  } catch (err) {
+    console.error('[Meta directo] Error:', err)
+    return false
+  }
+}
+
+// ─── Envío con fallback Meta → Kommo ────────────────────────────────────────
+async function enviarConFallback(phone: string, mensaje: string): Promise<{ enviado: boolean; via: string }> {
+  // Intentar Meta primero
+  const metaOk = await enviarMetaDirecto(phone, mensaje)
+  if (metaOk) return { enviado: true, via: 'meta' }
+
+  // Fallback: Kommo
+  try {
+    const r = await sendProactiveWhatsApp(phone, mensaje)
+    return { enviado: r.enviado, via: `kommo_${r.metodo}` }
+  } catch (err) {
+    console.error('[Kommo fallback] Error:', err)
+    return { enviado: false, via: 'fallido' }
+  }
+}
+
+// ─── Cargar paquete + plantilla en una función reutilizable ─────────────────
+async function cargarContexto(paqueteId: string, evento: string) {
+  const supabase = getSupabase()
+  const [paqueteRes, plantillaRes] = await Promise.all([
+    supabase
+      .from('paquetes')
+      .select('*, perfiles(nombre_completo, whatsapp, telefono, email)')
+      .eq('id', paqueteId)
+      .single(),
+    supabase
+      .from('plantillas_notificacion')
+      .select('texto_plantilla')
+      .eq('evento', evento)
+      .eq('activa', true)
+      .maybeSingle(),
+  ])
+
+  if (paqueteRes.error || !paqueteRes.data) return null
+  if (!plantillaRes.data) return null
+
+  const paquete = paqueteRes.data
+  const perfil = paquete.perfiles as {
+    nombre_completo: string
+    whatsapp: string | null
+    telefono: string | null
+    email: string | null
+  } | null
+
+  if (!perfil) return null
+  const phone = perfil.whatsapp ?? perfil.telefono ?? ''
+  if (!phone) return null
+
+  const nombre = perfil.nombre_completo?.split(' ')[0] ?? 'Cliente'
+  const peso = paquete.peso_facturable
+    ? `${paquete.peso_facturable} lbs`
+    : paquete.peso_libras
+      ? `${paquete.peso_libras} lbs`
+      : 'Por determinar'
+  const costo = paquete.costo_servicio
+    ? `$${paquete.costo_servicio} USD`
+    : 'Por determinar'
+  const bodega = BODEGA_LABELS[paquete.bodega_destino] ?? paquete.bodega_destino
+
+  return {
+    supabase,
+    paquete,
+    perfil,
+    phone,
+    plantilla: plantillaRes.data.texto_plantilla,
+    vars: {
+      nombre,
+      descripcion: paquete.descripcion ?? '',
+      peso,
+      costo,
+      bodega,
+      tracking: paquete.tracking_casilla ?? '',
+      tracking_usaco: paquete.tracking_usaco ?? '',
+    },
+  }
+}
+
+// ─── Notificar cambio de estado ──────────────────────────────────────────────
 export async function notificarCambioEstado(paqueteId: string, estadoNuevo: string): Promise<void> {
   const evento = ESTADO_A_EVENTO[estadoNuevo]
   if (!evento) return
 
   try {
-    const supabase = getSupabase()
-    // Cargar paquete + perfil del cliente + plantilla en paralelo
-    const [paqueteRes, plantillaRes] = await Promise.all([
-      supabase
-        .from('paquetes')
-        .select('*, perfiles(nombre_completo, whatsapp, telefono, email)')
-        .eq('id', paqueteId)
-        .single(),
-      supabase
-        .from('plantillas_notificacion')
-        .select('texto_plantilla')
-        .eq('evento', evento)
-        .eq('activa', true)
-        .single(),
-    ])
+    const ctx = await cargarContexto(paqueteId, evento)
+    if (!ctx) return
 
-    if (paqueteRes.error || !paqueteRes.data) return
-    if (plantillaRes.error || !plantillaRes.data) return
+    const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
+    const r = await enviarConFallback(ctx.phone, mensaje)
 
-    const paquete = paqueteRes.data
-    const perfil = paquete.perfiles as {
-      nombre_completo: string
-      whatsapp: string | null
-      telefono: string | null
-      email: string | null
-    } | null
-
-    if (!perfil) return
-
-    const phone = perfil.whatsapp ?? perfil.telefono ?? ''
-    if (!phone) return
-
-    const nombre = perfil.nombre_completo?.split(' ')[0] ?? 'Cliente'
-    const peso = paquete.peso_facturable
-      ? `${paquete.peso_facturable} lbs`
-      : paquete.peso_libras
-        ? `${paquete.peso_libras} lbs`
-        : 'Por determinar'
-    const costo = paquete.costo_servicio
-      ? `$${paquete.costo_servicio} USD`
-      : 'Por determinar'
-    const bodega = BODEGA_LABELS[paquete.bodega_destino] ?? paquete.bodega_destino
-
-    const mensaje = rellenarPlantilla(plantillaRes.data.texto_plantilla, {
-      nombre,
-      descripcion: paquete.descripcion,
-      peso,
-      costo,
-      bodega,
-      tracking: paquete.tracking_casilla ?? '',
-    })
-
-    await sendProactiveWhatsApp(phone, mensaje)
-
-    // Registrar en notificaciones
-    await supabase.from('notificaciones').insert({
-      cliente_id: paquete.cliente_id,
+    await ctx.supabase.from('notificaciones').insert({
+      cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
-      titulo: `Estado actualizado: ${estadoNuevo}`,
+      titulo: `Estado: ${estadoNuevo}`,
       mensaje,
-      enviada_whatsapp: true,
+      enviada_whatsapp: r.enviado,
     })
   } catch (err) {
     console.error('[notificarCambioEstado] Error:', err)
+  }
+}
+
+// ─── Notificar tracking USACO actualizado ────────────────────────────────────
+export async function notificarTrackingActualizado(paqueteId: string): Promise<void> {
+  try {
+    const ctx = await cargarContexto(paqueteId, 'tracking_actualizado')
+    if (!ctx) return
+    if (!ctx.vars.tracking_usaco) return // sin valor no notificamos
+
+    const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
+    const r = await enviarConFallback(ctx.phone, mensaje)
+
+    await ctx.supabase.from('notificaciones').insert({
+      cliente_id: ctx.paquete.cliente_id,
+      paquete_id: paqueteId,
+      tipo: 'tracking_actualizado',
+      titulo: 'Tracking interno asignado',
+      mensaje,
+      enviada_whatsapp: r.enviado,
+    })
+  } catch (err) {
+    console.error('[notificarTrackingActualizado] Error:', err)
+  }
+}
+
+// ─── Notificar costo calculado ───────────────────────────────────────────────
+export async function notificarCostoCalculado(paqueteId: string): Promise<void> {
+  try {
+    const ctx = await cargarContexto(paqueteId, 'costo_calculado')
+    if (!ctx) return
+    if (!ctx.paquete.costo_servicio) return // sin costo no notificamos
+
+    const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
+    const r = await enviarConFallback(ctx.phone, mensaje)
+
+    await ctx.supabase.from('notificaciones').insert({
+      cliente_id: ctx.paquete.cliente_id,
+      paquete_id: paqueteId,
+      tipo: 'costo_calculado',
+      titulo: 'Costo del servicio calculado',
+      mensaje,
+      enviada_whatsapp: r.enviado,
+    })
+  } catch (err) {
+    console.error('[notificarCostoCalculado] Error:', err)
   }
 }
