@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
 function getSupabaseAdmin() {
   return createAdmin(
@@ -156,10 +157,9 @@ export async function POST(req: NextRequest) {
           ubicacion: 'Miami, USA',
         })
 
-        // Si tenía cliente, intentar notificar
+        // Si tenía cliente, notificar (Meta directo con fotos)
         if (existente.cliente_id) {
           try {
-            const { notificarCambioEstado } = await import('@/lib/notificaciones/por-estado')
             await notificarCambioEstado(existente.id, 'recibido_usa')
           } catch (err) {
             console.error('[recibir match] notificación:', err)
@@ -261,6 +261,13 @@ export async function POST(req: NextRequest) {
       : 'Recibido en bodega USA',
     ubicacion: 'Miami, USA',
   })
+
+  // Notificar WhatsApp al cliente (con fotos si las hay)
+  try {
+    await notificarCambioEstado(paquete_id, 'recibido_usa')
+  } catch (err) {
+    console.error('[recibir modo A] notificación:', err)
+  }
 
   return NextResponse.json({ ok: true, tracking: paquete.tracking_casilla })
 }
