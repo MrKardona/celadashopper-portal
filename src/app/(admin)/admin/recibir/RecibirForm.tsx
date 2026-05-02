@@ -83,6 +83,9 @@ export default function RecibirForm() {
   const videoFotoRef = useRef<HTMLVideoElement>(null)
   const canvasFotoRef = useRef<HTMLCanvasElement>(null)
   const streamFotoRef = useRef<MediaStream | null>(null)
+  // Stream pendiente: se guarda ANTES de setCamaraSlot y se aplica al video
+  // en useEffect, cuando el overlay ya está visible y el video es full-size en el DOM
+  const pendingStreamRef = useRef<MediaStream | null>(null)
 
   // --- Estado: búsqueda normal ---
   const [tracking, setTracking] = useState('')
@@ -152,6 +155,19 @@ export default function RecibirForm() {
       }
     }
   }, [])
+
+  // Aplicar stream al <video> DESPUÉS de que React haya mostrado el overlay.
+  // Esto resuelve el problema de iOS Safari donde play() en un elemento oculto/tiny
+  // no transfiere la imagen al video cuando éste se hace visible.
+  useEffect(() => {
+    if (camaraSlot && pendingStreamRef.current && videoFotoRef.current) {
+      const video = videoFotoRef.current
+      const stream = pendingStreamRef.current
+      pendingStreamRef.current = null
+      video.srcObject = stream
+      video.play().catch(() => { /* autoPlay attribute como respaldo */ })
+    }
+  }, [camaraSlot])
 
   // ── Scanner de código de barras ──────────────────────────────────────────
   async function iniciarScanner() {
@@ -226,15 +242,10 @@ export default function RecibirForm() {
 
     streamFotoRef.current = stream
 
-    // El <video> siempre está en el DOM (off-screen cuando inactivo).
-    // Asignamos srcObject y llamamos play() ANTES de setCamaraSlot para
-    // evitar cualquier problema de timing en iOS Safari.
-    if (videoFotoRef.current) {
-      videoFotoRef.current.srcObject = stream
-      try { await videoFotoRef.current.play() } catch { /* autoPlay attribute lo maneja */ }
-    }
-
-    // Ahora mostrar el overlay con la UI de cámara
+    // Guardamos el stream en pendingStreamRef y PRIMERO mostramos el overlay.
+    // El useEffect(camaraSlot) aplicará srcObject + play() después del commit del DOM,
+    // cuando el <video> ya tiene tamaño real en pantalla (necesario en iOS Safari).
+    pendingStreamRef.current = stream
     setCamaraSlot({ slot, ctx })
   }
 
