@@ -56,7 +56,7 @@ export default async function DashboardPage() {
           </h1>
           <p className="text-gray-500">
             {perfil?.numero_casilla
-              ? <>Tu casilla: <span className="font-semibold text-orange-600">{perfil.numero_casilla}</span></>
+              ? <>Tu casillero es: <span className="font-semibold text-orange-600">{perfil.numero_casilla}</span></>
               : <span className="text-sm">Bienvenido a CeladaShopper</span>
             }
           </p>
@@ -207,16 +207,40 @@ export default async function DashboardPage() {
         <CardHeader>
           <CardTitle className="text-base text-orange-800"><span aria-hidden="true">📦</span> Tu dirección de envío en USA</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="font-mono text-sm text-orange-900 space-y-1">
-            {nombre && <p className="font-semibold">{perfil?.nombre_completo}</p>}
-            {perfil?.numero_casilla
-              ? <p>Casilla: <span className="font-bold">{perfil.numero_casilla}</span></p>
-              : <p className="text-orange-400 text-xs italic">Número de casilla pendiente de asignación</p>
-            }
-            <p className="text-orange-600 text-xs mt-2">
-              Usa esta dirección al comprar en tiendas de USA. El número de casilla es tu identificador.
+        <CardContent className="space-y-4">
+          {/* Tarjeta principal con la dirección lista para copiar */}
+          <div className="bg-white rounded-lg border border-orange-200 p-4 font-mono text-sm text-orange-900 space-y-1.5">
+            <p className="font-bold text-base">
+              Diego Celada
+              {perfil?.numero_casilla && <span className="text-orange-600"> - {perfil.numero_casilla}</span>}
             </p>
+            <p>8164 NW 108th Pl</p>
+            <p>Doral, FL 33178</p>
+            <p>United States</p>
+            <p className="pt-1 text-xs text-gray-500">📞 +1 (786) 000-0000</p>
+          </div>
+
+          {/* Aviso de cómo usar el casillero */}
+          {!perfil?.numero_casilla && (
+            <div className="bg-amber-100 border border-amber-300 rounded-lg p-3 text-xs text-amber-800">
+              ⏳ Tu número de casillero está pendiente de asignación. No realices compras hasta que te lo confirmemos.
+            </div>
+          )}
+
+          {/* Instrucciones */}
+          <div className="bg-orange-100/60 border border-orange-200 rounded-lg p-3 text-xs text-orange-900 space-y-2">
+            <p className="font-semibold">⚠️ IMPORTANTE: Cómo poner tu dirección al comprar</p>
+            <ol className="list-decimal list-inside space-y-1 text-orange-800">
+              <li>
+                En el campo <strong>Nombre / Recipient</strong> escribe siempre:
+                <span className="block ml-4 mt-0.5 font-mono bg-white border border-orange-200 rounded px-2 py-1">
+                  Diego Celada{perfil?.numero_casilla ? ` - ${perfil.numero_casilla}` : ' - [tu casillero]'}
+                </span>
+              </li>
+              <li>El número de casillero <strong>al final del nombre</strong> es lo que nos permite identificar a quién pertenece tu paquete.</li>
+              <li>Usa la dirección exacta que aparece arriba (con el ZIP <strong>33178</strong>).</li>
+              <li>Si la tienda exige un número de teléfono, puedes usar el de la bodega que aparece arriba.</li>
+            </ol>
           </div>
         </CardContent>
       </Card>
