@@ -14,14 +14,10 @@ interface Props {
 export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, descripcion }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
-  const [confirmacion, setConfirmacion] = useState('')
   const [eliminando, setEliminando] = useState(false)
   const [error, setError] = useState('')
 
-  const puedeConfirmar = confirmacion.trim().toUpperCase() === 'ELIMINAR'
-
   async function handleEliminar() {
-    if (!puedeConfirmar) return
     setEliminando(true)
     setError('')
 
@@ -41,7 +37,6 @@ export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, desc
   function cerrar() {
     if (eliminando) return
     setAbierto(false)
-    setConfirmacion('')
     setError('')
   }
 
@@ -97,28 +92,11 @@ export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, desc
               </div>
             </div>
 
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>Se eliminarán permanentemente:</p>
-              <ul className="list-disc list-inside text-xs text-gray-500 ml-2">
-                <li>El paquete y toda su información</li>
-                <li>Todas las fotos asociadas</li>
-                <li>El historial de eventos y notificaciones</li>
-              </ul>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-700">
-                Escribe <span className="font-mono font-bold text-red-600">ELIMINAR</span> para confirmar:
-              </label>
-              <input
-                type="text"
-                value={confirmacion}
-                onChange={e => setConfirmacion(e.target.value)}
-                placeholder="ELIMINAR"
-                disabled={eliminando}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-50"
-                autoFocus
-              />
+            <div className="text-sm text-gray-700">
+              <p>¿Estás seguro de que quieres eliminar este paquete?</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Se borrará permanentemente junto con sus fotos, historial de eventos y notificaciones.
+              </p>
             </div>
 
             {error && (
@@ -141,9 +119,9 @@ export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, desc
                 type="button"
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
                 onClick={handleEliminar}
-                disabled={!puedeConfirmar || eliminando}
+                disabled={eliminando}
               >
-                {eliminando ? 'Eliminando...' : 'Eliminar definitivamente'}
+                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
               </Button>
             </div>
           </div>
