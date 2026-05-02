@@ -12,6 +12,7 @@ import { ArrowLeft, Package, MapPin, Scale, DollarSign, Calendar, Camera } from 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
+import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -292,6 +293,20 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 tarifaTipo={tarifa?.tarifa_tipo ?? 'por_libra'}
                 seguroPorcentaje={tarifa?.seguro_porcentaje ?? 0}
                 valorDeclarado={p.valor_declarado}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Zona peligrosa: eliminar paquete */}
+          <Card className="border-red-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm text-red-700">Zona peligrosa</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EliminarPaqueteButton
+                paqueteId={id}
+                trackingCasilla={p.tracking_casilla ?? '—'}
+                descripcion={p.descripcion ?? '—'}
               />
             </CardContent>
           </Card>

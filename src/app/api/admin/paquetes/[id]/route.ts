@@ -80,3 +80,39 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   return NextResponse.json({ ok: true, notificado })
 }
+
+// ── DELETE: eliminar paquete completo (admin only) ──────────────────────────
+export async function DELETE(req: NextRequest, { params }: Props) {
+  const { id } = await params
+  const supabaseAdmin = getSupabaseAdmin()
+
+  // Verificar admin
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  const { data: perfil } = await supabaseAdmin
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfil || perfil.rol !== 'admin') {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+  }
+
+  // Borrar notificaciones (no tienen CASCADE) — fotos_paquetes y eventos_paquete sí
+  await supabaseAdmin.from('notificaciones').delete().eq('paquete_id', id)
+
+  const { error } = await supabaseAdmin
+    .from('paquetes')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('[admin/paquetes DELETE]', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true })
+}
