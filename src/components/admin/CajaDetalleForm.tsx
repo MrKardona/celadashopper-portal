@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ScanBarcode, Package, MapPin, X, Loader2, CheckCircle2, AlertCircle,
-  Lock, Truck, Trash2, Camera, Plus, RefreshCw, Globe,
+  Lock, Truck, Trash2, Camera, Plus, RefreshCw, Globe, Pencil, Save,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CATEGORIA_LABELS, ESTADO_LABELS, ESTADO_COLORES, type CategoriaProducto, type EstadoPaquete } from '@/types'
@@ -78,6 +78,7 @@ export default function CajaDetalleForm({
   const [modalCerrar, setModalCerrar] = useState(false)
   const [modalDespachar, setModalDespachar] = useState(false)
   const [modalEliminar, setModalEliminar] = useState(false)
+  const [modalEditar, setModalEditar] = useState(false)
 
   const editable = caja.estado === 'abierta'
   const pesoTotal = paquetes.reduce((s, p) => s + Number(p.peso_libras ?? 0), 0)
@@ -227,16 +228,6 @@ export default function CajaDetalleForm({
                 <Truck className="h-4 w-4" />
                 Despachar a USACO
               </Button>
-              {paquetes.length === 0 && (
-                <Button
-                  onClick={() => setModalEliminar(true)}
-                  variant="outline"
-                  className="gap-2 border-red-200 text-red-600 hover:bg-red-50 ml-auto"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Eliminar caja
-                </Button>
-              )}
             </>
           )}
           {caja.estado === 'cerrada' && (
@@ -246,6 +237,28 @@ export default function CajaDetalleForm({
             >
               <Truck className="h-4 w-4" />
               Despachar a USACO
+            </Button>
+          )}
+
+          {/* Editar y eliminar siempre visibles (excepto si ya recibida en Colombia para eliminar) */}
+          <Button
+            onClick={() => setModalEditar(true)}
+            variant="outline"
+            className="gap-2"
+            size="sm"
+          >
+            <Pencil className="h-4 w-4" />
+            Editar caja
+          </Button>
+          {caja.estado !== 'recibida_colombia' && (
+            <Button
+              onClick={() => setModalEliminar(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-red-200 text-red-600 hover:bg-red-50 ml-auto"
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar caja
             </Button>
           )}
         </div>
@@ -414,7 +427,20 @@ export default function CajaDetalleForm({
         <ModalDespacharCaja cajaId={caja.id} pesoSugerido={Number(caja.peso_estimado ?? pesoTotal)} onClose={() => setModalDespachar(false)} onDone={() => { setModalDespachar(false); router.refresh(); refrescar() }} />
       )}
       {modalEliminar && (
-        <ModalEliminarCaja cajaId={caja.id} codigo={caja.codigo_interno} onClose={() => setModalEliminar(false)} onDone={() => router.push('/admin/cajas')} />
+        <ModalEliminarCaja
+          cajaId={caja.id}
+          codigo={caja.codigo_interno}
+          paquetesCount={paquetes.length}
+          onClose={() => setModalEliminar(false)}
+          onDone={() => router.push('/admin/cajas')}
+        />
+      )}
+      {modalEditar && (
+        <ModalEditarCaja
+          caja={caja}
+          onClose={() => setModalEditar(false)}
+          onDone={() => { setModalEditar(false); router.refresh(); refrescar() }}
+        />
       )}
     </div>
   )
@@ -546,7 +572,9 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId:
   )
 }
 
-function ModalEliminarCaja({ cajaId, codigo, onClose, onDone }: { cajaId: string; codigo: string; onClose: () => void; onDone: () => void }) {
+function ModalEliminarCaja({ cajaId, codigo, paquetesCount, onClose, onDone }: {
+  cajaId: string; codigo: string; paquetesCount: number; onClose: () => void; onDone: () => void
+}) {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
   async function confirmar() {
@@ -561,12 +589,142 @@ function ModalEliminarCaja({ cajaId, codigo, onClose, onDone }: { cajaId: string
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !cargando && onClose()}>
       <div className="bg-white rounded-xl p-5 max-w-md w-full space-y-4" onClick={e => e.stopPropagation()}>
         <h3 className="font-bold flex items-center gap-2"><Trash2 className="h-5 w-5 text-red-600" /> Eliminar caja</h3>
-        <p className="text-sm text-gray-700">¿Estás seguro de que quieres eliminar la caja <span className="font-mono font-bold">{codigo}</span>? Esta acción no se puede deshacer.</p>
+        <p className="text-sm text-gray-700">
+          ¿Estás seguro de que quieres eliminar la caja <span className="font-mono font-bold">{codigo}</span>?
+        </p>
+        {paquetesCount > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 space-y-1">
+            <p className="font-semibold flex items-center gap-1">
+              <AlertCircle className="h-4 w-4" /> Esta caja tiene {paquetesCount} paquete{paquetesCount > 1 ? 's' : ''} adentro
+            </p>
+            <p className="text-xs leading-relaxed">
+              Al eliminar la caja, los paquetes volverán al estado &quot;Recibido en USA&quot; y quedarán
+              disponibles para meterlos en otra caja. Su tracking USACO (si lo tenían heredado) se limpia.
+            </p>
+          </div>
+        )}
+        <p className="text-xs text-gray-500">Esta acción no se puede deshacer.</p>
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={cargando}>Cancelar</Button>
           <Button onClick={confirmar} disabled={cargando} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
             {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sí, eliminar'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal editar datos de la caja ──────────────────────────────────────────
+function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose: () => void; onDone: () => void }) {
+  const [bodega, setBodega] = useState(caja.bodega_destino)
+  const [courier, setCourier] = useState(caja.courier ?? '')
+  const [trackingUsaco, setTrackingUsaco] = useState(caja.tracking_usaco ?? '')
+  const [pesoEstimado, setPesoEstimado] = useState(caja.peso_estimado != null ? String(caja.peso_estimado) : '')
+  const [pesoReal, setPesoReal] = useState(caja.peso_real != null ? String(caja.peso_real) : '')
+  const [costo, setCosto] = useState(caja.costo_total_usaco != null ? String(caja.costo_total_usaco) : '')
+  const [notas, setNotas] = useState(caja.notas ?? '')
+  const [cargando, setCargando] = useState(false)
+  const [error, setError] = useState('')
+
+  async function guardar() {
+    setCargando(true)
+    setError('')
+    const res = await fetch(`/api/admin/cajas/${caja.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bodega_destino: bodega,
+        courier: courier.trim() || null,
+        tracking_usaco: trackingUsaco.trim() || null,
+        peso_estimado: pesoEstimado ? parseFloat(pesoEstimado) : null,
+        peso_real: pesoReal ? parseFloat(pesoReal) : null,
+        costo_total_usaco: costo ? parseFloat(costo) : null,
+        notas: notas.trim() || null,
+      }),
+    })
+    const data = await res.json() as { ok?: boolean; error?: string }
+    setCargando(false)
+    if (!res.ok || !data.ok) { setError(data.error ?? 'Error al guardar'); return }
+    onDone()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !cargando && onClose()}>
+      <div className="bg-white rounded-xl p-5 max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold flex items-center gap-2"><Pencil className="h-5 w-5 text-orange-600" /> Editar caja</h3>
+          <button onClick={onClose} disabled={cargando} className="text-gray-400 hover:text-gray-600 disabled:opacity-50">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 -mt-3">Modifica los datos de la caja. Los cambios se aplicarán de inmediato.</p>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Ciudad destino</label>
+          <select
+            value={bodega}
+            onChange={e => setBodega(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value="medellin">Medellín</option>
+            <option value="bogota">Bogotá</option>
+            <option value="barranquilla">Barranquilla</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Courier</label>
+          <input
+            type="text" value={courier} onChange={e => setCourier(e.target.value)}
+            placeholder="USACO Express"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Tracking USACO</label>
+          <input
+            type="text" value={trackingUsaco} onChange={e => setTrackingUsaco(e.target.value)}
+            placeholder="1Z9999AA1234567890"
+            className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <p className="text-[11px] text-gray-400 mt-1">Si lo cambias, todos los paquetes de la caja heredarán el nuevo tracking automáticamente.</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-1">Peso est. (lb)</label>
+            <input type="number" step="0.1" value={pesoEstimado} onChange={e => setPesoEstimado(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-1">Peso real (lb)</label>
+            <input type="number" step="0.1" value={pesoReal} onChange={e => setPesoReal(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-1">Costo USD</label>
+            <input type="number" step="0.01" value={costo} onChange={e => setCosto(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Notas</label>
+          <textarea
+            value={notas} onChange={e => setNotas(e.target.value)} rows={2}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
+
+        <div className="flex gap-2 pt-2">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={cargando}>Cancelar</Button>
+          <Button onClick={guardar} disabled={cargando} className="flex-1 bg-orange-600 hover:bg-orange-700 text-white gap-2">
+            {cargando ? <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</> : <><Save className="h-4 w-4" /> Guardar cambios</>}
           </Button>
         </div>
       </div>

@@ -94,6 +94,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     peso_real?: number | null
     bodega_destino?: string
     costo_total_usaco?: number | null
+    tracking_usaco?: string | null
   }
 
   const admin = getSupabaseAdmin()
@@ -104,6 +105,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (body.peso_real !== undefined) updates.peso_real = body.peso_real
   if (body.bodega_destino !== undefined) updates.bodega_destino = body.bodega_destino
   if (body.costo_total_usaco !== undefined) updates.costo_total_usaco = body.costo_total_usaco
+  if (body.tracking_usaco !== undefined) updates.tracking_usaco = body.tracking_usaco?.trim() || null
 
   const { error } = await admin
     .from('cajas_consolidacion')
@@ -111,40 +113,86 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Si se cambió el tracking_usaco, propagarlo a todos los paquetes de la caja
+  if (body.tracking_usaco !== undefined) {
+    await admin
+      .from('paquetes')
+      .update({
+        tracking_usaco: body.tracking_usaco?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('caja_id', id)
+  }
+
   return NextResponse.json({ ok: true })
 }
 
-// ─── DELETE: borrar caja vacía ──────────────────────────────────────────────
-export async function DELETE(_req: NextRequest, { params }: Props) {
+// ─── DELETE: borrar caja (libera paquetes a recibido_usa) ───────────────────
+export async function DELETE(req: NextRequest, { params }: Props) {
   const user = await verificarAdmin()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { id } = await params
   const admin = getSupabaseAdmin()
 
-  // Verificar que la caja esté vacía y abierta
   const { data: caja } = await admin
     .from('cajas_consolidacion')
-    .select('estado')
+    .select('id, codigo_interno, estado')
     .eq('id', id)
     .maybeSingle()
 
   if (!caja) return NextResponse.json({ error: 'Caja no encontrada' }, { status: 404 })
-  if (caja.estado !== 'abierta') {
-    return NextResponse.json({ error: 'Solo se pueden borrar cajas abiertas' }, { status: 400 })
+
+  // Bloquear borrado si ya fue recibida en Colombia (los paquetes ya están entregándose)
+  if (caja.estado === 'recibida_colombia') {
+    return NextResponse.json({
+      error: 'No se puede borrar una caja que ya fue recibida en Colombia. Los paquetes ya están en su flujo final.',
+    }, { status: 400 })
   }
 
-  const { count } = await admin
+  // Cargar paquetes asociados
+  const { data: paquetes } = await admin
     .from('paquetes')
-    .select('id', { count: 'exact', head: true })
+    .select('id, estado')
     .eq('caja_id', id)
 
-  if ((count ?? 0) > 0) {
-    return NextResponse.json({ error: 'La caja tiene paquetes adentro. Quítalos primero.' }, { status: 400 })
+  const cantidadPaquetes = paquetes?.length ?? 0
+
+  // Si hay paquetes, devolverlos a 'recibido_usa' y limpiar caja_id + tracking_usaco si fue heredado
+  if (cantidadPaquetes > 0 && paquetes) {
+    const ahora = new Date().toISOString()
+
+    const { error: updErr } = await admin
+      .from('paquetes')
+      .update({
+        caja_id: null,
+        estado: 'recibido_usa',
+        // Si el tracking USACO fue heredado de la caja, limpiarlo también
+        tracking_usaco: null,
+        updated_at: ahora,
+      })
+      .eq('caja_id', id)
+
+    if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
+
+    // Registrar evento por cada paquete
+    const eventos = paquetes.map(p => ({
+      paquete_id: p.id,
+      estado_anterior: p.estado,
+      estado_nuevo: 'recibido_usa',
+      descripcion: `Caja eliminada (${caja.codigo_interno}) — paquete liberado`,
+      ubicacion: 'Miami, USA',
+    }))
+    await admin.from('eventos_paquete').insert(eventos)
+      .then(() => {/* ok */}, (e) => console.error('[caja delete] eventos:', e))
   }
 
   const { error } = await admin.from('cajas_consolidacion').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ok: true,
+    paquetes_liberados: cantidadPaquetes,
+  })
 }
