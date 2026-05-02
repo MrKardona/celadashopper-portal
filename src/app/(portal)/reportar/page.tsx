@@ -9,15 +9,23 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Package, CheckCircle, AlertCircle } from 'lucide-react'
-import { CATEGORIA_LABELS, type CategoriaProducto, type BodegaDestino } from '@/types'
+import { Package, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react'
+import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type BodegaDestino, type EstadoPaquete } from '@/types'
 
 const BODEGAS: { value: BodegaDestino; label: string }[] = [
   { value: 'medellin', label: 'Medellín' },
   { value: 'bogota', label: 'Bogotá' },
   { value: 'barranquilla', label: 'Barranquilla (celulares)' },
 ]
+
+type DuplicadoPropio = {
+  tipo: 'propio'
+  tracking_casilla: string
+  descripcion: string
+  estado: string
+}
+type DuplicadoOtro = { tipo: 'otro' }
+type Duplicado = DuplicadoPropio | DuplicadoOtro | null
 
 export default function ReportarPage() {
   const router = useRouter()
@@ -34,15 +42,19 @@ export default function ReportarPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [exito, setExito] = useState<{ tracking: string } | null>(null)
+  const [duplicado, setDuplicado] = useState<Duplicado>(null)
+  const [exito, setExito] = useState<{ tracking: string; match?: boolean } | null>(null)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    // Limpiar alertas de duplicado si cambia el tracking
+    if (e.target.name === 'tracking_origen') setDuplicado(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setDuplicado(null)
 
     if (!form.categoria) {
       setError('Selecciona el tipo de producto')
@@ -58,39 +70,79 @@ export default function ReportarPage() {
       return
     }
 
-    const { data, error: err } = await supabase.from('paquetes').insert({
-      cliente_id: user.id,
-      tienda: form.tienda,
-      tracking_origen: form.tracking_origen || null,
-      descripcion: form.descripcion,
-      categoria: form.categoria,
-      valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
-      fecha_compra: form.fecha_compra || null,
-      fecha_estimada_llegada: form.fecha_estimada_llegada || null,
-      bodega_destino: form.bodega_destino,
-      notas_cliente: form.notas_cliente || null,
-    }).select('tracking_casilla').single()
+    const res = await fetch('/api/portal/reportar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tienda: form.tienda,
+        tracking_origen: form.tracking_origen || null,
+        descripcion: form.descripcion,
+        categoria: form.categoria,
+        valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
+        fecha_compra: form.fecha_compra || null,
+        fecha_estimada_llegada: form.fecha_estimada_llegada || null,
+        bodega_destino: form.bodega_destino,
+        notas_cliente: form.notas_cliente || null,
+      }),
+    })
 
     setLoading(false)
+    const data = await res.json() as {
+      ok?: boolean
+      error?: string
+      tracking_casilla?: string
+      match?: boolean
+      descripcion?: string
+      estado?: string
+    }
 
-    if (err) {
-      setError('Error al guardar el pedido. Intenta de nuevo.')
+    // ── Tracking duplicado: ya lo tienes tú ─────────────────────────────────
+    if (res.status === 409 && data.error === 'duplicate_own') {
+      setDuplicado({
+        tipo: 'propio',
+        tracking_casilla: data.tracking_casilla ?? '',
+        descripcion: data.descripcion ?? '',
+        estado: data.estado ?? '',
+      })
       return
     }
 
-    setExito({ tracking: data.tracking_casilla })
+    // ── Tracking duplicado: lo tiene otro cliente ────────────────────────────
+    if (res.status === 409 && data.error === 'duplicate_other') {
+      setDuplicado({ tipo: 'otro' })
+      return
+    }
+
+    if (!res.ok || !data.ok) {
+      setError(data.error ?? 'Error al guardar el pedido. Intenta de nuevo.')
+      return
+    }
+
+    setExito({ tracking: data.tracking_casilla ?? '', match: data.match })
   }
 
+  // ── Pantalla de éxito ──────────────────────────────────────────────────────
   if (exito) {
     return (
       <div className="max-w-lg mx-auto space-y-4">
-        <Card className="border-green-200 bg-green-50">
+        <Card className={exito.match ? 'border-orange-300 bg-orange-50' : 'border-green-200 bg-green-50'}>
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center gap-4">
-              <CheckCircle className="h-12 w-12 text-green-600" />
+              <CheckCircle className={`h-12 w-12 ${exito.match ? 'text-orange-500' : 'text-green-600'}`} />
               <div>
-                <h2 className="text-xl font-bold text-green-800">¡Pedido reportado!</h2>
-                <p className="text-green-700 mt-1">Tu paquete ha sido registrado exitosamente.</p>
+                {exito.match ? (
+                  <>
+                    <h2 className="text-xl font-bold text-orange-800">¡Tu paquete ya está aquí! 🎉</h2>
+                    <p className="text-orange-700 mt-1">
+                      Encontramos tu paquete en nuestra bodega de Miami. Te enviamos una notificación por WhatsApp con los detalles.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-bold text-green-800">¡Pedido reportado!</h2>
+                    <p className="text-green-700 mt-1">Tu paquete ha sido registrado exitosamente.</p>
+                  </>
+                )}
               </div>
               <div className="bg-white rounded-lg p-4 w-full border border-green-200">
                 <p className="text-sm text-gray-500">Número de seguimiento CeladaShopper</p>
@@ -114,7 +166,7 @@ export default function ReportarPage() {
                 </Button>
                 <Button
                   className="flex-1 bg-orange-600 hover:bg-orange-700"
-                  onClick={() => router.push('/paquetes')}
+                  onClick={() => { window.location.href = '/paquetes' }}
                 >
                   Ver mis paquetes
                 </Button>
@@ -126,6 +178,7 @@ export default function ReportarPage() {
     )
   }
 
+  // ── Formulario principal ───────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -205,6 +258,7 @@ export default function ReportarPage() {
                   placeholder="1Z999AA10123456784"
                   value={form.tracking_origen}
                   onChange={handleChange}
+                  className={duplicado ? 'border-amber-400 focus-visible:ring-amber-400/30' : ''}
                 />
                 <p className="text-xs text-gray-400">UPS, FedEx, USPS, Amazon...</p>
               </div>
@@ -225,6 +279,55 @@ export default function ReportarPage() {
                 />
               </div>
             </div>
+
+            {/* ── Alerta: tracking ya registrado por este usuario ── */}
+            {duplicado?.tipo === 'propio' && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">
+                      ¡Este tracking ya está en tu cuenta!
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                      Ya registraste este número de tracking anteriormente:
+                    </p>
+                    <div className="mt-2 bg-white rounded-lg px-3 py-2 border border-amber-200">
+                      <p className="text-xs text-gray-500">Número CeladaShopper</p>
+                      <p className="font-mono font-bold text-orange-600">{duplicado.tracking_casilla}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{duplicado.descripcion}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Estado: {ESTADO_LABELS[duplicado.estado as EstadoPaquete] ?? duplicado.estado}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={() => { window.location.href = '/paquetes' }}
+                >
+                  Ver mis paquetes
+                </Button>
+              </div>
+            )}
+
+            {/* ── Alerta: tracking registrado por otro cliente ── */}
+            {duplicado?.tipo === 'otro' && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">
+                      Tracking ya registrado
+                    </p>
+                    <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                      Este número de tracking ya fue ingresado por otro cliente. Si crees que hay un error, comunícate con nosotros por WhatsApp.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Fechas */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -297,13 +400,32 @@ export default function ReportarPage() {
               </div>
             )}
 
-            <Button
-              type="submit"
-              className="w-full bg-orange-600 hover:bg-orange-700 h-11 text-base"
-              disabled={loading}
-            >
-              {loading ? 'Guardando...' : 'Reportar pedido'}
-            </Button>
+            {/* No mostrar el botón si hay un duplicado propio (ya tiene el paquete) */}
+            {!duplicado && (
+              <Button
+                type="submit"
+                className="w-full bg-orange-600 hover:bg-orange-700 h-11 text-base"
+                disabled={loading}
+              >
+                {loading ? 'Guardando...' : 'Reportar pedido'}
+              </Button>
+            )}
+
+            {/* Con duplicado de otro cliente, permitir continuar sin tracking */}
+            {duplicado?.tipo === 'otro' && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11"
+                onClick={() => {
+                  setDuplicado(null)
+                  setForm(prev => ({ ...prev, tracking_origen: '' }))
+                }}
+              >
+                Registrar sin número de tracking
+              </Button>
+            )}
+
           </form>
         </CardContent>
       </Card>

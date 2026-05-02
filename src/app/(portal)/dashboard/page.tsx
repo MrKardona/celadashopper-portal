@@ -1,10 +1,12 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  Package, PlusCircle, Truck, CheckCircle, Clock, AlertTriangle,
+  Package, PlusCircle, Truck, CheckCircle, Clock, AlertTriangle, MessageCircle,
 } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS, type EstadoPaquete } from '@/types'
 import { format } from 'date-fns'
@@ -39,25 +41,59 @@ export default async function DashboardPage() {
     entregados: todos?.filter(p => p.estado === 'entregado').length ?? 0,
   }
 
+  // Nombre a mostrar: primer nombre real, o fallback
+  const nombre = perfil?.nombre_completo && perfil.nombre_completo !== perfil.email
+    ? perfil.nombre_completo.split(' ')[0]
+    : null
+
   return (
     <div className="space-y-6">
       {/* Bienvenida */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Hola, {perfil?.nombre_completo?.split(' ')[0]} 👋
+            Hola{nombre ? `, ${nombre}` : ''} <span aria-hidden="true">👋</span>
           </h1>
           <p className="text-gray-500">
-            Tu casilla: <span className="font-semibold text-orange-600">{perfil?.numero_casilla}</span>
+            {perfil?.numero_casilla
+              ? <>Tu casillero es: <span className="font-semibold text-orange-600">{perfil.numero_casilla}</span></>
+              : <span className="text-sm">Bienvenido a CeladaShopper</span>
+            }
           </p>
         </div>
-        <Link href="/reportar">
-          <Button className="bg-orange-600 hover:bg-orange-700 gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Reportar pedido
-          </Button>
+        <Link
+          href="/reportar"
+          className={buttonVariants({ variant: 'default' }) + ' bg-orange-600 hover:bg-orange-700 gap-2'}
+        >
+          <PlusCircle className="h-4 w-4" />
+          Reportar pedido
         </Link>
       </div>
+
+      {/* Aviso: WhatsApp faltante o incompleto */}
+      {!perfil?.whatsapp && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800">
+                Configura tu WhatsApp para recibir notificaciones
+              </p>
+              <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                Te avisaremos por WhatsApp cuando tu paquete llegue a Miami, vaya en tránsito y esté listo para entrega.
+              </p>
+              <Link
+                href="/perfil"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900 mt-2"
+              >
+                Agregar mi WhatsApp →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Estadisticas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -68,7 +104,7 @@ export default async function DashboardPage() {
                 <Package className="h-5 w-5 text-gray-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.total} paquetes en total`}>{stats.total}</p>
                 <p className="text-xs text-gray-500">Total paquetes</p>
               </div>
             </div>
@@ -81,7 +117,7 @@ export default async function DashboardPage() {
                 <Clock className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.activos}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.activos} paquetes en proceso`}>{stats.activos}</p>
                 <p className="text-xs text-gray-500">En proceso</p>
               </div>
             </div>
@@ -94,7 +130,7 @@ export default async function DashboardPage() {
                 <Truck className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.en_transito}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.en_transito} paquetes en tránsito`}>{stats.en_transito}</p>
                 <p className="text-xs text-gray-500">En tránsito</p>
               </div>
             </div>
@@ -107,7 +143,7 @@ export default async function DashboardPage() {
                 <CheckCircle className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.entregados}</p>
+                <p className="text-2xl font-bold" aria-label={`${stats.entregados} paquetes entregados`}>{stats.entregados}</p>
                 <p className="text-xs text-gray-500">Entregados</p>
               </div>
             </div>
@@ -128,11 +164,12 @@ export default async function DashboardPage() {
             <div className="text-center py-8">
               <Package className="h-10 w-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No tienes paquetes reportados aún</p>
-              <Link href="/reportar">
-                <Button variant="outline" className="mt-3 gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Reportar tu primer pedido
-                </Button>
+              <Link
+                href="/reportar"
+                className={buttonVariants({ variant: 'outline' }) + ' mt-3 gap-2'}
+              >
+                <PlusCircle className="h-4 w-4" />
+                Reportar tu primer pedido
               </Link>
             </div>
           ) : (
@@ -168,14 +205,60 @@ export default async function DashboardPage() {
       {/* Direccion bodega USA */}
       <Card className="bg-orange-50 border-orange-200">
         <CardHeader>
-          <CardTitle className="text-base text-orange-800">📦 Tu dirección de envío en USA</CardTitle>
+          <CardTitle className="text-base text-orange-800"><span aria-hidden="true">📦</span> Tu dirección de envío en USA</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="font-mono text-sm text-orange-900 space-y-1">
-            <p className="font-semibold">{perfil?.nombre_completo}</p>
-            <p>Casilla: {perfil?.numero_casilla}</p>
-            <p className="text-orange-600 text-xs mt-2">
-              Usa esta dirección al comprar en tiendas de USA. El número de casilla es tu identificador.
+        <CardContent className="space-y-4">
+          {/* Tarjeta principal con la dirección lista para copiar */}
+          <div className="bg-white rounded-lg border border-orange-200 p-4 font-mono text-sm text-orange-900 space-y-1.5">
+            <p className="font-bold text-base">
+              Diego Celada
+              {perfil?.numero_casilla && <span className="text-orange-600"> - {perfil.numero_casilla}</span>}
+            </p>
+            <p>8164 NW 108th Pl</p>
+            <p>Doral, FL 33178</p>
+            <p>United States</p>
+            <p className="pt-1 text-xs text-gray-500">📞 +1 (786) 000-0000</p>
+          </div>
+
+          {/* Aviso de cómo usar el casillero */}
+          {!perfil?.numero_casilla && (
+            <div className="bg-amber-100 border border-amber-300 rounded-lg p-3 text-xs text-amber-800">
+              ⏳ Tu número de casillero está pendiente de asignación. No realices compras hasta que te lo confirmemos.
+            </div>
+          )}
+
+          {/* Instrucciones */}
+          <div className="bg-orange-100/60 border border-orange-200 rounded-lg p-3 text-xs text-orange-900 space-y-2">
+            <p className="font-semibold">⚠️ IMPORTANTE: Cómo poner tu dirección al comprar</p>
+            <ol className="list-decimal list-inside space-y-1 text-orange-800">
+              <li>
+                En el campo <strong>Nombre / Recipient</strong> escribe siempre:
+                <span className="block ml-4 mt-0.5 font-mono bg-white border border-orange-200 rounded px-2 py-1">
+                  Diego Celada / {perfil?.numero_casilla ?? '[tu casillero]'}
+                </span>
+              </li>
+              <li>El número de casillero <strong>al final del nombre</strong> es lo que nos permite identificar a quién pertenece tu paquete.</li>
+              <li>Usa la dirección exacta que aparece arriba (con el ZIP <strong>33178</strong>).</li>
+              <li>Si la tienda exige un número de teléfono, puedes usar el de la bodega que aparece arriba.</li>
+            </ol>
+          </div>
+
+          {/* Aviso adicional: si la tienda no permite el número */}
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+            <p className="font-semibold flex items-center gap-1">
+              <span aria-hidden="true">💡</span> ¿La tienda no te deja poner el número de casillero?
+            </p>
+            <p className="leading-relaxed">
+              Si el formulario de la tienda no acepta el número o el carácter <strong>/</strong>, escribe en el campo
+              de nombre <strong>tal cual está registrado en la plataforma</strong>:
+            </p>
+            {perfil?.nombre_completo && (
+              <p className="font-mono bg-white border border-amber-200 rounded px-2 py-1 mt-1">
+                {perfil.nombre_completo}
+              </p>
+            )}
+            <p className="text-[11px] mt-1 text-amber-800">
+              Igualmente lo identificaremos por tu nombre completo cuando llegue a la bodega.
             </p>
           </div>
         </CardContent>

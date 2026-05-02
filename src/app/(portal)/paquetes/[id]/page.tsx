@@ -17,18 +17,37 @@ const ESTADOS_ORDEN: EstadoPaquete[] = [
   'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'
 ]
 
-export default async function DetallePaquetePage({ params }: { params: { id: string } }) {
+export default async function DetallePaquetePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: paquete } = await supabase
-    .from('paquetes')
-    .select('*, fotos_paquetes(*), eventos_paquete(*)')
-    .eq('id', params.id)
-    .eq('cliente_id', user!.id)
-    .single()
+  // Queries separadas para evitar problemas de RLS al hacer joins
+  const [paqueteRes, fotosRes, eventosRes] = await Promise.all([
+    supabase
+      .from('paquetes')
+      .select('*')
+      .eq('id', id)
+      .eq('cliente_id', user!.id)
+      .maybeSingle(),
+    supabase
+      .from('fotos_paquetes')
+      .select('*')
+      .eq('paquete_id', id)
+      .order('created_at'),
+    supabase
+      .from('eventos_paquete')
+      .select('*')
+      .eq('paquete_id', id)
+      .order('created_at', { ascending: false }),
+  ])
 
+  const paquete = paqueteRes.data
   if (!paquete) notFound()
+
+  // Adjuntar relacionados al objeto paquete (compatibilidad con resto del código)
+  paquete.fotos_paquetes = fotosRes.data ?? []
+  paquete.eventos_paquete = eventosRes.data ?? []
 
   const estadoActualIdx = ESTADOS_ORDEN.indexOf(paquete.estado as EstadoPaquete)
   const esProblema = ['retenido', 'devuelto'].includes(paquete.estado)

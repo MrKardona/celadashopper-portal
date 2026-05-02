@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package } from 'lucide-react'
+import { Package, AlertCircle, KeyRound } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -23,20 +23,23 @@ export default function RegisterPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [cuentaExiste, setCuentaExiste] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+    // Si el usuario cambia el email, limpiar la alerta
+    if (e.target.name === 'email') setCuentaExiste(false)
   }
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setCuentaExiste(false)
 
     if (form.password !== form.confirm) {
       setError('Las contraseñas no coinciden')
       return
     }
-
     if (form.password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres')
       return
@@ -45,31 +48,45 @@ export default function RegisterPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signUp({
-      email: form.email,
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: form.email.trim(),
       password: form.password,
       options: {
-        data: {
-          nombre_completo: form.nombre_completo,
-        },
+        data: { nombre_completo: form.nombre_completo },
         emailRedirectTo: `${window.location.origin}/api/auth/callback`,
       },
     })
 
-    if (error) {
-      setError(error.message)
+    // Detectar cuenta ya existente:
+    // Supabase retorna identities vacío cuando el email ya está registrado
+    const yaExiste =
+      signUpError?.message?.toLowerCase().includes('already') ||
+      signUpError?.message?.toLowerCase().includes('registered') ||
+      (data?.user && (data.user.identities?.length === 0)) ||
+      (!data?.user && !signUpError)
+
+    if (yaExiste) {
+      setCuentaExiste(true)
+      setLoading(false)
+      return
+    }
+
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
       return
     }
 
     // Actualizar datos adicionales del perfil
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
+    // Usamos data.user del signUp (disponible de inmediato) y también getUser() como respaldo
+    const userId = data?.user?.id
+    if (userId) {
       await supabase.from('perfiles').update({
+        nombre_completo: form.nombre_completo,
         telefono: form.telefono,
         whatsapp: form.whatsapp || form.telefono,
         ciudad: form.ciudad,
-      }).eq('id', user.id)
+      }).eq('id', userId)
     }
 
     router.push('/dashboard')
@@ -173,11 +190,60 @@ export default function RegisterPage() {
                   required
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
-                {loading ? 'Creando cuenta...' : 'Crear cuenta'}
-              </Button>
+
+              {/* Alerta: cuenta ya existe */}
+              {cuentaExiste && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-800">
+                        ¡Esta cuenta ya existe en nuestro sistema!
+                      </p>
+                      <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                        El correo <span className="font-medium">{form.email}</span> ya está
+                        registrado. Si no recuerdas tu contraseña, puedes recuperarla fácilmente.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Link
+                      href={`/recuperar`}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors"
+                    >
+                      <KeyRound className="h-4 w-4" />
+                      Recuperar mi contraseña
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="w-full inline-flex items-center justify-center text-sm text-amber-700 hover:text-amber-900 font-medium py-2 transition-colors"
+                    >
+                      Ya la recuerdo → Iniciar sesión
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Error genérico */}
+              {error && (
+                <p role="alert" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {error}
+                </p>
+              )}
+
+              {!cuentaExiste && (
+                <Button
+                  type="submit"
+                  className="w-full bg-orange-600 hover:bg-orange-700"
+                  disabled={loading}
+                  aria-busy={loading}
+                >
+                  {loading ? 'Creando cuenta...' : 'Crear cuenta'}
+                </Button>
+              )}
             </form>
+
             <p className="mt-4 text-center text-sm text-gray-600">
               ¿Ya tienes cuenta?{' '}
               <Link href="/login" className="text-orange-600 font-medium hover:underline">

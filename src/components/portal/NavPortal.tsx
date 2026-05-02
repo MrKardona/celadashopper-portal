@@ -1,9 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Package, LayoutDashboard, PlusCircle, LogOut, Bell } from 'lucide-react'
+import { Package, LayoutDashboard, PlusCircle, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { Perfil } from '@/types'
@@ -23,6 +22,7 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
     { href: '/dashboard', label: 'Mi Panel', icon: LayoutDashboard },
     { href: '/reportar', label: 'Reportar Pedido', icon: PlusCircle },
     { href: '/paquetes', label: 'Mis Paquetes', icon: Package },
+    { href: '/perfil', label: 'Mi Perfil', icon: User },
   ]
 
   return (
@@ -30,13 +30,16 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="flex items-center gap-2 text-orange-600 font-bold">
+            {/* Logo — recarga completa para refrescar datos */}
+            <a href="/dashboard" className="flex items-center gap-2 text-orange-600 font-bold">
               <Package className="h-6 w-6" />
               <span className="hidden sm:block">CeladaShopper</span>
-            </Link>
+            </a>
+
+            {/* Nav escritorio — <a> en lugar de <Link> para datos siempre frescos */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map(({ href, label, icon: Icon }) => (
-                <Link
+                <a
                   key={href}
                   href={href}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -47,7 +50,7 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
                 >
                   <Icon className="h-4 w-4" />
                   {label}
-                </Link>
+                </a>
               ))}
             </nav>
           </div>
@@ -67,10 +70,10 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
           </div>
         </div>
 
-        {/* Nav movil */}
+        {/* Nav móvil — <a> para navegación siempre fresca */}
         <nav className="md:hidden flex gap-1 pb-2 overflow-x-auto">
           {navItems.map(({ href, label, icon: Icon }) => (
-            <Link
+            <a
               key={href}
               href={href}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
@@ -81,7 +84,7 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
             >
               <Icon className="h-3.5 w-3.5" />
               {label}
-            </Link>
+            </a>
           ))}
         </nav>
       </div>

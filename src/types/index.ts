@@ -93,6 +93,11 @@ export interface TarifaCategoria {
   categoria: CategoriaProducto
   nombre_display: string
   tarifa_por_libra: number
+  precio_fijo?: number
+  tarifa_tipo: 'por_libra' | 'fijo_por_unidad' | 'especial'
+  seguro_porcentaje: number
+  descripcion?: string
+  activo: boolean
 }
 
 export interface Notificacion {
@@ -145,4 +150,85 @@ export const CATEGORIA_LABELS: Record<CategoriaProducto, string> = {
   suplementos: 'Suplementos',
   libros: 'Libros',
   otro: 'Otro',
+}
+
+// ============================================================
+// TIPOS: Agente WhatsApp
+// ============================================================
+
+export interface ConversacionWhatsapp {
+  id: string
+  cliente_id: string | null
+  telefono: string
+  rol: 'cliente' | 'agente' | 'sistema'
+  mensaje: string
+  accion_ejecutada: AccionAgente | null
+  escalada: boolean
+  created_at: string
+}
+
+export interface PlantillaNotificacion {
+  id: string
+  evento: EventoNotificacion
+  texto_plantilla: string
+  activa: boolean
+  created_at: string
+}
+
+export type EventoNotificacion =
+  | 'paquete_recibido_usa'
+  | 'paquete_en_transito'
+  | 'paquete_listo_recoger'
+
+export type AccionAgente =
+  | 'ninguna'
+  | 'registrar_cliente'
+  | 'confirmar_envio'
+  | 'escalar'
+
+export interface AgentResponse {
+  respuesta: string
+  accion: AccionAgente
+  datos_accion: RegistrarClienteData | ConfirmarEnvioData | EscalarData | Record<string, never>
+}
+
+export interface RegistrarClienteData {
+  nombre: string
+  ciudad: BodegaDestino
+  telefono: string
+  email?: string
+}
+
+export interface ConfirmarEnvioData {
+  paquete_id: string
+}
+
+export interface EscalarData {
+  motivo: string
+  kommo_contact_id: number
+}
+
+export interface ClienteConPaquetes {
+  perfil: Perfil
+  paquetes: Paquete[]
+  tarifas: TarifaCategoria[]
+}
+
+export interface KommoWebhookPayload {
+  account: { id: number; subdomain: string }
+  message: {
+    add?: KommoIncomingMessage[]
+  }
+}
+
+export interface KommoIncomingMessage {
+  id: string
+  chat_id: string
+  contact_id: number
+  author_id: number
+  author_type: 'contact' | 'user' | 'bot'
+  type: 'text' | 'image' | 'audio' | 'video' | 'file' | 'sticker'
+  text?: string
+  media?: { url: string }
+  created_at: number
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -23,7 +24,7 @@ export default function LoginPage() {
     setError('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError('Correo o contraseña incorrectos')
@@ -31,10 +32,67 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    // Leer rol directamente para redirigir al área correcta
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('rol')
+      .eq('id', data.user.id)
+      .single()
+
+    const rol = perfil?.rol ?? 'cliente'
+
+    if (rol === 'admin') router.push('/admin/paquetes')
+    else if (rol === 'agente_usa') router.push('/agente')
+    else {
+      // Respetar la página de destino si el usuario fue redirigido al login
+      const next = searchParams.get('next')
+      const destino = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'
+      router.push(destino)
+    }
+
     router.refresh()
   }
 
+  return (
+    <form onSubmit={handleLogin} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="email">Correo electrónico</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="tu@email.com"
+          autoComplete="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Contraseña</Label>
+          <Link href="/recuperar" className="text-xs text-orange-600 hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+        <Input
+          id="password"
+          type="password"
+          placeholder="••••••••"
+          autoComplete="current-password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+      </div>
+      {error && <p role="alert" aria-live="polite" className="text-sm text-red-600">{error}</p>}
+      <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading} aria-busy={loading}>
+        {loading ? 'Entrando...' : 'Entrar'}
+      </Button>
+    </form>
+  )
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-white">
       <div className="w-full max-w-md space-y-6">
@@ -52,34 +110,9 @@ export default function LoginPage() {
             <CardDescription>Accede a tu cuenta para ver tus paquetes</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@email.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
-                {loading ? 'Entrando...' : 'Entrar'}
-              </Button>
-            </form>
+            <Suspense fallback={null}>
+              <LoginForm />
+            </Suspense>
             <p className="mt-4 text-center text-sm text-gray-600">
               ¿No tienes cuenta?{' '}
               <Link href="/register" className="text-orange-600 font-medium hover:underline">
