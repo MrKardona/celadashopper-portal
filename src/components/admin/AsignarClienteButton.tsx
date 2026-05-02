@@ -72,6 +72,7 @@ function ModalAsignar({
   const [notificar, setNotificar] = useState(true)
   const [asignando, setAsignando] = useState(false)
   const [resultado, setResultado] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+  const [stats, setStats] = useState<{ total: number; mostrando: number } | null>(null)
 
   // Búsqueda con debounce
   useEffect(() => {
@@ -81,8 +82,9 @@ function ModalAsignar({
       setBuscando(true)
       try {
         const res = await fetch(`/api/admin/clientes/buscar?q=${encodeURIComponent(query)}`)
-        const data = await res.json() as { clientes?: ClienteResult[] }
+        const data = await res.json() as { clientes?: ClienteResult[]; total?: number; mostrando?: number }
         setResultados(data.clientes ?? [])
+        setStats({ total: data.total ?? 0, mostrando: data.mostrando ?? 0 })
       } catch {
         setResultados([])
       } finally {
@@ -192,7 +194,16 @@ function ModalAsignar({
 
         {/* Lista de resultados (oculta si ya hay seleccionado) */}
         {!seleccionado && (
-          <div className="flex-1 overflow-y-auto px-2 py-2 min-h-[200px] max-h-[300px]">
+          <div className="flex-1 overflow-y-auto px-2 py-2 min-h-[200px] max-h-[350px]">
+            {/* Contador de clientes */}
+            {stats && (
+              <div className="px-3 py-1.5 mb-1 text-[11px] text-gray-500 bg-gray-50 rounded">
+                {query
+                  ? `${stats.mostrando} resultado${stats.mostrando !== 1 ? 's' : ''} encontrados de ${stats.total} clientes totales`
+                  : `Mostrando ${stats.mostrando} de ${stats.total} clientes — escribe para filtrar`}
+              </div>
+            )}
+
             {buscando ? (
               <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

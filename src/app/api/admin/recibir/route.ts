@@ -104,15 +104,78 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin()
 
-  // ── MODO B: Crear paquete sin cliente ───────────────────────────────────
+  // ── MODO B: Crear paquete sin cliente (con detección de duplicados) ─────
   if (body.sin_asignar) {
     const { descripcion, tienda, tracking_origen, categoria, bodega_destino, notas_internas, foto_url } = body
     const peso_libras = body.peso_libras
+    const trackingOrigenLimpio = tracking_origen?.trim() || null
 
     if (!descripcion || !peso_libras || peso_libras <= 0 || !categoria) {
       return NextResponse.json({ error: 'descripcion, peso y categoria son requeridos' }, { status: 400 })
     }
 
+    // ─ Antes de crear, buscar si ya existe paquete con ese tracking_origen ─
+    if (trackingOrigenLimpio) {
+      const { data: existente } = await admin
+        .from('paquetes')
+        .select('id, tracking_casilla, cliente_id, estado, descripcion')
+        .ilike('tracking_origen', trackingOrigenLimpio)
+        .limit(1)
+        .maybeSingle()
+
+      if (existente) {
+        // ¡Ya existe! Actualizar en lugar de duplicar
+        const updates: Record<string, unknown> = {
+          estado: 'recibido_usa',
+          peso_libras,
+          fecha_recepcion_usa: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        // Si el paquete del cliente no tenía tienda/categoria, completar con lo del admin
+        if (tienda) updates.tienda = tienda
+        if (categoria) updates.categoria = categoria
+        if (bodega_destino) updates.bodega_destino = bodega_destino
+
+        const { error: updErr } = await admin
+          .from('paquetes')
+          .update(updates)
+          .eq('id', existente.id)
+
+        if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
+
+        if (foto_url) await guardarFoto(admin, existente.id, foto_url, 'Empaque con guía de envío')
+        if (body.foto2_url) await guardarFoto(admin, existente.id, body.foto2_url, 'Contenido del paquete (revisión)')
+
+        await admin.from('eventos_paquete').insert({
+          paquete_id: existente.id,
+          estado_anterior: existente.estado,
+          estado_nuevo: 'recibido_usa',
+          descripcion: existente.cliente_id
+            ? `Match automático: paquete ya reportado por cliente. ${notas_internas ?? ''}`.trim()
+            : `Match automático: paquete sin asignar previo actualizado. ${notas_internas ?? ''}`.trim(),
+          ubicacion: 'Miami, USA',
+        })
+
+        // Si tenía cliente, intentar notificar
+        if (existente.cliente_id) {
+          try {
+            const { notificarCambioEstado } = await import('@/lib/notificaciones/por-estado')
+            await notificarCambioEstado(existente.id, 'recibido_usa')
+          } catch (err) {
+            console.error('[recibir match] notificación:', err)
+          }
+        }
+
+        return NextResponse.json({
+          ok: true,
+          tracking_casilla: existente.tracking_casilla,
+          fusionado: true,
+          tenia_cliente: !!existente.cliente_id,
+        })
+      }
+    }
+
+    // ─ No hay duplicado: crear paquete nuevo sin asignar ─
     const { data: nuevo, error: insertErr } = await admin
       .from('paquetes')
       .insert({
@@ -121,7 +184,7 @@ export async function POST(req: NextRequest) {
         descripcion,
         categoria,
         bodega_destino: bodega_destino ?? 'medellin',
-        tracking_origen: tracking_origen ?? null,
+        tracking_origen: trackingOrigenLimpio,
         peso_libras,
         estado: 'recibido_usa',
         fecha_recepcion_usa: new Date().toISOString(),
@@ -151,7 +214,7 @@ export async function POST(req: NextRequest) {
       ubicacion: 'Miami, USA',
     })
 
-    return NextResponse.json({ ok: true, tracking_casilla: nuevo.tracking_casilla })
+    return NextResponse.json({ ok: true, tracking_casilla: nuevo.tracking_casilla, fusionado: false })
   }
 
   // ── MODO A: Actualizar paquete existente ────────────────────────────────

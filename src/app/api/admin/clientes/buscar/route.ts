@@ -31,12 +31,18 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? ''
 
+  // Conteo total para mostrar al admin
+  const { count: totalClientes } = await admin
+    .from('perfiles')
+    .select('*', { count: 'exact', head: true })
+    .eq('rol', 'cliente')
+
   let query = admin
     .from('perfiles')
     .select('id, nombre_completo, email, numero_casilla, whatsapp, telefono, ciudad')
     .eq('rol', 'cliente')
     .order('nombre_completo')
-    .limit(10)
+    .limit(50)
 
   if (q.length > 0) {
     // Buscar en nombre, email, casilla, teléfono o whatsapp
@@ -52,5 +58,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ clientes: data ?? [] })
+  return NextResponse.json({
+    clientes: data ?? [],
+    total: totalClientes ?? 0,
+    mostrando: data?.length ?? 0,
+  })
 }
