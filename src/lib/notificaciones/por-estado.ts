@@ -62,7 +62,55 @@ async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolea
   }
 }
 
-// ─── Envío de imagen vía Meta directo ───────────────────────────────────────
+// ─── Subir imagen a Meta y obtener media_id (más confiable que link público) ─
+async function subirMedia(imageUrl: string): Promise<string | null> {
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
+  if (!phoneId || !token) return null
+
+  try {
+    // 1. Descargar la imagen a un Buffer
+    const imgRes = await fetch(imageUrl)
+    if (!imgRes.ok) {
+      console.error('[subirMedia] No se pudo descargar imagen:', imgRes.status, imageUrl)
+      return null
+    }
+    const contentType = imgRes.headers.get('content-type') ?? 'image/jpeg'
+    const arrayBuf = await imgRes.arrayBuffer()
+    const blob = new Blob([arrayBuf], { type: contentType })
+
+    // 2. Subir a Meta como multipart/form-data
+    const form = new FormData()
+    form.append('messaging_product', 'whatsapp')
+    form.append('type', contentType)
+    // Detectar extensión correcta — Meta acepta jpg, png, webp pero algunos
+    // proxies se confunden con webp; renombramos a .jpg si es necesario
+    const filename = contentType.includes('webp') ? 'image.webp'
+      : contentType.includes('png') ? 'image.png'
+      : 'image.jpg'
+    form.append('file', blob, filename)
+
+    const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+
+    if (!uploadRes.ok) {
+      const errBody = await uploadRes.text()
+      console.error('[subirMedia] Meta upload falló:', uploadRes.status, errBody.slice(0, 300))
+      return null
+    }
+
+    const data = await uploadRes.json() as { id?: string }
+    return data.id ?? null
+  } catch (err) {
+    console.error('[subirMedia] Error:', err)
+    return null
+  }
+}
+
+// ─── Envío de imagen vía Meta directo (con upload media) ─────────────────────
 async function enviarImagenMeta(phone: string, imageUrl: string, caption?: string): Promise<boolean> {
   const phoneId = process.env.META_WA_PHONE_ID
   const token = process.env.META_WA_TOKEN
@@ -71,7 +119,14 @@ async function enviarImagenMeta(phone: string, imageUrl: string, caption?: strin
   const numero = phone.replace(/\D/g, '')
   const dest = numero.startsWith('57') ? numero : `57${numero}`
 
+  // Estrategia 1: subir media a Meta (más confiable)
+  const mediaId = await subirMedia(imageUrl)
+
   try {
+    const imagePayload = mediaId
+      ? (caption ? { id: mediaId, caption } : { id: mediaId })
+      : (caption ? { link: imageUrl, caption } : { link: imageUrl }) // fallback link
+
     const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -79,12 +134,14 @@ async function enviarImagenMeta(phone: string, imageUrl: string, caption?: strin
         messaging_product: 'whatsapp',
         to: dest,
         type: 'image',
-        image: caption ? { link: imageUrl, caption } : { link: imageUrl },
+        image: imagePayload,
       }),
     })
     if (!res.ok) {
       const body = await res.text()
-      console.error('[Meta imagen]', res.status, body.slice(0, 200))
+      console.error('[Meta imagen send]', res.status, body.slice(0, 200), 'mediaId=', mediaId)
+    } else {
+      console.log('[Meta imagen send] OK', mediaId ? `via media_id=${mediaId}` : 'via link')
     }
     return res.ok
   } catch (err) {
