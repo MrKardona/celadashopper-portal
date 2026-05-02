@@ -176,6 +176,44 @@ export async function POST(req: NextRequest) {
   await admin.from('eventos_paquete').insert(eventos)
     .then(() => {/* ok */}, (e) => console.error('[recibir-colombia] eventos:', e))
 
+  // ─── Actualizar la(s) caja(s) consolidacion con ese tracking_usaco ─────
+  // Si todos los paquetes de la caja ya están recibidos en Colombia,
+  // marcar la caja como 'recibida_colombia' con fecha de recepción.
+  let cajasActualizadas = 0
+  try {
+    const { data: cajasMatch } = await admin
+      .from('cajas_consolidacion')
+      .select('id, estado')
+      .ilike('tracking_usaco', trackingUsaco)
+
+    for (const caja of cajasMatch ?? []) {
+      // Verificar si todos sus paquetes ya están en estado de Colombia
+      const { data: paquetesDeCaja } = await admin
+        .from('paquetes')
+        .select('estado')
+        .eq('caja_id', caja.id)
+
+      const todosRecibidos = paquetesDeCaja && paquetesDeCaja.length > 0 &&
+        paquetesDeCaja.every(p =>
+          ['en_bodega_local', 'en_camino_cliente', 'entregado'].includes(p.estado)
+        )
+
+      if (todosRecibidos && caja.estado !== 'recibida_colombia') {
+        await admin
+          .from('cajas_consolidacion')
+          .update({
+            estado: 'recibida_colombia',
+            fecha_recepcion_colombia: ahora,
+            updated_at: ahora,
+          })
+          .eq('id', caja.id)
+        cajasActualizadas++
+      }
+    }
+  } catch (err) {
+    console.error('[recibir-colombia] error actualizando cajas:', err)
+  }
+
   // Notificar a cada cliente vía WhatsApp (con pequeño delay entre cada uno)
   let notificados = 0
   let fallidos = 0
@@ -201,5 +239,6 @@ export async function POST(req: NextRequest) {
     notificados,
     fallidos,
     sin_cliente: aProcesar.filter(p => !p.cliente_id).length,
+    cajas_actualizadas: cajasActualizadas,
   })
 }
