@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
+import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -216,7 +217,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
         {/* Columna derecha: cliente + edición */}
         <div className="space-y-5">
           {/* Info del cliente */}
-          <Card>
+          <Card className={!perfil ? 'border-amber-300 bg-amber-50/40' : ''}>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-orange-600" />
@@ -224,33 +225,61 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <div>
-                <p className="font-semibold text-gray-900">{perfil?.nombre_completo}</p>
-                <p className="text-orange-600 font-mono text-xs">{perfil?.numero_casilla}</p>
-              </div>
-              {perfil?.ciudad && <p className="text-gray-500">{perfil.ciudad}</p>}
-              {perfil?.email && (
-                <a href={`mailto:${perfil.email}`} className="text-blue-600 text-xs hover:underline block truncate">
-                  {perfil.email}
-                </a>
-              )}
-              {(perfil?.whatsapp ?? perfil?.telefono) && (
-                <a
-                  href={`https://wa.me/${(perfil.whatsapp ?? perfil.telefono)?.replace(/\D/g, '')}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="text-green-600 text-xs hover:underline block"
-                >
-                  WhatsApp: {perfil.whatsapp ?? perfil.telefono}
-                </a>
-              )}
-              <Link href={`/admin/clientes?q=${perfil?.nombre_completo ?? ''}`} className="text-xs text-orange-600 hover:underline">
-                Ver todos sus paquetes →
-              </Link>
+              {!perfil ? (
+                <>
+                  <div className="bg-amber-100 border border-amber-300 rounded-lg p-3 text-center">
+                    <p className="text-amber-800 font-semibold text-sm">⏳ Paquete sin asignar</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Este paquete aún no tiene cliente. Asígnalo manualmente para que pueda hacer seguimiento.
+                    </p>
+                  </div>
+                  <AsignarClienteButton
+                    paqueteId={id}
+                    trackingCasilla={p.tracking_casilla ?? '—'}
+                    descripcion={p.descripcion ?? '—'}
+                    clienteActual={null}
+                    variante="primary"
+                  />
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="font-semibold text-gray-900">{perfil.nombre_completo}</p>
+                    <p className="text-orange-600 font-mono text-xs">{perfil.numero_casilla}</p>
+                  </div>
+                  {perfil.ciudad && <p className="text-gray-500">{perfil.ciudad}</p>}
+                  {perfil.email && (
+                    <a href={`mailto:${perfil.email}`} className="text-blue-600 text-xs hover:underline block truncate">
+                      {perfil.email}
+                    </a>
+                  )}
+                  {(perfil.whatsapp ?? perfil.telefono) && (
+                    <a
+                      href={`https://wa.me/${(perfil.whatsapp ?? perfil.telefono)?.replace(/\D/g, '')}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-green-600 text-xs hover:underline block"
+                    >
+                      WhatsApp: {perfil.whatsapp ?? perfil.telefono}
+                    </a>
+                  )}
+                  <Link href={`/admin/clientes?q=${perfil.nombre_completo ?? ''}`} className="text-xs text-orange-600 hover:underline">
+                    Ver todos sus paquetes →
+                  </Link>
 
-              {/* Prueba de WhatsApp al cliente */}
-              <div className="pt-3 border-t border-gray-100">
-                <PruebaWhatsappButton telefonoSugerido={perfil?.whatsapp ?? perfil?.telefono ?? null} />
-              </div>
+                  <div className="pt-3 border-t border-gray-100 space-y-2">
+                    {/* Prueba de WhatsApp al cliente */}
+                    <PruebaWhatsappButton telefonoSugerido={perfil.whatsapp ?? perfil.telefono ?? null} />
+                    {/* Reasignar a otro cliente */}
+                    <AsignarClienteButton
+                      paqueteId={id}
+                      trackingCasilla={p.tracking_casilla ?? '—'}
+                      descripcion={p.descripcion ?? '—'}
+                      clienteActual={{ nombre: perfil.nombre_completo, casilla: perfil.numero_casilla }}
+                      variante="subtle"
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
