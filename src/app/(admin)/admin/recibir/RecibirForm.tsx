@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import {
   ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
   Scale, Loader2, X, ClipboardList, Camera, ImageIcon, Video, VideoOff,
-  PackageOpen,
+  PackageOpen, RefreshCw,
 } from 'lucide-react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
@@ -83,9 +83,6 @@ export default function RecibirForm() {
   const videoFotoRef = useRef<HTMLVideoElement>(null)
   const canvasFotoRef = useRef<HTMLCanvasElement>(null)
   const streamFotoRef = useRef<MediaStream | null>(null)
-  // Stream pendiente: se guarda ANTES de setCamaraSlot y se aplica al video
-  // en useEffect, cuando el overlay ya está visible y el video es full-size en el DOM
-  const pendingStreamRef = useRef<MediaStream | null>(null)
 
   // --- Estado: búsqueda normal ---
   const [tracking, setTracking] = useState('')
@@ -112,6 +109,8 @@ export default function RecibirForm() {
 
   // --- Cámara foto: qué slot y qué contexto (normal | manual) ---
   const [camaraSlot, setCamaraSlot] = useState<{ slot: FotoSlot; ctx: 'normal' | 'manual' } | null>(null)
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
+  const [camaraActiva, setCamaraActiva] = useState(false)
 
   // --- Estado: modo manual (sin casillero) ---
   const [modoManual, setModoManual] = useState(false)
@@ -147,6 +146,7 @@ export default function RecibirForm() {
   }, [modoManual, tracking])
 
   // Limpiar cámaras al desmontar
+  // Limpieza al desmontar
   useEffect(() => {
     return () => {
       scanControlsRef.current?.stop()
@@ -156,18 +156,70 @@ export default function RecibirForm() {
     }
   }, [])
 
-  // Aplicar stream al <video> DESPUÉS de que React haya mostrado el overlay.
-  // Esto resuelve el problema de iOS Safari donde play() en un elemento oculto/tiny
-  // no transfiere la imagen al video cuando éste se hace visible.
+  // ── Cámara foto: iniciar/reiniciar stream cuando se abre o voltea ─────────
+  // getUserMedia se llama DENTRO del useEffect → el <video> ya está en el DOM
+  // y tiene tamaño real antes de que se llame srcObject/play() (fix iOS Safari)
   useEffect(() => {
-    if (camaraSlot && pendingStreamRef.current && videoFotoRef.current) {
-      const video = videoFotoRef.current
-      const stream = pendingStreamRef.current
-      pendingStreamRef.current = null
-      video.srcObject = stream
-      video.play().catch(() => { /* autoPlay attribute como respaldo */ })
+    if (!camaraSlot) return
+
+    let cancelled = false
+    setCamaraActiva(false)
+
+    // Parar stream anterior (por ejemplo al voltear cámara)
+    if (streamFotoRef.current) {
+      streamFotoRef.current.getTracks().forEach(t => t.stop())
+      streamFotoRef.current = null
     }
-  }, [camaraSlot])
+
+    const iniciar = async () => {
+      const constraintsFallback: MediaStreamConstraints[] = [
+        { video: { facingMode: { ideal: facingMode } } },
+        { video: { facingMode } },
+        { video: true },
+      ]
+
+      let stream: MediaStream | null = null
+      for (const c of constraintsFallback) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(c)
+          break
+        } catch (e) {
+          const err = e as DOMException
+          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+            if (!cancelled) {
+              setErrorCamara('Permiso denegado. En iPhone: Ajustes → Safari → Cámara → Permitir.')
+              setCamaraSlot(null)
+            }
+            return
+          }
+          // OverconstrainedError u otro — probar siguiente constraint
+        }
+      }
+
+      if (cancelled) return
+      if (!stream) {
+        setErrorCamara('No se pudo iniciar la cámara en este dispositivo.')
+        setCamaraSlot(null)
+        return
+      }
+
+      streamFotoRef.current = stream
+
+      if (videoFotoRef.current && !cancelled) {
+        videoFotoRef.current.srcObject = stream
+        try {
+          await videoFotoRef.current.play()
+        } catch {
+          // En iOS autoPlay attribute sirve de respaldo
+        }
+        if (!cancelled) setCamaraActiva(true)
+      }
+    }
+
+    iniciar()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camaraSlot?.slot, camaraSlot?.ctx, facingMode])
 
   // ── Scanner de código de barras ──────────────────────────────────────────
   async function iniciarScanner() {
@@ -209,44 +261,18 @@ export default function RecibirForm() {
   }
 
   // ── Cámara para foto ─────────────────────────────────────────────────────
-  async function iniciarCamaraFoto(slot: FotoSlot, ctx: 'normal' | 'manual') {
+  // Solo muestra el overlay; el useEffect se encarga de getUserMedia/srcObject/play()
+  // Esto garantiza que el <video> ya esté visible y con tamaño real antes de play()
+  function iniciarCamaraFoto(slot: FotoSlot, ctx: 'normal' | 'manual') {
     setErrorCamara('')
-
-    // Cadena de fallback: environment ideal → environment estricto → cualquier cámara
-    // iOS Safari rechaza constraints estrictas (width/height) con OverconstrainedError
-    const constraintsFallback: MediaStreamConstraints[] = [
-      { video: { facingMode: { ideal: 'environment' } } },
-      { video: { facingMode: 'environment' } },
-      { video: true },
-    ]
-
-    let stream: MediaStream | null = null
-    for (const c of constraintsFallback) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(c)
-        break
-      } catch (e) {
-        const err = e as DOMException
-        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-          setErrorCamara('Permiso denegado. En iPhone: Ajustes → Safari → Cámara → Permitir.')
-          return
-        }
-        // OverconstrainedError u otro → intentar siguiente
-      }
-    }
-
-    if (!stream) {
-      setErrorCamara('No se pudo iniciar la cámara en este dispositivo.')
-      return
-    }
-
-    streamFotoRef.current = stream
-
-    // Guardamos el stream en pendingStreamRef y PRIMERO mostramos el overlay.
-    // El useEffect(camaraSlot) aplicará srcObject + play() después del commit del DOM,
-    // cuando el <video> ya tiene tamaño real en pantalla (necesario en iOS Safari).
-    pendingStreamRef.current = stream
+    setCamaraActiva(false)
     setCamaraSlot({ slot, ctx })
+  }
+
+  // Voltear entre cámara trasera (environment) y frontal (user)
+  function voltearCamara() {
+    setCamaraActiva(false)
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')
   }
 
   function detenerCamaraFoto() {
@@ -254,10 +280,10 @@ export default function RecibirForm() {
       streamFotoRef.current.getTracks().forEach(t => t.stop())
       streamFotoRef.current = null
     }
-    // Limpiar srcObject para que iOS libere la cámara correctamente
     if (videoFotoRef.current) {
       videoFotoRef.current.srcObject = null
     }
+    setCamaraActiva(false)
     setCamaraSlot(null)
   }
 
@@ -569,53 +595,72 @@ export default function RecibirForm() {
   return (
     <div className="space-y-6 max-w-2xl">
 
-      {/* ── Overlay de cámara foto (SIEMPRE en el DOM para que videoFotoRef sea válido en iOS) ── */}
-      {/* Cuando camaraSlot es null, el overlay está off-screen pero el <video> sigue montado  */}
-      <div
-        className={camaraSlot
-          ? 'fixed inset-0 z-50 bg-black flex flex-col'
-          : 'fixed -left-[9999px] -top-[9999px] w-px h-px overflow-hidden pointer-events-none'}
-        aria-hidden={!camaraSlot}
-      >
-        {camaraSlot && (() => {
-          const meta = FOTO_LABELS[camaraSlot.slot]
-          const Icon = meta.icon
-          return (
-            <div className="px-4 py-3 bg-orange-600 flex items-center gap-2 flex-shrink-0 safe-top">
-              <Icon className="h-4 w-4 text-white" />
-              <span className="text-white font-semibold text-sm">{meta.titulo}</span>
-              <span className="text-orange-200 text-xs">— {meta.subtitulo}</span>
-            </div>
-          )
-        })()}
-        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <video
-          ref={videoFotoRef}
-          className="flex-1 w-full object-cover"
-          playsInline
-          muted
-          autoPlay
-        />
-        {camaraSlot && (
-          <div className="flex items-center justify-center gap-4 p-5 bg-black/90 flex-shrink-0 safe-bottom">
+      {/* ── Overlay de cámara foto — renderiza solo cuando camaraSlot está activo ── */}
+      {/* El <video> se monta al mismo tiempo que el overlay, y getUserMedia se llama  */}
+      {/* en useEffect → el elemento ya tiene tamaño real cuando srcObject/play() corren */}
+      {camaraSlot && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          {/* Header */}
+          {(() => {
+            const meta = FOTO_LABELS[camaraSlot.slot]
+            const Icon = meta.icon
+            return (
+              <div className="px-4 pt-12 pb-3 bg-black/80 flex items-center gap-2 flex-shrink-0">
+                <Icon className="h-4 w-4 text-white" />
+                <span className="text-white font-semibold text-sm">{meta.titulo}</span>
+                <span className="text-gray-400 text-xs">— {meta.subtitulo}</span>
+                <button
+                  type="button"
+                  onClick={detenerCamaraFoto}
+                  className="ml-auto bg-white/10 text-white p-2 rounded-full hover:bg-white/20 active:scale-95"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )
+          })()}
+
+          {/* Video + spinner */}
+          <div className="flex-1 relative bg-black overflow-hidden">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video
+              ref={videoFotoRef}
+              className="absolute inset-0 w-full h-full object-cover"
+              playsInline
+              muted
+              autoPlay
+            />
+            {!camaraActiva && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
+                <Loader2 className="h-10 w-10 text-orange-400 animate-spin" />
+                <p className="text-gray-400 text-sm">Iniciando cámara...</p>
+              </div>
+            )}
+          </div>
+
+          {/* Controles */}
+          <div className="flex items-center justify-center gap-6 px-6 py-8 bg-black flex-shrink-0">
+            <button
+              type="button"
+              onClick={voltearCamara}
+              title="Voltear cámara"
+              className="bg-white/10 text-white p-4 rounded-full hover:bg-white/20 active:scale-95 transition-all"
+            >
+              <RefreshCw className="h-5 w-5" />
+            </button>
             <button
               type="button"
               onClick={capturarFoto}
-              className="bg-white text-gray-900 font-bold px-6 py-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-orange-50 active:scale-95 transition-all"
+              disabled={!camaraActiva}
+              className="bg-white text-gray-900 font-bold px-7 py-4 rounded-full shadow-xl flex items-center gap-2 hover:bg-orange-50 active:scale-95 transition-all disabled:opacity-40 text-base"
             >
-              <Camera className="h-5 w-5 text-orange-600" />
-              Capturar foto
+              <Camera className="h-6 w-6 text-orange-600" />
+              Capturar
             </button>
-            <button
-              type="button"
-              onClick={detenerCamaraFoto}
-              className="bg-white/20 text-white p-3 rounded-full hover:bg-white/30 active:scale-95 transition-all"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="w-[56px]" />
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Canvas oculto para captura de fotograma */}
       <canvas ref={canvasFotoRef} className="hidden" />
