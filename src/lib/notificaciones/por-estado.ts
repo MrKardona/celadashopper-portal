@@ -62,6 +62,37 @@ async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolea
   }
 }
 
+// ─── Envío de imagen vía Meta directo ───────────────────────────────────────
+async function enviarImagenMeta(phone: string, imageUrl: string, caption?: string): Promise<boolean> {
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
+  if (!phoneId || !token) return false
+
+  const numero = phone.replace(/\D/g, '')
+  const dest = numero.startsWith('57') ? numero : `57${numero}`
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: dest,
+        type: 'image',
+        image: caption ? { link: imageUrl, caption } : { link: imageUrl },
+      }),
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      console.error('[Meta imagen]', res.status, body.slice(0, 200))
+    }
+    return res.ok
+  } catch (err) {
+    console.error('[Meta imagen] Error:', err)
+    return false
+  }
+}
+
 // ─── Envío con fallback Meta → Kommo ────────────────────────────────────────
 async function enviarConFallback(phone: string, mensaje: string): Promise<{ enviado: boolean; via: string }> {
   // Intentar Meta primero
@@ -172,17 +203,65 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
     }
 
     const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
-    const r = await enviarConFallback(ctx.phone, mensaje)
 
-    console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${r.via} enviado=${r.enviado}`)
+    // ── Para 'recibido_usa' o 'en_consolidacion': intentar enviar con fotos ──
+    const enviaFotos = estadoNuevo === 'recibido_usa' || estadoNuevo === 'en_consolidacion'
+    let fotosEnviadas = 0
+    let envioOk = false
+    let viaUsada = 'meta'
+
+    if (enviaFotos) {
+      // Buscar fotos asociadas al paquete
+      const { data: fotos } = await supabase
+        .from('fotos_paquetes')
+        .select('url, descripcion')
+        .eq('paquete_id', paqueteId)
+        .order('created_at', { ascending: true })
+        .limit(5)
+
+      if (fotos && fotos.length > 0) {
+        // 1ra foto con caption (el mensaje completo)
+        const okPrimera = await enviarImagenMeta(ctx.phone, fotos[0].url, mensaje)
+        if (okPrimera) fotosEnviadas++
+
+        // Fotos adicionales sin caption (solo descripción si tiene)
+        for (let i = 1; i < fotos.length; i++) {
+          const ok = await enviarImagenMeta(ctx.phone, fotos[i].url, fotos[i].descripcion ?? undefined)
+          if (ok) fotosEnviadas++
+        }
+
+        envioOk = fotosEnviadas > 0
+        viaUsada = `meta_imagen_x${fotosEnviadas}`
+
+        // Si todas las fotos fallaron, fallback a texto
+        if (!envioOk) {
+          console.warn('[notif] Todas las fotos fallaron, fallback a texto')
+          const r = await enviarConFallback(ctx.phone, mensaje)
+          envioOk = r.enviado
+          viaUsada = `${r.via}_fallback_texto`
+        }
+      } else {
+        // No hay fotos, solo texto
+        const r = await enviarConFallback(ctx.phone, mensaje)
+        envioOk = r.enviado
+        viaUsada = r.via
+      }
+    } else {
+      // Otros estados: solo texto
+      const r = await enviarConFallback(ctx.phone, mensaje)
+      envioOk = r.enviado
+      viaUsada = r.via
+    }
+
+    console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${viaUsada} enviado=${envioOk} fotos=${fotosEnviadas}`)
 
     await supabase.from('notificaciones').insert({
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
-      titulo: `Estado: ${estadoNuevo} (via ${r.via})`,
+      titulo: `Estado: ${estadoNuevo} (${viaUsada}${fotosEnviadas > 0 ? `, ${fotosEnviadas} foto${fotosEnviadas > 1 ? 's' : ''}` : ''})`,
       mensaje,
-      enviada_whatsapp: r.enviado,
+      enviada_whatsapp: envioOk,
     })
   } catch (err) {
     console.error('[notificarCambioEstado] Error:', err)
