@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ScanBarcode, Package, MapPin, X, Loader2, CheckCircle2, AlertCircle,
-  Lock, Truck, Trash2, Camera, Search, Plus,
+  Lock, Truck, Trash2, Camera, Plus, RefreshCw, Globe,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CATEGORIA_LABELS, ESTADO_LABELS, ESTADO_COLORES, type CategoriaProducto, type EstadoPaquete } from '@/types'
@@ -332,6 +332,19 @@ export default function CajaDetalleForm({
         </div>
       )}
 
+      {/* Paquetes disponibles para agregar (solo si abierta) */}
+      {editable && (
+        <PaquetesDisponibles
+          bodegaCaja={caja.bodega_destino}
+          onAgregar={async (tracking) => {
+            await agregar(tracking)
+          }}
+          onAgregarConBodegaDistinta={async (tracking) => {
+            await agregar(tracking, true)
+          }}
+        />
+      )}
+
       {/* Lista de paquetes adentro */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
@@ -556,6 +569,180 @@ function ModalEliminarCaja({ cajaId, codigo, onClose, onDone }: { cajaId: string
             {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sí, eliminar'}
           </Button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Lista de paquetes disponibles para agregar a la caja ───────────────────
+interface PaqueteDisponible {
+  id: string
+  tracking_casilla: string | null
+  tracking_origen: string | null
+  descripcion: string
+  categoria: string
+  peso_libras: number | string | null
+  bodega_destino: string
+  fecha_recepcion_usa: string | null
+  cliente: { nombre_completo: string; numero_casilla: string | null } | null
+}
+
+function PaquetesDisponibles({
+  bodegaCaja,
+  onAgregar,
+  onAgregarConBodegaDistinta,
+}: {
+  bodegaCaja: string
+  onAgregar: (tracking: string) => Promise<void>
+  onAgregarConBodegaDistinta: (tracking: string) => Promise<void>
+}) {
+  const [paquetes, setPaquetes] = useState<PaqueteDisponible[]>([])
+  const [stats, setStats] = useState<{ total: number; mostrando: number } | null>(null)
+  const [cargando, setCargando] = useState(false)
+  const [query, setQuery] = useState('')
+  const [todasBodegas, setTodasBodegas] = useState(false)
+  const [agregandoId, setAgregandoId] = useState<string | null>(null)
+
+  async function cargar() {
+    setCargando(true)
+    const params = new URLSearchParams()
+    params.set('bodega', bodegaCaja)
+    if (todasBodegas) params.set('todas', '1')
+    if (query.trim()) params.set('q', query.trim())
+
+    const res = await fetch(`/api/admin/cajas/disponibles?${params}`)
+    const data = await res.json() as { paquetes?: PaqueteDisponible[]; total_disponibles?: number; mostrando?: number }
+    setPaquetes(data.paquetes ?? [])
+    setStats({ total: data.total_disponibles ?? 0, mostrando: data.mostrando ?? 0 })
+    setCargando(false)
+  }
+
+  useEffect(() => {
+    const t = setTimeout(cargar, 200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, todasBodegas])
+
+  async function handleAgregar(p: PaqueteDisponible) {
+    if (!p.tracking_casilla) return
+    setAgregandoId(p.id)
+    try {
+      const fn = (p.bodega_destino !== bodegaCaja) ? onAgregarConBodegaDistinta : onAgregar
+      await fn(p.tracking_casilla)
+      // Recargar lista (el agregado ya no debe aparecer)
+      await cargar()
+    } finally {
+      setAgregandoId(null)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-orange-600" />
+          <span className="text-sm font-semibold text-gray-700">Paquetes disponibles para agregar</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={todasBodegas}
+              onChange={e => setTodasBodegas(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <Globe className="h-3 w-3" /> Todas las bodegas
+          </label>
+          <button
+            onClick={cargar}
+            className="text-gray-400 hover:text-gray-700"
+            title="Recargar"
+          >
+            <RefreshCw className={`h-4 w-4 ${cargando ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Búsqueda */}
+      <div className="px-5 py-2 border-b border-gray-100 bg-gray-50">
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar por tracking, descripción o nombre del cliente..."
+          className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+        />
+        {stats && (
+          <p className="text-[11px] text-gray-500 mt-1">
+            {todasBodegas
+              ? `${stats.mostrando} de ${stats.total} paquetes recibidos sin caja (todas las bodegas)`
+              : `${stats.mostrando} de ${stats.total} paquetes recibidos para ${BODEGA_LABELS[bodegaCaja] ?? bodegaCaja}`}
+          </p>
+        )}
+      </div>
+
+      {/* Lista */}
+      <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto">
+        {cargando ? (
+          <div className="text-center py-12 text-gray-400 text-sm flex items-center justify-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Cargando...
+          </div>
+        ) : paquetes.length === 0 ? (
+          <div className="text-center py-12 text-gray-400 text-sm">
+            <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            {query
+              ? 'Sin resultados con ese filtro'
+              : todasBodegas
+                ? 'No hay paquetes disponibles para agregar a cajas'
+                : `No hay paquetes recibidos para ${BODEGA_LABELS[bodegaCaja] ?? bodegaCaja}`}
+            {!todasBodegas && (
+              <p className="text-[11px] mt-1">
+                ¿Buscas paquetes de otras ciudades? Activa &quot;Todas las bodegas&quot; arriba.
+              </p>
+            )}
+          </div>
+        ) : (
+          paquetes.map(p => {
+            const bodegaDistinta = p.bodega_destino !== bodegaCaja
+            return (
+              <div key={p.id} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-gray-50 group">
+                <Package className={`h-4 w-4 flex-shrink-0 ${bodegaDistinta ? 'text-amber-500' : 'text-gray-400'}`} />
+                <span className="font-mono text-xs font-semibold text-orange-700 w-32 truncate">
+                  {p.tracking_casilla}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 font-medium truncate">
+                    {p.cliente?.nombre_completo ?? '⏳ Sin cliente'}
+                    {p.cliente?.numero_casilla && (
+                      <span className="text-gray-400 text-xs ml-1">({p.cliente.numero_casilla})</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
+                  </p>
+                </div>
+                {bodegaDistinta && (
+                  <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                    ⚠️ {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                  </span>
+                )}
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                  {p.peso_libras ? `${p.peso_libras} lb` : '—'}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => handleAgregar(p)}
+                  disabled={agregandoId !== null}
+                  className="bg-orange-600 hover:bg-orange-700 text-white gap-1 text-xs h-7 px-2"
+                >
+                  {agregandoId === p.id
+                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                    : <><Plus className="h-3 w-3" /> Agregar</>}
+                </Button>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )
