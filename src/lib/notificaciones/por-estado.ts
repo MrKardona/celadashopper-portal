@@ -330,8 +330,9 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
     const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
 
-    // ── Para 'recibido_usa' o 'en_consolidacion': intentar enviar con fotos ──
-    const enviaFotos = estadoNuevo === 'recibido_usa' || estadoNuevo === 'en_consolidacion'
+    // ── Solo 'recibido_usa' envía foto del paquete ──────────────────────────
+    // Los demás estados (en_consolidacion, en_transito, etc.) van solo texto
+    const enviaFotos = estadoNuevo === 'recibido_usa'
     let fotosEnviadas = 0
     let envioOk = false
     let viaUsada = 'meta'
@@ -345,28 +346,33 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         .order('created_at', { ascending: true })
         .limit(5)
 
-      // Estrategia: enviar primero el TEXTO (siempre llega aunque las
-      // fotos fallen), después cada foto como mensaje separado.
-      const r = await enviarConFallback(ctx.phone, mensaje)
-      envioOk = r.enviado
-      viaUsada = r.via
+      // Estrategia: UN SOLO MENSAJE con la foto del CONTENIDO + texto como caption.
+      // Identificamos la foto del contenido por su descripción.
+      // Fallback: si no hay foto con "contenido" en descripción, usamos la última
+      // foto subida (que típicamente es la del contenido).
+      const fotoContenido = fotos?.find(f =>
+        (f.descripcion ?? '').toLowerCase().includes('contenido')
+      ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
 
-      if (fotos && fotos.length > 0) {
-        for (let i = 0; i < fotos.length; i++) {
-          // Delay 800ms entre fotos para evitar rate-limit silencioso
-          // de WhatsApp cuando se envían mensajes muy seguidos al mismo número
-          if (i > 0) await new Promise(r => setTimeout(r, 800))
-
-          const cap = fotos[i].descripcion ?? undefined
-          const ok = await enviarImagenMeta(ctx.phone, fotos[i].url, cap)
-          if (ok) {
-            fotosEnviadas++
-            console.log(`[notif] Foto ${i + 1}/${fotos.length} enviada OK:`, fotos[i].url)
-          } else {
-            console.warn(`[notif] Foto ${i + 1}/${fotos.length} falló:`, fotos[i].url)
-          }
+      if (fotoContenido) {
+        const ok = await enviarImagenMeta(ctx.phone, fotoContenido.url, mensaje)
+        envioOk = ok
+        viaUsada = ok ? 'meta_imagen+caption' : 'meta_imagen_falló'
+        if (ok) {
+          fotosEnviadas = 1
+          console.log('[notif] Imagen contenido + caption enviada OK:', fotoContenido.url)
+        } else {
+          // Si la imagen falla, mandamos al menos el texto
+          console.warn('[notif] Imagen contenido falló, fallback a solo texto')
+          const r = await enviarConFallback(ctx.phone, mensaje)
+          envioOk = r.enviado
+          viaUsada = `${r.via}_fallback_texto`
         }
-        viaUsada = `${viaUsada}+meta_imagen_x${fotosEnviadas}/${fotos.length}`
+      } else {
+        // No hay fotos: solo texto
+        const r = await enviarConFallback(ctx.phone, mensaje)
+        envioOk = r.enviado
+        viaUsada = r.via
       }
     } else {
       // Otros estados: solo texto
