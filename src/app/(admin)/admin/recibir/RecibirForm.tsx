@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import {
   ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
   Scale, Loader2, X, ClipboardList, Camera, ImageIcon, Video, VideoOff,
-  PackageOpen, RefreshCw,
+  PackageOpen,
 } from 'lucide-react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
@@ -109,8 +109,6 @@ export default function RecibirForm() {
 
   // --- Cámara foto: qué slot y qué contexto (normal | manual) ---
   const [camaraSlot, setCamaraSlot] = useState<{ slot: FotoSlot; ctx: 'normal' | 'manual' } | null>(null)
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
-  const [camaraActiva, setCamaraActiva] = useState(false)
 
   // --- Estado: modo manual (sin casillero) ---
   const [modoManual, setModoManual] = useState(false)
@@ -146,7 +144,6 @@ export default function RecibirForm() {
   }, [modoManual, tracking])
 
   // Limpiar cámaras al desmontar
-  // Limpieza al desmontar
   useEffect(() => {
     return () => {
       scanControlsRef.current?.stop()
@@ -156,81 +153,15 @@ export default function RecibirForm() {
     }
   }, [])
 
-  // ── Cámara foto: iniciar/reiniciar stream cuando se abre o voltea ─────────
-  // getUserMedia se llama DENTRO del useEffect → el <video> ya está en el DOM
-  // y tiene tamaño real antes de que se llame srcObject/play() (fix iOS Safari)
-  useEffect(() => {
-    if (!camaraSlot) return
-
-    let cancelled = false
-    setCamaraActiva(false)
-
-    // Parar stream anterior (por ejemplo al voltear cámara)
-    if (streamFotoRef.current) {
-      streamFotoRef.current.getTracks().forEach(t => t.stop())
-      streamFotoRef.current = null
-    }
-
-    const iniciar = async () => {
-      const constraintsFallback: MediaStreamConstraints[] = [
-        { video: { facingMode: { ideal: facingMode } } },
-        { video: { facingMode } },
-        { video: true },
-      ]
-
-      let stream: MediaStream | null = null
-      for (const c of constraintsFallback) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(c)
-          break
-        } catch (e) {
-          const err = e as DOMException
-          if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-            if (!cancelled) {
-              setErrorCamara('Permiso denegado. En iPhone: Ajustes → Safari → Cámara → Permitir.')
-              setCamaraSlot(null)
-            }
-            return
-          }
-          // OverconstrainedError u otro — probar siguiente constraint
-        }
-      }
-
-      if (cancelled) return
-      if (!stream) {
-        setErrorCamara('No se pudo iniciar la cámara en este dispositivo.')
-        setCamaraSlot(null)
-        return
-      }
-
-      streamFotoRef.current = stream
-
-      if (videoFotoRef.current && !cancelled) {
-        videoFotoRef.current.srcObject = stream
-        try {
-          await videoFotoRef.current.play()
-        } catch {
-          // En iOS autoPlay attribute sirve de respaldo
-        }
-        if (!cancelled) setCamaraActiva(true)
-      }
-    }
-
-    iniciar()
-    return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camaraSlot?.slot, camaraSlot?.ctx, facingMode])
-
   // ── Scanner de código de barras ──────────────────────────────────────────
   async function iniciarScanner() {
     setErrorCamara('')
     setCamaraScanner(true)
-    // Video siempre está en el DOM — sin delay necesario
+    await new Promise(r => setTimeout(r, 100))
     try {
       const reader = new BrowserMultiFormatReader()
-      // Constraints simples para máxima compatibilidad iOS Safari
       const controls = await reader.decodeFromConstraints(
-        { video: { facingMode: { ideal: 'environment' } } },
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
         videoScanRef.current!,
         (result) => {
           if (result) {
@@ -243,14 +174,9 @@ export default function RecibirForm() {
         }
       )
       scanControlsRef.current = controls
-    } catch (e) {
+    } catch {
       setCamaraScanner(false)
-      const err = e as DOMException
-      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        setErrorCamara('Permiso denegado. En iPhone: Ajustes → Safari → Cámara → Permitir.')
-      } else {
-        setErrorCamara('No se pudo iniciar la cámara. Intenta recargar la página.')
-      }
+      setErrorCamara('No se pudo acceder a la cámara. Verifica los permisos.')
     }
   }
 
@@ -261,18 +187,23 @@ export default function RecibirForm() {
   }
 
   // ── Cámara para foto ─────────────────────────────────────────────────────
-  // Solo muestra el overlay; el useEffect se encarga de getUserMedia/srcObject/play()
-  // Esto garantiza que el <video> ya esté visible y con tamaño real antes de play()
-  function iniciarCamaraFoto(slot: FotoSlot, ctx: 'normal' | 'manual') {
+  async function iniciarCamaraFoto(slot: FotoSlot, ctx: 'normal' | 'manual') {
     setErrorCamara('')
-    setCamaraActiva(false)
-    setCamaraSlot({ slot, ctx })
-  }
-
-  // Voltear entre cámara trasera (environment) y frontal (user)
-  function voltearCamara() {
-    setCamaraActiva(false)
-    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      })
+      streamFotoRef.current = stream
+      setCamaraSlot({ slot, ctx })
+      await new Promise(r => setTimeout(r, 60))
+      if (videoFotoRef.current) {
+        videoFotoRef.current.srcObject = stream
+        await videoFotoRef.current.play()
+      }
+    } catch {
+      setCamaraSlot(null)
+      setErrorCamara('No se pudo acceder a la cámara. Verifica los permisos.')
+    }
   }
 
   function detenerCamaraFoto() {
@@ -280,10 +211,6 @@ export default function RecibirForm() {
       streamFotoRef.current.getTracks().forEach(t => t.stop())
       streamFotoRef.current = null
     }
-    if (videoFotoRef.current) {
-      videoFotoRef.current.srcObject = null
-    }
-    setCamaraActiva(false)
     setCamaraSlot(null)
   }
 
@@ -508,6 +435,8 @@ export default function RecibirForm() {
       ? (slot === 1 ? fotoInputRef : fotoInput2Ref)
       : (slot === 1 ? fotoInputManualRef : fotoInputManual2Ref)
 
+    const isActiveCam = camaraSlot?.slot === slot && camaraSlot?.ctx === context
+    const ring = accent === 'amber' ? 'focus:ring-amber-500' : 'focus:ring-orange-500'
     const dashed = accent === 'amber'
       ? 'border-amber-200 text-amber-500 hover:border-amber-400 hover:text-amber-600'
       : 'border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-500'
@@ -532,8 +461,11 @@ export default function RecibirForm() {
           </div>
         </div>
 
+        {/* Canvas oculto para captura (shared, se renderiza aquí solo en slot 1 para no duplicar) */}
+        {slot === 1 && <canvas ref={canvasFotoRef} className="hidden" />}
+
         {/* Vista previa de foto */}
-        {fotoState.preview && (
+        {!isActiveCam && fotoState.preview && (
           <div className="relative rounded-lg overflow-hidden border border-gray-200">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={fotoState.preview} alt={`Vista previa foto ${slot}`} className="w-full max-h-48 object-cover" />
@@ -558,7 +490,7 @@ export default function RecibirForm() {
         )}
 
         {/* Botones para agregar foto */}
-        {!fotoState.preview && (
+        {!isActiveCam && !fotoState.preview && (
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -590,80 +522,46 @@ export default function RecibirForm() {
     )
   }
 
-  // No hay CamaraVivo local — el overlay de cámara es global (ver JSX principal)
+  // ── Sección de cámara en vivo (compartida, se muestra en el contexto activo) ──
+  function CamaraVivo({ context }: { context: 'normal' | 'manual' }) {
+    if (!camaraSlot || camaraSlot.ctx !== context) return null
+    const slot = camaraSlot.slot
+    const meta = FOTO_LABELS[slot]
+    const Icon = meta.icon
 
-  return (
-    <div className="space-y-6 max-w-2xl">
-
-      {/* ── Overlay de cámara foto — renderiza solo cuando camaraSlot está activo ── */}
-      {/* El <video> se monta al mismo tiempo que el overlay, y getUserMedia se llama  */}
-      {/* en useEffect → el elemento ya tiene tamaño real cuando srcObject/play() corren */}
-      {camaraSlot && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col">
-          {/* Header */}
-          {(() => {
-            const meta = FOTO_LABELS[camaraSlot.slot]
-            const Icon = meta.icon
-            return (
-              <div className="px-4 pt-12 pb-3 bg-black/80 flex items-center gap-2 flex-shrink-0">
-                <Icon className="h-4 w-4 text-white" />
-                <span className="text-white font-semibold text-sm">{meta.titulo}</span>
-                <span className="text-gray-400 text-xs">— {meta.subtitulo}</span>
-                <button
-                  type="button"
-                  onClick={detenerCamaraFoto}
-                  className="ml-auto bg-white/10 text-white p-2 rounded-full hover:bg-white/20 active:scale-95"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )
-          })()}
-
-          {/* Video + spinner */}
-          <div className="flex-1 relative bg-black overflow-hidden">
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <video
-              ref={videoFotoRef}
-              className="absolute inset-0 w-full h-full object-cover"
-              playsInline
-              muted
-              autoPlay
-            />
-            {!camaraActiva && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black">
-                <Loader2 className="h-10 w-10 text-orange-400 animate-spin" />
-                <p className="text-gray-400 text-sm">Iniciando cámara...</p>
-              </div>
-            )}
-          </div>
-
-          {/* Controles */}
-          <div className="flex items-center justify-center gap-6 px-6 py-8 bg-black flex-shrink-0">
-            <button
-              type="button"
-              onClick={voltearCamara}
-              title="Voltear cámara"
-              className="bg-white/10 text-white p-4 rounded-full hover:bg-white/20 active:scale-95 transition-all"
-            >
-              <RefreshCw className="h-5 w-5" />
-            </button>
+    return (
+      <div className="rounded-xl overflow-hidden border-2 border-orange-400 bg-black space-y-0">
+        <div className="px-3 py-2 bg-orange-600 flex items-center gap-2">
+          <Icon className="h-4 w-4 text-white" />
+          <span className="text-white text-sm font-medium">{meta.titulo} — {meta.subtitulo}</span>
+        </div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <div className="relative">
+          <video ref={videoFotoRef} className="w-full max-h-64 object-cover" playsInline muted />
+          <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-3">
             <button
               type="button"
               onClick={capturarFoto}
-              disabled={!camaraActiva}
-              className="bg-white text-gray-900 font-bold px-7 py-4 rounded-full shadow-xl flex items-center gap-2 hover:bg-orange-50 active:scale-95 transition-all disabled:opacity-40 text-base"
+              className="bg-white text-gray-900 font-bold px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2 hover:bg-orange-50 transition-colors"
             >
-              <Camera className="h-6 w-6 text-orange-600" />
+              <Camera className="h-5 w-5 text-orange-600" />
               Capturar
             </button>
-            <div className="w-[56px]" />
+            <button
+              type="button"
+              onClick={detenerCamaraFoto}
+              className="bg-black/60 text-white p-2.5 rounded-full hover:bg-black/80"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )
+  }
 
-      {/* Canvas oculto para captura de fotograma */}
-      <canvas ref={canvasFotoRef} className="hidden" />
+  return (
+    <div className="space-y-6 max-w-2xl">
 
       {/* Notificación de éxito */}
       {ultimoRecibido && (
@@ -887,15 +785,20 @@ export default function RecibirForm() {
               </span>
             </div>
 
-            {/* Grid de 2 slots — el overlay de cámara se muestra globalmente */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <SlotFoto slot={1} context="normal" accent="orange" />
+            {/* Cámara activa (para contexto normal) */}
+            <CamaraVivo context="normal" />
+
+            {/* Grid de 2 slots — solo si la cámara no está activa */}
+            {!camaraSlot && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <SlotFoto slot={1} context="normal" accent="orange" />
+                </div>
+                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                  <SlotFoto slot={2} context="normal" accent="orange" />
+                </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                <SlotFoto slot={2} context="normal" accent="orange" />
-              </div>
-            </div>
+            )}
 
             {/* Tip */}
             {!foto1.preview && !foto2.preview && !camaraSlot && (
@@ -1027,14 +930,18 @@ export default function RecibirForm() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                <SlotFoto slot={1} context="manual" accent="amber" />
+            <CamaraVivo context="manual" />
+
+            {!camaraSlot && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <SlotFoto slot={1} context="manual" accent="amber" />
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <SlotFoto slot={2} context="manual" accent="amber" />
+                </div>
               </div>
-              <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
-                <SlotFoto slot={2} context="manual" accent="amber" />
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-1">
