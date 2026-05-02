@@ -67,6 +67,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (tracking_usaco !== undefined) updates.tracking_usaco = tracking_usaco
   if (notas_cliente !== undefined) updates.notas_cliente = notas_cliente
 
+  // Marcar timestamp de la actualización
+  updates.updated_at = new Date().toISOString()
+
   const { error } = await supabaseAdmin
     .from('paquetes')
     .update(updates)
@@ -77,14 +80,24 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  // ── Registrar evento de cambio de estado en historial ──────────────────
+  const estadoPrevio = estado_anterior ?? paqueteAntes?.estado
+  const huboCambioDeEstado = estado && estado !== estadoPrevio
+  if (huboCambioDeEstado) {
+    await supabaseAdmin.from('eventos_paquete').insert({
+      paquete_id: id,
+      estado_anterior: estadoPrevio,
+      estado_nuevo: estado,
+      descripcion: `Estado actualizado por admin: ${estadoPrevio} → ${estado}`,
+    }).then(() => {/* ok */}, (e) => console.error('[PATCH] evento:', e))
+  }
+
   // ── Disparar notificaciones por WhatsApp si aplica ──────────────────────
   const notificacionesEnviadas: string[] = []
 
   if (notificar !== false) {
     // 1) Cambio de estado
-    const estadoPrevio = estado_anterior ?? paqueteAntes?.estado
-    const estadoCambio = estado && estado !== estadoPrevio
-    if (estadoCambio) {
+    if (huboCambioDeEstado) {
       try {
         await notificarCambioEstado(id, estado)
         notificacionesEnviadas.push('estado')
