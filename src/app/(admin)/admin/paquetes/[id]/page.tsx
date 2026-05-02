@@ -45,11 +45,21 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
   const eventos = eventosRes.data ?? []
 
   // Cargar perfil del cliente por separado si existe
-  let perfil: { nombre_completo: string; numero_casilla: string; email: string; whatsapp: string | null; telefono: string | null; ciudad: string | null } | null = null
+  let perfil: {
+    nombre_completo: string
+    numero_casilla: string
+    email: string
+    whatsapp: string | null
+    telefono: string | null
+    ciudad: string | null
+    direccion: string | null
+    barrio: string | null
+    referencia: string | null
+  } | null = null
   if (p.cliente_id) {
     const { data: perfilData } = await supabase
       .from('perfiles')
-      .select('nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad')
+      .select('nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, direccion, barrio, referencia')
       .eq('id', p.cliente_id)
       .single()
     perfil = perfilData
@@ -247,7 +257,6 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                     <p className="font-semibold text-gray-900">{perfil.nombre_completo}</p>
                     <p className="text-orange-600 font-mono text-xs">{perfil.numero_casilla}</p>
                   </div>
-                  {perfil.ciudad && <p className="text-gray-500">{perfil.ciudad}</p>}
                   {perfil.email && (
                     <a href={`mailto:${perfil.email}`} className="text-blue-600 text-xs hover:underline block truncate">
                       {perfil.email}
@@ -262,8 +271,47 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                       WhatsApp: {perfil.whatsapp ?? perfil.telefono}
                     </a>
                   )}
-                  <Link href={`/admin/clientes?q=${perfil.nombre_completo ?? ''}`} className="text-xs text-orange-600 hover:underline">
-                    Ver todos sus paquetes →
+
+                  {/* Dirección de entrega del cliente */}
+                  {(perfil.direccion || perfil.barrio || perfil.referencia || perfil.ciudad) && (
+                    <div className="pt-2 mt-2 border-t border-gray-100">
+                      <p className="text-[11px] text-gray-400 uppercase tracking-wide font-medium mb-1">
+                        Dirección de entrega
+                      </p>
+                      {perfil.direccion && (
+                        <p className="text-gray-700 text-xs leading-relaxed">{perfil.direccion}</p>
+                      )}
+                      {perfil.barrio && (
+                        <p className="text-gray-500 text-xs">Barrio: {perfil.barrio}</p>
+                      )}
+                      {perfil.ciudad && (
+                        <p className="text-gray-500 text-xs">{perfil.ciudad}</p>
+                      )}
+                      {perfil.referencia && (
+                        <p className="text-gray-500 text-[11px] italic mt-0.5">
+                          Ref: {perfil.referencia}
+                        </p>
+                      )}
+                      {!perfil.direccion && !perfil.barrio && !perfil.referencia && perfil.ciudad && (
+                        <p className="text-amber-600 text-[11px] italic">
+                          ⚠️ Solo tiene ciudad, sin dirección detallada
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {!perfil.direccion && !perfil.ciudad && (
+                    <div className="pt-2 mt-2 border-t border-gray-100">
+                      <p className="text-amber-700 text-xs bg-amber-50 border border-amber-200 px-2 py-1 rounded">
+                        ⚠️ Cliente sin dirección registrada
+                      </p>
+                    </div>
+                  )}
+
+                  <Link
+                    href={`/admin/paquetes?q=${encodeURIComponent(perfil.nombre_completo ?? '')}`}
+                    className="text-xs text-orange-600 hover:underline block pt-2"
+                  >
+                    Ver todos los paquetes de este cliente →
                   </Link>
 
                   <div className="pt-3 border-t border-gray-100 space-y-2">
