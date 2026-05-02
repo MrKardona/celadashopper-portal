@@ -52,6 +52,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     telefono?: string | null
     whatsapp?: string | null
     ciudad?: string | null
+    direccion?: string | null
+    barrio?: string | null
+    referencia?: string | null
     numero_casilla?: string
     activo?: boolean
   }
@@ -69,6 +72,15 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
   if (body.ciudad !== undefined) {
     updates.ciudad = (typeof body.ciudad === 'string' ? body.ciudad.trim() : null) || null
+  }
+  if (body.direccion !== undefined) {
+    updates.direccion = (typeof body.direccion === 'string' ? body.direccion.trim() : null) || null
+  }
+  if (body.barrio !== undefined) {
+    updates.barrio = (typeof body.barrio === 'string' ? body.barrio.trim() : null) || null
+  }
+  if (body.referencia !== undefined) {
+    updates.referencia = (typeof body.referencia === 'string' ? body.referencia.trim() : null) || null
   }
   if (typeof body.numero_casilla === 'string' && body.numero_casilla.trim()) {
     updates.numero_casilla = body.numero_casilla.trim()

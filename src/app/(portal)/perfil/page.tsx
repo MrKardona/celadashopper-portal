@@ -11,7 +11,7 @@ export default async function PerfilPage() {
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('email, nombre_completo, telefono, whatsapp, ciudad, numero_casilla')
+    .select('email, nombre_completo, telefono, whatsapp, ciudad, numero_casilla, direccion, barrio, referencia')
     .eq('id', user!.id)
     .single()
 
@@ -58,6 +58,9 @@ export default async function PerfilPage() {
             telefono={perfil?.telefono ?? ''}
             whatsapp={perfil?.whatsapp ?? ''}
             ciudad={perfil?.ciudad ?? ''}
+            direccion={perfil?.direccion ?? ''}
+            barrio={perfil?.barrio ?? ''}
+            referencia={perfil?.referencia ?? ''}
           />
         </CardContent>
       </Card>

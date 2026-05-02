@@ -20,7 +20,7 @@ export default async function AdminClientesPage({ searchParams }: Props) {
   // Query 1: todos los clientes
   let q1 = supabase
     .from('perfiles')
-    .select('id, nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, activo, created_at')
+    .select('id, nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, direccion, barrio, referencia, activo, created_at')
     .eq('rol', 'cliente')
     .order('nombre_completo')
 

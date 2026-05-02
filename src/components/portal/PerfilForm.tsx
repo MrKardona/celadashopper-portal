@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
+import { CheckCircle, AlertCircle, MessageCircle, MapPin } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 
 interface Props {
   email: string
@@ -12,20 +13,29 @@ interface Props {
   telefono: string
   whatsapp: string
   ciudad: string
+  direccion: string
+  barrio: string
+  referencia: string
 }
 
-export default function PerfilForm({ email, nombreCompleto, telefono, whatsapp, ciudad }: Props) {
+export default function PerfilForm({
+  email, nombreCompleto, telefono, whatsapp, ciudad,
+  direccion, barrio, referencia,
+}: Props) {
   const [form, setForm] = useState({
     nombre_completo: nombreCompleto,
     telefono,
     whatsapp,
     ciudad,
+    direccion,
+    barrio,
+    referencia,
   })
   const [usarMismoNumero, setUsarMismoNumero] = useState(telefono === whatsapp && !!telefono)
   const [loading, setLoading] = useState(false)
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target
     setForm(prev => {
       const nuevo = { ...prev, [name]: value }
@@ -137,6 +147,56 @@ export default function PerfilForm({ email, nombreCompleto, telefono, whatsapp, 
           value={form.ciudad}
           onChange={handleChange}
         />
+      </div>
+
+      {/* ── Dirección de entrega ────────────────────────────────────── */}
+      <div className="pt-4 border-t border-gray-100 space-y-4">
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-orange-600" />
+          <h3 className="text-sm font-semibold text-gray-900">Dirección de entrega</h3>
+        </div>
+        <p className="text-xs text-gray-500 -mt-2">
+          Donde quieres recibir tus paquetes en Colombia.
+        </p>
+
+        <div className="space-y-2">
+          <Label htmlFor="direccion">Dirección</Label>
+          <Textarea
+            id="direccion"
+            name="direccion"
+            placeholder="Calle 10 #45-20, Apartamento 502, Torre B"
+            value={form.direccion}
+            onChange={handleChange}
+            rows={2}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="barrio">
+              Barrio <span className="text-gray-400 font-normal">(opcional)</span>
+            </Label>
+            <Input
+              id="barrio"
+              name="barrio"
+              placeholder="Poblado, Laureles..."
+              value={form.barrio}
+              onChange={handleChange}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="referencia">
+              Punto de referencia <span className="text-gray-400 font-normal">(opcional)</span>
+            </Label>
+            <Input
+              id="referencia"
+              name="referencia"
+              placeholder="Cerca al parque, edificio azul..."
+              value={form.referencia}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
       </div>
 
       {mensaje && (

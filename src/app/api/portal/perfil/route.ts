@@ -33,6 +33,9 @@ export async function PATCH(req: NextRequest) {
     telefono?: string
     whatsapp?: string
     ciudad?: string
+    direccion?: string
+    barrio?: string
+    referencia?: string
   }
 
   const updates: Record<string, unknown> = {}
@@ -47,6 +50,15 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof body.ciudad === 'string') {
     updates.ciudad = body.ciudad.trim() || null
+  }
+  if (typeof body.direccion === 'string') {
+    updates.direccion = body.direccion.trim() || null
+  }
+  if (typeof body.barrio === 'string') {
+    updates.barrio = body.barrio.trim() || null
+  }
+  if (typeof body.referencia === 'string') {
+    updates.referencia = body.referencia.trim() || null
   }
 
   if (Object.keys(updates).length === 0) {

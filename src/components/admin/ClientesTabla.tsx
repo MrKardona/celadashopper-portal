@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Users, Pencil, X, Save, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { Users, Pencil, X, Save, Loader2, AlertCircle, CheckCircle, MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -14,6 +14,9 @@ export interface ClienteRow {
   whatsapp: string | null
   telefono: string | null
   ciudad: string | null
+  direccion: string | null
+  barrio: string | null
+  referencia: string | null
   activo: boolean
   created_at: string
 }
@@ -131,14 +134,18 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
     telefono: cliente.telefono ?? '',
     whatsapp: cliente.whatsapp ?? '',
     ciudad: cliente.ciudad ?? '',
+    direccion: cliente.direccion ?? '',
+    barrio: cliente.barrio ?? '',
+    referencia: cliente.referencia ?? '',
     numero_casilla: cliente.numero_casilla,
     activo: cliente.activo,
   })
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value, type, checked } = e.target
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const target = e.target as HTMLInputElement
+    const { name, value, type, checked } = target
     setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
     setMensaje(null)
   }
@@ -261,6 +268,51 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
                 placeholder="Medellín"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
+            </div>
+
+            {/* ── Sección dirección ────────────────────────────────────── */}
+            <div className="pt-3 border-t border-gray-100 space-y-3">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-orange-600" />
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Dirección de entrega</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Dirección</label>
+                <textarea
+                  name="direccion"
+                  value={form.direccion}
+                  onChange={handleChange}
+                  placeholder="Calle 10 #45-20, Apto 502, Torre B"
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Barrio</label>
+                  <input
+                    type="text"
+                    name="barrio"
+                    value={form.barrio}
+                    onChange={handleChange}
+                    placeholder="Poblado"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-700 block mb-1">Referencia</label>
+                  <input
+                    type="text"
+                    name="referencia"
+                    value={form.referencia}
+                    onChange={handleChange}
+                    placeholder="Cerca al parque"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Activo */}
