@@ -393,11 +393,21 @@ export default function CajaDetalleForm({
                     {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
                   </p>
                 </div>
-                {p.bodega_destino !== caja.bodega_destino && (
-                  <span className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                    ⚠️ {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
-                  </span>
-                )}
+                {/* Ciudad destino: siempre visible, ámbar si distinta a la caja */}
+                <span
+                  className={`text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap inline-flex items-center gap-0.5 ${
+                    p.bodega_destino !== caja.bodega_destino
+                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      : 'text-gray-600 bg-gray-50 border-gray-200'
+                  }`}
+                  title={p.bodega_destino !== caja.bodega_destino
+                    ? `Distinta a la caja: ${BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}`
+                    : BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                >
+                  <MapPin className="h-2.5 w-2.5" />
+                  {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                  {p.bodega_destino !== caja.bodega_destino && <span aria-hidden="true">⚠️</span>}
+                </span>
                 <span className="text-xs text-gray-500 whitespace-nowrap">
                   {p.peso_libras ? `${p.peso_libras} lb` : '—'}
                 </span>
@@ -977,11 +987,21 @@ function PaquetesDisponibles({
                 <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${estadoStyle.bg} ${estadoStyle.text}`}>
                   {estadoStyle.label}
                 </span>
-                {bodegaDistinta && (
-                  <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded whitespace-nowrap">
-                    ⚠️ {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
-                  </span>
-                )}
+                {/* Ciudad destino: ámbar si distinta, gris si coincide */}
+                <span
+                  className={`text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap inline-flex items-center gap-0.5 ${
+                    bodegaDistinta
+                      ? 'text-amber-700 bg-amber-50 border-amber-200'
+                      : 'text-gray-600 bg-gray-50 border-gray-200'
+                  }`}
+                  title={bodegaDistinta
+                    ? `Va a otra ciudad: ${BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}`
+                    : `Misma ciudad de la caja: ${BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}`}
+                >
+                  <MapPin className="h-2.5 w-2.5" />
+                  {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                  {bodegaDistinta && <span aria-hidden="true">⚠️</span>}
+                </span>
                 <span className="text-xs text-gray-500 whitespace-nowrap">
                   {p.peso_libras ? `${p.peso_libras} lb` : '—'}
                 </span>
