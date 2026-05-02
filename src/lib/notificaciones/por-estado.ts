@@ -249,6 +249,7 @@ async function cargarContexto(paqueteId: string, evento: string) {
       bodega,
       tracking: paquete.tracking_casilla ?? '',
       tracking_usaco: paquete.tracking_usaco ?? '',
+      link: `https://portal.celadashopper.com/paquetes/${paqueteId}`,
     },
   }
 }
@@ -343,10 +344,18 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
       if (fotos && fotos.length > 0) {
         for (let i = 0; i < fotos.length; i++) {
+          // Delay 800ms entre fotos para evitar rate-limit silencioso
+          // de WhatsApp cuando se envían mensajes muy seguidos al mismo número
+          if (i > 0) await new Promise(r => setTimeout(r, 800))
+
           const cap = fotos[i].descripcion ?? undefined
           const ok = await enviarImagenMeta(ctx.phone, fotos[i].url, cap)
-          if (ok) fotosEnviadas++
-          else console.warn(`[notif] Foto ${i + 1} falló:`, fotos[i].url)
+          if (ok) {
+            fotosEnviadas++
+            console.log(`[notif] Foto ${i + 1}/${fotos.length} enviada OK:`, fotos[i].url)
+          } else {
+            console.warn(`[notif] Foto ${i + 1}/${fotos.length} falló:`, fotos[i].url)
+          }
         }
         viaUsada = `${viaUsada}+meta_imagen_x${fotosEnviadas}/${fotos.length}`
       }
