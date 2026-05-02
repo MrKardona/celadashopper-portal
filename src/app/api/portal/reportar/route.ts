@@ -14,44 +14,62 @@ function getSupabaseAdmin() {
   )
 }
 
-async function enviarWhatsappTexto(phone: string, texto: string): Promise<void> {
+async function enviarWhatsappTexto(phone: string, texto: string): Promise<{ ok: boolean; error?: string }> {
   const phoneId = process.env.META_WA_PHONE_ID
   const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) return
+  if (!phoneId || !token) return { ok: false, error: 'META_WA_PHONE_ID/TOKEN no configurados' }
 
   const numero = phone.replace(/\D/g, '')
   const dest = numero.startsWith('57') ? numero : `57${numero}`
 
-  await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: dest,
-      type: 'text',
-      text: { body: texto },
-    }),
-  })
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: dest,
+        type: 'text',
+        text: { body: texto },
+      }),
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      return { ok: false, error: `Meta ${res.status}: ${body.slice(0, 300)}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
-async function enviarWhatsappImagen(phone: string, imageUrl: string, caption: string): Promise<void> {
+async function enviarWhatsappImagen(phone: string, imageUrl: string, caption: string): Promise<{ ok: boolean; error?: string }> {
   const phoneId = process.env.META_WA_PHONE_ID
   const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) return
+  if (!phoneId || !token) return { ok: false, error: 'META_WA_PHONE_ID/TOKEN no configurados' }
 
   const numero = phone.replace(/\D/g, '')
   const dest = numero.startsWith('57') ? numero : `57${numero}`
 
-  await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: dest,
-      type: 'image',
-      image: { link: imageUrl, caption },
-    }),
-  })
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: dest,
+        type: 'image',
+        image: { link: imageUrl, caption },
+      }),
+    })
+    if (!res.ok) {
+      const body = await res.text()
+      return { ok: false, error: `Meta ${res.status}: ${body.slice(0, 300)}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -195,13 +213,41 @@ export async function POST(req: NextRequest) {
         `👉 Sigue tu paquete aquí:\n${linkSeguimiento}\n\n` +
         `Lo despacharemos pronto a Colombia. ✈️`
 
+      let envioOk = false
+      let envioError: string | undefined
+      let envioMetodo = 'texto'
+
       if (fotoUrl) {
-        // Enviar foto con caption (un solo mensaje con imagen + texto)
-        enviarWhatsappImagen(phoneCliente, fotoUrl, captionOTexto).catch(() => {/* best-effort */})
+        // Intentar imagen primero
+        envioMetodo = 'imagen'
+        const r = await enviarWhatsappImagen(phoneCliente, fotoUrl, captionOTexto)
+        envioOk = r.ok
+        envioError = r.error
+        // Si falla la imagen, fallback a texto
+        if (!envioOk) {
+          console.warn('[match] Imagen falló, fallback a texto:', r.error)
+          envioMetodo = 'texto_fallback'
+          const t = await enviarWhatsappTexto(phoneCliente, captionOTexto)
+          envioOk = t.ok
+          envioError = t.error ?? envioError
+        }
       } else {
-        // Sin foto, solo texto
-        enviarWhatsappTexto(phoneCliente, captionOTexto).catch(() => {/* best-effort */})
+        const t = await enviarWhatsappTexto(phoneCliente, captionOTexto)
+        envioOk = t.ok
+        envioError = t.error
       }
+
+      // Registrar la notificación de match
+      await admin.from('notificaciones').insert({
+        cliente_id: user.id,
+        paquete_id: matchId,
+        tipo: 'paquete_match',
+        titulo: `Paquete asignado por match (${envioMetodo})`,
+        mensaje: envioOk
+          ? captionOTexto
+          : `${captionOTexto}\n\n[ERROR DE ENVÍO]: ${envioError ?? 'desconocido'}`,
+        enviada_whatsapp: envioOk,
+      }).then(() => {/* ok */}, () => {/* swallow */})
     }
 
     return NextResponse.json({
@@ -251,27 +297,27 @@ export async function POST(req: NextRequest) {
       `• Esté listo para recoger 🎉\n\n` +
       `👉 Sigue tus paquetes aquí:\n${linkSeguimiento}`
 
+    let envioError: string | undefined
     try {
-      const phoneId = process.env.META_WA_PHONE_ID
-      const token = process.env.META_WA_TOKEN
-      if (phoneId && token) {
-        await enviarWhatsappTexto(phoneCliente, textoConfirmacion)
-        whatsappEnviado = true
-      }
+      const r = await enviarWhatsappTexto(phoneCliente, textoConfirmacion)
+      whatsappEnviado = r.ok
+      envioError = r.error
+      if (!r.ok) console.error('[reportar] Envío falló:', r.error)
     } catch (err) {
       console.error('[reportar] Error enviando WhatsApp de confirmación:', err)
+      envioError = err instanceof Error ? err.message : String(err)
     }
 
-    // Registrar la notificación
-    if (whatsappEnviado) {
-      await admin.from('notificaciones').insert({
-        cliente_id: user.id,
-        tipo: 'paquete_reportado',
-        titulo: `Pedido reportado: ${nuevo.tracking_casilla}`,
-        mensaje: textoConfirmacion,
-        enviada_whatsapp: true,
-      }).then(() => {/* best-effort */}, () => {/* best-effort */})
-    }
+    // Registrar SIEMPRE la notificación (ok o fallido) para diagnóstico
+    await admin.from('notificaciones').insert({
+      cliente_id: user.id,
+      tipo: 'paquete_reportado',
+      titulo: `Pedido reportado: ${nuevo.tracking_casilla}`,
+      mensaje: whatsappEnviado
+        ? textoConfirmacion
+        : `${textoConfirmacion}\n\n[ERROR DE ENVÍO]: ${envioError ?? 'desconocido'}`,
+      enviada_whatsapp: whatsappEnviado,
+    }).then(() => {/* ok */}, () => {/* swallow */})
   }
 
   return NextResponse.json({

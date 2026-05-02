@@ -14,6 +14,7 @@ function getSupabase() {
 
 const ESTADO_A_EVENTO: Record<string, string> = {
   recibido_usa: 'paquete_recibido_usa',
+  en_consolidacion: 'paquete_en_consolidacion',
   listo_envio: 'paquete_listo_envio',
   en_transito: 'paquete_en_transito',
   en_colombia: 'paquete_en_colombia',
@@ -21,6 +22,7 @@ const ESTADO_A_EVENTO: Record<string, string> = {
   en_camino_cliente: 'paquete_en_camino_cliente',
   entregado: 'paquete_entregado',
   retenido: 'paquete_retenido',
+  devuelto: 'paquete_devuelto',
 }
 
 const BODEGA_LABELS: Record<string, string> = {
@@ -140,25 +142,57 @@ async function cargarContexto(paqueteId: string, evento: string) {
 // ─── Notificar cambio de estado ──────────────────────────────────────────────
 export async function notificarCambioEstado(paqueteId: string, estadoNuevo: string): Promise<void> {
   const evento = ESTADO_A_EVENTO[estadoNuevo]
-  if (!evento) return
+  const supabase = getSupabase()
+
+  // Si no hay evento mapeado, registrar y salir
+  if (!evento) {
+    console.warn(`[notificarCambioEstado] Estado "${estadoNuevo}" no tiene evento mapeado`)
+    await supabase.from('notificaciones').insert({
+      paquete_id: paqueteId,
+      tipo: 'estado_sin_plantilla',
+      titulo: `Estado cambió a ${estadoNuevo} (sin notificación configurada)`,
+      mensaje: `No hay plantilla configurada para el estado "${estadoNuevo}". El cambio se registró pero no se envió WhatsApp.`,
+      enviada_whatsapp: false,
+    }).then(() => {/* ok */}, (e) => console.error('[notif estado_sin_plantilla]', e))
+    return
+  }
 
   try {
     const ctx = await cargarContexto(paqueteId, evento)
-    if (!ctx) return
+    if (!ctx) {
+      console.warn(`[notificarCambioEstado] Contexto faltante para paquete ${paqueteId} evento ${evento}`)
+      await supabase.from('notificaciones').insert({
+        paquete_id: paqueteId,
+        tipo: evento,
+        titulo: `Notificación no enviada: ${estadoNuevo}`,
+        mensaje: 'No se encontró perfil del cliente, plantilla activa o teléfono. Revisa configuración.',
+        enviada_whatsapp: false,
+      }).then(() => {/* ok */}, (e) => console.error('[notif sin_contexto]', e))
+      return
+    }
 
     const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
     const r = await enviarConFallback(ctx.phone, mensaje)
 
-    await ctx.supabase.from('notificaciones').insert({
+    console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${r.via} enviado=${r.enviado}`)
+
+    await supabase.from('notificaciones').insert({
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
-      titulo: `Estado: ${estadoNuevo}`,
+      titulo: `Estado: ${estadoNuevo} (via ${r.via})`,
       mensaje,
       enviada_whatsapp: r.enviado,
     })
   } catch (err) {
     console.error('[notificarCambioEstado] Error:', err)
+    await supabase.from('notificaciones').insert({
+      paquete_id: paqueteId,
+      tipo: evento,
+      titulo: `Error notificando ${estadoNuevo}`,
+      mensaje: err instanceof Error ? err.message : String(err),
+      enviada_whatsapp: false,
+    }).then(() => {/* ok */}, () => {/* swallow */})
   }
 }
 
