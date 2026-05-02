@@ -38,7 +38,9 @@ export async function middleware(request: NextRequest) {
   const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith('/api/auth') || pathname.startsWith('/api/whatsapp') || pathname.startsWith('/api/shopify') || pathname.startsWith('/api/kommo'))
 
   if (!user && !isPublic) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
   }
 
   // Rutas que requieren verificar el rol
