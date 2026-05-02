@@ -6,7 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  Package, PlusCircle, Truck, CheckCircle, Clock, AlertTriangle,
+  Package, PlusCircle, Truck, CheckCircle, Clock, AlertTriangle, MessageCircle,
 } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS, type EstadoPaquete } from '@/types'
 import { format } from 'date-fns'
@@ -69,6 +69,31 @@ export default async function DashboardPage() {
           Reportar pedido
         </Link>
       </div>
+
+      {/* Aviso: WhatsApp faltante o incompleto */}
+      {!perfil?.whatsapp && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <MessageCircle className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800">
+                Configura tu WhatsApp para recibir notificaciones
+              </p>
+              <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                Te avisaremos por WhatsApp cuando tu paquete llegue a Miami, vaya en tránsito y esté listo para entrega.
+              </p>
+              <Link
+                href="/perfil"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900 mt-2"
+              >
+                Agregar mi WhatsApp →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Estadisticas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

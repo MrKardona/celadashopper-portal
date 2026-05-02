@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Package, LayoutDashboard, PlusCircle, LogOut } from 'lucide-react'
+import { Package, LayoutDashboard, PlusCircle, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { Perfil } from '@/types'
@@ -22,6 +22,7 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
     { href: '/dashboard', label: 'Mi Panel', icon: LayoutDashboard },
     { href: '/reportar', label: 'Reportar Pedido', icon: PlusCircle },
     { href: '/paquetes', label: 'Mis Paquetes', icon: Package },
+    { href: '/perfil', label: 'Mi Perfil', icon: User },
   ]
 
   return (

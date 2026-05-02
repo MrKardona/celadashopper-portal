@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
+import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -245,6 +246,11 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
               <Link href={`/admin/clientes?q=${perfil?.nombre_completo ?? ''}`} className="text-xs text-orange-600 hover:underline">
                 Ver todos sus paquetes →
               </Link>
+
+              {/* Prueba de WhatsApp al cliente */}
+              <div className="pt-3 border-t border-gray-100">
+                <PruebaWhatsappButton telefonoSugerido={perfil?.whatsapp ?? perfil?.telefono ?? null} />
+              </div>
             </CardContent>
           </Card>
 

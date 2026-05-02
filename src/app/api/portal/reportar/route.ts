@@ -234,5 +234,50 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ ok: true, match: false, tracking_casilla: nuevo.tracking_casilla })
+  // ── Enviar WhatsApp de confirmación al cliente (best-effort, no bloquea) ──
+  let whatsappEnviado = false
+  if (phoneCliente) {
+    const linkSeguimiento = `https://portal.celadashopper.com/paquetes`
+    const textoConfirmacion =
+      `¡Hola ${nombreCorto}! 👋\n\n` +
+      `*Recibimos tu pedido en CeladaShopper* ✅\n\n` +
+      `📦 *${body.descripcion}*\n` +
+      `🏬 ${body.tienda}\n` +
+      (trackingOrigen ? `🚚 Tracking del courier: *${trackingOrigen}*\n` : '') +
+      `🔖 Tu número CeladaShopper: *${nuevo.tracking_casilla}*\n\n` +
+      `Te avisaremos por WhatsApp cuando tu paquete:\n` +
+      `• Llegue a nuestra bodega de Miami 📍\n` +
+      `• Esté en camino a Colombia ✈️\n` +
+      `• Esté listo para recoger 🎉\n\n` +
+      `👉 Sigue tus paquetes aquí:\n${linkSeguimiento}`
+
+    try {
+      const phoneId = process.env.META_PHONE_NUMBER_ID
+      const token = process.env.META_ACCESS_TOKEN
+      if (phoneId && token) {
+        await enviarWhatsappTexto(phoneCliente, textoConfirmacion)
+        whatsappEnviado = true
+      }
+    } catch (err) {
+      console.error('[reportar] Error enviando WhatsApp de confirmación:', err)
+    }
+
+    // Registrar la notificación
+    if (whatsappEnviado) {
+      await admin.from('notificaciones').insert({
+        cliente_id: user.id,
+        tipo: 'paquete_reportado',
+        titulo: `Pedido reportado: ${nuevo.tracking_casilla}`,
+        mensaje: textoConfirmacion,
+        enviada_whatsapp: true,
+      }).then(() => {/* best-effort */}, () => {/* best-effort */})
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    match: false,
+    tracking_casilla: nuevo.tracking_casilla,
+    whatsapp_enviado: whatsappEnviado,
+  })
 }
