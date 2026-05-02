@@ -83,20 +83,54 @@ export async function POST(req: NextRequest) {
   const nombreCorto = perfil?.nombre_completo?.split(' ')[0] ?? 'cliente'
   const phoneCliente = perfil?.whatsapp ?? perfil?.telefono ?? null
 
-  // ── Buscar paquete sin asignar con mismo tracking_origen ──────────────────
+  // ── Verificar duplicados y buscar match con sin_asignar ───────────────────
   const trackingOrigen = body.tracking_origen?.trim() || null
   let matchId: string | null = null
   let matchTracking: string | null = null
   let matchDescripcion: string | null = null
 
   if (trackingOrigen) {
+    // 1. ¿Este cliente ya registró este mismo tracking?
+    const { data: duplicadoPropio } = await admin
+      .from('paquetes')
+      .select('id, tracking_casilla, descripcion, estado')
+      .ilike('tracking_origen', trackingOrigen)
+      .eq('cliente_id', user.id)
+      .limit(1)
+      .maybeSingle()
+
+    if (duplicadoPropio) {
+      return NextResponse.json({
+        error: 'duplicate_own',
+        tracking_casilla: duplicadoPropio.tracking_casilla,
+        descripcion: duplicadoPropio.descripcion,
+        estado: duplicadoPropio.estado,
+      }, { status: 409 })
+    }
+
+    // 2. ¿Otro cliente ya tiene este tracking asignado?
+    const { data: duplicadoOtro } = await admin
+      .from('paquetes')
+      .select('id')
+      .ilike('tracking_origen', trackingOrigen)
+      .not('cliente_id', 'is', null)
+      .limit(1)
+      .maybeSingle()
+
+    if (duplicadoOtro) {
+      return NextResponse.json({
+        error: 'duplicate_other',
+      }, { status: 409 })
+    }
+
+    // 3. ¿Existe sin asignar? → hacer match automático
     const { data: sinAsignar } = await admin
       .from('paquetes')
       .select('id, tracking_casilla, descripcion, peso_libras')
       .is('cliente_id', null)
       .ilike('tracking_origen', trackingOrigen)
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (sinAsignar) {
       matchId = sinAsignar.id
