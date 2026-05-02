@@ -170,35 +170,68 @@ async function cargarContexto(paqueteId: string, evento: string) {
   }
 }
 
+// ─── Helper: insert seguro en notificaciones (loguea error real) ────────────
+async function logNotificacion(
+  supabase: ReturnType<typeof getSupabase>,
+  data: {
+    cliente_id?: string | null
+    paquete_id?: string | null
+    tipo: string
+    titulo: string
+    mensaje: string
+    enviada_whatsapp?: boolean
+  },
+) {
+  const { error } = await supabase.from('notificaciones').insert({
+    cliente_id: data.cliente_id ?? null,
+    paquete_id: data.paquete_id ?? null,
+    tipo: data.tipo,
+    titulo: data.titulo,
+    mensaje: data.mensaje,
+    enviada_whatsapp: data.enviada_whatsapp ?? false,
+  })
+  if (error) {
+    console.error('[logNotificacion] INSERT falló:', error.message, error.code, error.details)
+  }
+}
+
 // ─── Notificar cambio de estado ──────────────────────────────────────────────
 export async function notificarCambioEstado(paqueteId: string, estadoNuevo: string): Promise<void> {
   const evento = ESTADO_A_EVENTO[estadoNuevo]
   const supabase = getSupabase()
 
+  // Cargar cliente_id al inicio para usarlo en cualquier rama (audit trail)
+  const { data: paqueteBasico } = await supabase
+    .from('paquetes')
+    .select('cliente_id')
+    .eq('id', paqueteId)
+    .maybeSingle()
+  const clienteIdAuditoria = paqueteBasico?.cliente_id ?? null
+
   // Si no hay evento mapeado, registrar y salir
   if (!evento) {
     console.warn(`[notificarCambioEstado] Estado "${estadoNuevo}" no tiene evento mapeado`)
-    await supabase.from('notificaciones').insert({
+    await logNotificacion(supabase, {
+      cliente_id: clienteIdAuditoria,
       paquete_id: paqueteId,
       tipo: 'estado_sin_plantilla',
       titulo: `Estado cambió a ${estadoNuevo} (sin notificación configurada)`,
-      mensaje: `No hay plantilla configurada para el estado "${estadoNuevo}". El cambio se registró pero no se envió WhatsApp.`,
-      enviada_whatsapp: false,
-    }).then(() => {/* ok */}, (e) => console.error('[notif estado_sin_plantilla]', e))
+      mensaje: `No hay plantilla configurada para el estado "${estadoNuevo}".`,
+    })
     return
   }
 
   try {
     const ctx = await cargarContexto(paqueteId, evento)
     if (!ctx) {
-      console.warn(`[notificarCambioEstado] Contexto faltante para paquete ${paqueteId} evento ${evento}`)
-      await supabase.from('notificaciones').insert({
+      console.warn(`[notificarCambioEstado] Contexto faltante paquete=${paqueteId} evento=${evento}`)
+      await logNotificacion(supabase, {
+        cliente_id: clienteIdAuditoria,
         paquete_id: paqueteId,
         tipo: evento,
         titulo: `Notificación no enviada: ${estadoNuevo}`,
         mensaje: 'No se encontró perfil del cliente, plantilla activa o teléfono. Revisa configuración.',
-        enviada_whatsapp: false,
-      }).then(() => {/* ok */}, (e) => console.error('[notif sin_contexto]', e))
+      })
       return
     }
 
@@ -255,7 +288,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
     console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${viaUsada} enviado=${envioOk} fotos=${fotosEnviadas}`)
 
-    await supabase.from('notificaciones').insert({
+    await logNotificacion(supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
@@ -265,13 +298,13 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
     })
   } catch (err) {
     console.error('[notificarCambioEstado] Error:', err)
-    await supabase.from('notificaciones').insert({
+    await logNotificacion(supabase, {
+      cliente_id: clienteIdAuditoria,
       paquete_id: paqueteId,
       tipo: evento,
       titulo: `Error notificando ${estadoNuevo}`,
       mensaje: err instanceof Error ? err.message : String(err),
-      enviada_whatsapp: false,
-    }).then(() => {/* ok */}, () => {/* swallow */})
+    })
   }
 }
 

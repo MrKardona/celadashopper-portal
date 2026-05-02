@@ -280,6 +280,22 @@ export async function POST(req: NextRequest) {
     ubicacion: 'Miami, USA',
   })
 
+  // Auditoría incondicional: confirma que el endpoint llegó hasta este punto
+  const { data: pq } = await admin
+    .from('paquetes')
+    .select('cliente_id')
+    .eq('id', paquete_id)
+    .maybeSingle()
+
+  await admin.from('notificaciones').insert({
+    cliente_id: pq?.cliente_id ?? null,
+    paquete_id,
+    tipo: 'recibir_audit',
+    titulo: `[AUDIT] /admin/recibir modo A ejecutado: ${estadoAnterior} → recibido_usa`,
+    mensaje: `Endpoint llegó hasta notificarCambioEstado. Peso: ${peso_libras} lbs.`,
+    enviada_whatsapp: false,
+  }).then(() => {/* ok */}, (e) => console.error('[recibir audit]', e))
+
   // Notificar WhatsApp al cliente (con fotos si las hay)
   try {
     await notificarCambioEstado(paquete_id, 'recibido_usa')
