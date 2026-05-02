@@ -234,13 +234,32 @@ export default async function DashboardPage() {
               <li>
                 En el campo <strong>Nombre / Recipient</strong> escribe siempre:
                 <span className="block ml-4 mt-0.5 font-mono bg-white border border-orange-200 rounded px-2 py-1">
-                  Diego Celada{perfil?.numero_casilla ? ` - ${perfil.numero_casilla}` : ' - [tu casillero]'}
+                  Diego Celada / {perfil?.numero_casilla ?? '[tu casillero]'}
                 </span>
               </li>
               <li>El número de casillero <strong>al final del nombre</strong> es lo que nos permite identificar a quién pertenece tu paquete.</li>
               <li>Usa la dirección exacta que aparece arriba (con el ZIP <strong>33178</strong>).</li>
               <li>Si la tienda exige un número de teléfono, puedes usar el de la bodega que aparece arriba.</li>
             </ol>
+          </div>
+
+          {/* Aviso adicional: si la tienda no permite el número */}
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900 space-y-1">
+            <p className="font-semibold flex items-center gap-1">
+              <span aria-hidden="true">💡</span> ¿La tienda no te deja poner el número de casillero?
+            </p>
+            <p className="leading-relaxed">
+              Si el formulario de la tienda no acepta el número o el carácter <strong>/</strong>, escribe en el campo
+              de nombre <strong>tal cual está registrado en la plataforma</strong>:
+            </p>
+            {perfil?.nombre_completo && (
+              <p className="font-mono bg-white border border-amber-200 rounded px-2 py-1 mt-1">
+                {perfil.nombre_completo}
+              </p>
+            )}
+            <p className="text-[11px] mt-1 text-amber-800">
+              Igualmente lo identificaremos por tu nombre completo cuando llegue a la bodega.
+            </p>
           </div>
         </CardContent>
       </Card>

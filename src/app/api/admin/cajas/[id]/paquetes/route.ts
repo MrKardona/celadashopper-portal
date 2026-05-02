@@ -80,9 +80,11 @@ export async function POST(req: NextRequest, { params }: Props) {
       codigo: 'en_otra_caja',
     }, { status: 409 })
   }
-  if (paquete.estado !== 'recibido_usa') {
+  // Estados elegibles: recibido_usa o listo_envio (paquete que estaba en otra caja cerrada)
+  const estadosElegibles = ['recibido_usa', 'listo_envio']
+  if (!estadosElegibles.includes(paquete.estado)) {
     return NextResponse.json({
-      error: `El paquete está en estado "${paquete.estado}". Solo se pueden consolidar paquetes en estado "recibido_usa".`,
+      error: `El paquete está en estado "${paquete.estado}". Solo se pueden consolidar paquetes en estado "Recibido en USA" o "Listo para envío".`,
       codigo: 'estado_invalido',
     }, { status: 400 })
   }
@@ -115,10 +117,10 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
 
-  // 6. Registrar evento
+  // 6. Registrar evento (usa el estado real anterior)
   await admin.from('eventos_paquete').insert({
     paquete_id: paquete.id,
-    estado_anterior: 'recibido_usa',
+    estado_anterior: paquete.estado,
     estado_nuevo: 'en_consolidacion',
     descripcion: `Agregado a caja consolidada para ${caja.bodega_destino}`,
     ubicacion: 'Miami, USA',

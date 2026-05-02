@@ -34,13 +34,18 @@ export async function GET(req: NextRequest) {
   const bodega = req.nextUrl.searchParams.get('bodega')
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? ''
   const todasBodegas = req.nextUrl.searchParams.get('todas') === '1'
+  // Estados elegibles para meter en una caja (CSV). Default: recibido_usa,listo_envio
+  const estadosParam = req.nextUrl.searchParams.get('estados')?.trim()
+  const estadosElegibles = estadosParam
+    ? estadosParam.split(',').map(s => s.trim()).filter(Boolean)
+    : ['recibido_usa', 'listo_envio']
 
   const admin = getSupabaseAdmin()
 
   let query = admin
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, descripcion, categoria, peso_libras, cliente_id, bodega_destino, fecha_recepcion_usa')
-    .eq('estado', 'recibido_usa')
+    .select('id, tracking_casilla, tracking_origen, descripcion, categoria, peso_libras, cliente_id, bodega_destino, fecha_recepcion_usa, estado')
+    .in('estado', estadosElegibles)
     .is('caja_id', null)
     .not('cliente_id', 'is', null) // solo asignados (los sin asignar requieren paso previo)
     .order('fecha_recepcion_usa', { ascending: true })
@@ -73,15 +78,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Conteo total disponibles (sin filtro de q) para mostrar en UI
-  let countQuery = admin
-    .from('paquetes')
-    .select('*', { count: 'exact', head: true })
-    .eq('estado', 'recibido_usa')
-    .is('caja_id', null)
-    .not('cliente_id', 'is', null)
-  if (bodega && !todasBodegas) countQuery = countQuery.eq('bodega_destino', bodega)
-  const { count: totalDisponibles } = await countQuery
+  // Conteos por estado (sin filtro q) para mostrar tabs
+  const conteoPorEstado: Record<string, number> = {}
+  for (const e of ['recibido_usa', 'listo_envio']) {
+    let countQuery = admin
+      .from('paquetes')
+      .select('*', { count: 'exact', head: true })
+      .eq('estado', e)
+      .is('caja_id', null)
+      .not('cliente_id', 'is', null)
+    if (bodega && !todasBodegas) countQuery = countQuery.eq('bodega_destino', bodega)
+    const { count } = await countQuery
+    conteoPorEstado[e] = count ?? 0
+  }
+
+  const totalDisponibles = estadosElegibles.reduce(
+    (sum, e) => sum + (conteoPorEstado[e] ?? 0),
+    0,
+  )
 
   const enriquecidos = (paquetes ?? []).map(p => ({
     ...p,
@@ -90,7 +104,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     paquetes: enriquecidos,
-    total_disponibles: totalDisponibles ?? 0,
+    total_disponibles: totalDisponibles,
     mostrando: enriquecidos.length,
+    conteo_por_estado: conteoPorEstado,
   })
 }

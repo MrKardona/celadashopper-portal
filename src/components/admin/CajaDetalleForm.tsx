@@ -742,7 +742,16 @@ interface PaqueteDisponible {
   peso_libras: number | string | null
   bodega_destino: string
   fecha_recepcion_usa: string | null
+  estado: string
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
+}
+
+type FiltroEstado = 'todos' | 'recibido_usa' | 'listo_envio'
+
+const ESTADO_PAQUETE_BADGE: Record<string, { bg: string; text: string; label: string }> = {
+  recibido_usa: { bg: 'bg-blue-100 border-blue-200', text: 'text-blue-700', label: 'Recibido en USA' },
+  listo_envio: { bg: 'bg-green-100 border-green-200', text: 'text-green-700', label: 'Listo para envío' },
+  en_consolidacion: { bg: 'bg-amber-100 border-amber-200', text: 'text-amber-700', label: 'En otra caja' },
 }
 
 function PaquetesDisponibles({
@@ -755,10 +764,14 @@ function PaquetesDisponibles({
   onAgregarConBodegaDistinta: (tracking: string) => Promise<void>
 }) {
   const [paquetes, setPaquetes] = useState<PaqueteDisponible[]>([])
-  const [stats, setStats] = useState<{ total: number; mostrando: number } | null>(null)
+  const [stats, setStats] = useState<{
+    total: number; mostrando: number;
+    porEstado: { recibido_usa: number; listo_envio: number };
+  } | null>(null)
   const [cargando, setCargando] = useState(false)
   const [query, setQuery] = useState('')
   const [todasBodegas, setTodasBodegas] = useState(false)
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
   const [agregandoId, setAgregandoId] = useState<string | null>(null)
 
   async function cargar() {
@@ -767,11 +780,25 @@ function PaquetesDisponibles({
     params.set('bodega', bodegaCaja)
     if (todasBodegas) params.set('todas', '1')
     if (query.trim()) params.set('q', query.trim())
+    if (filtroEstado === 'todos') params.set('estados', 'recibido_usa,listo_envio')
+    else params.set('estados', filtroEstado)
 
     const res = await fetch(`/api/admin/cajas/disponibles?${params}`)
-    const data = await res.json() as { paquetes?: PaqueteDisponible[]; total_disponibles?: number; mostrando?: number }
+    const data = await res.json() as {
+      paquetes?: PaqueteDisponible[]
+      total_disponibles?: number
+      mostrando?: number
+      conteo_por_estado?: Record<string, number>
+    }
     setPaquetes(data.paquetes ?? [])
-    setStats({ total: data.total_disponibles ?? 0, mostrando: data.mostrando ?? 0 })
+    setStats({
+      total: data.total_disponibles ?? 0,
+      mostrando: data.mostrando ?? 0,
+      porEstado: {
+        recibido_usa: data.conteo_por_estado?.recibido_usa ?? 0,
+        listo_envio: data.conteo_por_estado?.listo_envio ?? 0,
+      },
+    })
     setCargando(false)
   }
 
@@ -779,7 +806,7 @@ function PaquetesDisponibles({
     const t = setTimeout(cargar, 200)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, todasBodegas])
+  }, [query, todasBodegas, filtroEstado])
 
   async function handleAgregar(p: PaqueteDisponible) {
     if (!p.tracking_casilla) return
@@ -821,6 +848,47 @@ function PaquetesDisponibles({
         </div>
       </div>
 
+      {/* Tabs por estado */}
+      {stats && (
+        <div className="px-5 py-2 border-b border-gray-100 bg-gray-50/50 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltroEstado('todos')}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+              filtroEstado === 'todos'
+                ? 'bg-orange-600 text-white border-orange-600'
+                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            Todos · {stats.porEstado.recibido_usa + stats.porEstado.listo_envio}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroEstado('recibido_usa')}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5 ${
+              filtroEstado === 'recibido_usa'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${filtroEstado === 'recibido_usa' ? 'bg-white' : 'bg-blue-500'}`} />
+            Recibidos en USA · {stats.porEstado.recibido_usa}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroEstado('listo_envio')}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5 ${
+              filtroEstado === 'listo_envio'
+                ? 'bg-green-600 text-white border-green-600'
+                : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${filtroEstado === 'listo_envio' ? 'bg-white' : 'bg-green-500'}`} />
+            Listos para envío · {stats.porEstado.listo_envio}
+          </button>
+        </div>
+      )}
+
       {/* Búsqueda */}
       <div className="px-5 py-2 border-b border-gray-100 bg-gray-50">
         <input
@@ -833,8 +901,8 @@ function PaquetesDisponibles({
         {stats && (
           <p className="text-[11px] text-gray-500 mt-1">
             {todasBodegas
-              ? `${stats.mostrando} de ${stats.total} paquetes recibidos sin caja (todas las bodegas)`
-              : `${stats.mostrando} de ${stats.total} paquetes recibidos para ${BODEGA_LABELS[bodegaCaja] ?? bodegaCaja}`}
+              ? `${stats.mostrando} de ${stats.total} paquetes (todas las bodegas)`
+              : `${stats.mostrando} de ${stats.total} paquetes para ${BODEGA_LABELS[bodegaCaja] ?? bodegaCaja}`}
           </p>
         )}
       </div>
@@ -862,8 +930,14 @@ function PaquetesDisponibles({
         ) : (
           paquetes.map(p => {
             const bodegaDistinta = p.bodega_destino !== bodegaCaja
+            const estadoStyle = ESTADO_PAQUETE_BADGE[p.estado] ?? ESTADO_PAQUETE_BADGE.recibido_usa
+            // Borde izquierdo del color del estado
+            const borderColor =
+              p.estado === 'listo_envio' ? 'border-l-green-500'
+                : p.estado === 'recibido_usa' ? 'border-l-blue-500'
+                  : 'border-l-gray-300'
             return (
-              <div key={p.id} className="flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-gray-50 group">
+              <div key={p.id} className={`flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-gray-50 group border-l-4 ${borderColor}`}>
                 <Package className={`h-4 w-4 flex-shrink-0 ${bodegaDistinta ? 'text-amber-500' : 'text-gray-400'}`} />
                 <span className="font-mono text-xs font-semibold text-orange-700 w-32 truncate">
                   {p.tracking_casilla}
@@ -879,6 +953,10 @@ function PaquetesDisponibles({
                     {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
                   </p>
                 </div>
+                {/* Badge del estado del paquete */}
+                <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${estadoStyle.bg} ${estadoStyle.text}`}>
+                  {estadoStyle.label}
+                </span>
                 {bodegaDistinta && (
                   <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded whitespace-nowrap">
                     ⚠️ {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
