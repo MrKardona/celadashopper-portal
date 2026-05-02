@@ -129,7 +129,7 @@ export default function ReportarPage() {
                 </Button>
                 <Button
                   className="flex-1 bg-orange-600 hover:bg-orange-700"
-                  onClick={() => router.push('/paquetes')}
+                  onClick={() => { window.location.href = '/paquetes' }}
                 >
                   Ver mis paquetes
                 </Button>
