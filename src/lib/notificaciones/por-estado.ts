@@ -4,6 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
+import sharp from 'sharp'
 
 function getSupabase() {
   return createClient(
@@ -75,20 +76,28 @@ async function subirMedia(imageUrl: string): Promise<string | null> {
       console.error('[subirMedia] No se pudo descargar imagen:', imgRes.status, imageUrl)
       return null
     }
-    const contentType = imgRes.headers.get('content-type') ?? 'image/jpeg'
+    const contentTypeOrig = imgRes.headers.get('content-type') ?? 'image/jpeg'
     const arrayBuf = await imgRes.arrayBuffer()
-    const blob = new Blob([arrayBuf], { type: contentType })
 
-    // 2. Subir a Meta como multipart/form-data
+    // 2. Convertir SIEMPRE a JPEG con Sharp (WhatsApp tiene problemas con WebP)
+    let jpegBuffer: Buffer
+    try {
+      jpegBuffer = await sharp(Buffer.from(arrayBuf))
+        .rotate() // respetar orientación EXIF
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer()
+      console.log(`[subirMedia] Convertido ${contentTypeOrig} → image/jpeg`)
+    } catch (convErr) {
+      console.error('[subirMedia] Sharp falló, usando original:', convErr)
+      jpegBuffer = Buffer.from(arrayBuf)
+    }
+
+    // 3. Subir a Meta como multipart/form-data (siempre como JPEG)
     const form = new FormData()
     form.append('messaging_product', 'whatsapp')
-    form.append('type', contentType)
-    // Detectar extensión correcta — Meta acepta jpg, png, webp pero algunos
-    // proxies se confunden con webp; renombramos a .jpg si es necesario
-    const filename = contentType.includes('webp') ? 'image.webp'
-      : contentType.includes('png') ? 'image.png'
-      : 'image.jpg'
-    form.append('file', blob, filename)
+    form.append('type', 'image/jpeg')
+    // Pasar como Uint8Array para evitar issue de typing con Buffer
+    form.append('file', new Blob([new Uint8Array(jpegBuffer)], { type: 'image/jpeg' }), 'image.jpg')
 
     const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/media`, {
       method: 'POST',
