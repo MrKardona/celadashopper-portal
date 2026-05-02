@@ -52,29 +52,47 @@ export async function GET(req: NextRequest) {
 
   const admin = getSupabaseAdmin()
 
-  const { data: paquetes } = await admin
+  // Query principal SIN embed para evitar problemas de PostgREST/RLS
+  const { data: paquetes, error: queryErr } = await admin
     .from('paquetes')
     .select(`
       id, tracking_casilla, tracking_origen, tracking_usaco,
-      descripcion, tienda, categoria, estado,
+      descripcion, tienda, categoria, estado, cliente_id,
       peso_libras, peso_facturable, valor_declarado,
-      fecha_recepcion_usa, notas_cliente, bodega_destino,
-      perfiles(nombre_completo, numero_casilla, whatsapp, telefono)
+      fecha_recepcion_usa, notas_cliente, bodega_destino
     `)
     .or(`tracking_casilla.ilike.%${tracking}%,tracking_origen.ilike.%${tracking}%`)
     .limit(5)
+
+  if (queryErr) {
+    console.error('[admin/recibir GET]', queryErr)
+    return NextResponse.json({ error: queryErr.message }, { status: 500 })
+  }
 
   if (!paquetes || paquetes.length === 0) {
     return NextResponse.json({ error: 'Paquete no encontrado' }, { status: 404 })
   }
 
+  // Buscar coincidencia exacta o usar la primera
   const exacto = paquetes.find(
     p =>
       p.tracking_casilla?.toLowerCase() === tracking.toLowerCase() ||
       p.tracking_origen?.toLowerCase() === tracking.toLowerCase()
   )
+  const elegido = exacto ?? paquetes[0]
 
-  return NextResponse.json({ paquete: exacto ?? paquetes[0] })
+  // Cargar perfil del cliente por separado si existe
+  let perfiles = null
+  if (elegido.cliente_id) {
+    const { data: perfilData } = await admin
+      .from('perfiles')
+      .select('nombre_completo, numero_casilla, whatsapp, telefono')
+      .eq('id', elegido.cliente_id)
+      .maybeSingle()
+    perfiles = perfilData
+  }
+
+  return NextResponse.json({ paquete: { ...elegido, perfiles } })
 }
 
 // POST: registrar recepción en bodega USA
