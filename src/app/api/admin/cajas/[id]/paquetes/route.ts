@@ -80,11 +80,11 @@ export async function POST(req: NextRequest, { params }: Props) {
       codigo: 'en_otra_caja',
     }, { status: 409 })
   }
-  // Estados elegibles: recibido_usa o listo_envio (paquete que estaba en otra caja cerrada)
-  const estadosElegibles = ['recibido_usa', 'listo_envio']
+  // Estados elegibles: recibido_usa, listo_envio o en_consolidacion (huérfano)
+  const estadosElegibles = ['recibido_usa', 'listo_envio', 'en_consolidacion']
   if (!estadosElegibles.includes(paquete.estado)) {
     return NextResponse.json({
-      error: `El paquete está en estado "${paquete.estado}". Solo se pueden consolidar paquetes en estado "Recibido en USA" o "Listo para envío".`,
+      error: `El paquete está en estado "${paquete.estado}". Solo se pueden consolidar paquetes en estado "Recibido en USA", "En consolidación" o "Listo para envío".`,
       codigo: 'estado_invalido',
     }, { status: 400 })
   }

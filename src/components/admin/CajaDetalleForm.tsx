@@ -746,12 +746,12 @@ interface PaqueteDisponible {
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
 }
 
-type FiltroEstado = 'todos' | 'recibido_usa' | 'listo_envio'
+type FiltroEstado = 'todos' | 'recibido_usa' | 'listo_envio' | 'en_consolidacion'
 
 const ESTADO_PAQUETE_BADGE: Record<string, { bg: string; text: string; label: string }> = {
   recibido_usa: { bg: 'bg-blue-100 border-blue-200', text: 'text-blue-700', label: 'Recibido en USA' },
   listo_envio: { bg: 'bg-green-100 border-green-200', text: 'text-green-700', label: 'Listo para envío' },
-  en_consolidacion: { bg: 'bg-amber-100 border-amber-200', text: 'text-amber-700', label: 'En otra caja' },
+  en_consolidacion: { bg: 'bg-amber-100 border-amber-200', text: 'text-amber-700', label: 'En consolidación' },
 }
 
 function PaquetesDisponibles({
@@ -766,7 +766,7 @@ function PaquetesDisponibles({
   const [paquetes, setPaquetes] = useState<PaqueteDisponible[]>([])
   const [stats, setStats] = useState<{
     total: number; mostrando: number;
-    porEstado: { recibido_usa: number; listo_envio: number };
+    porEstado: { recibido_usa: number; listo_envio: number; en_consolidacion: number };
   } | null>(null)
   const [cargando, setCargando] = useState(false)
   const [query, setQuery] = useState('')
@@ -780,7 +780,7 @@ function PaquetesDisponibles({
     params.set('bodega', bodegaCaja)
     if (todasBodegas) params.set('todas', '1')
     if (query.trim()) params.set('q', query.trim())
-    if (filtroEstado === 'todos') params.set('estados', 'recibido_usa,listo_envio')
+    if (filtroEstado === 'todos') params.set('estados', 'recibido_usa,listo_envio,en_consolidacion')
     else params.set('estados', filtroEstado)
 
     const res = await fetch(`/api/admin/cajas/disponibles?${params}`)
@@ -797,6 +797,7 @@ function PaquetesDisponibles({
       porEstado: {
         recibido_usa: data.conteo_por_estado?.recibido_usa ?? 0,
         listo_envio: data.conteo_por_estado?.listo_envio ?? 0,
+        en_consolidacion: data.conteo_por_estado?.en_consolidacion ?? 0,
       },
     })
     setCargando(false)
@@ -860,7 +861,7 @@ function PaquetesDisponibles({
                 : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
             }`}
           >
-            Todos · {stats.porEstado.recibido_usa + stats.porEstado.listo_envio}
+            Todos · {stats.porEstado.recibido_usa + stats.porEstado.listo_envio + stats.porEstado.en_consolidacion}
           </button>
           <button
             type="button"
@@ -873,6 +874,18 @@ function PaquetesDisponibles({
           >
             <span className={`h-1.5 w-1.5 rounded-full ${filtroEstado === 'recibido_usa' ? 'bg-white' : 'bg-blue-500'}`} />
             Recibidos en USA · {stats.porEstado.recibido_usa}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroEstado('en_consolidacion')}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5 ${
+              filtroEstado === 'en_consolidacion'
+                ? 'bg-amber-600 text-white border-amber-600'
+                : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${filtroEstado === 'en_consolidacion' ? 'bg-white' : 'bg-amber-500'}`} />
+            En consolidación · {stats.porEstado.en_consolidacion}
           </button>
           <button
             type="button"
@@ -935,7 +948,8 @@ function PaquetesDisponibles({
             const borderColor =
               p.estado === 'listo_envio' ? 'border-l-green-500'
                 : p.estado === 'recibido_usa' ? 'border-l-blue-500'
-                  : 'border-l-gray-300'
+                  : p.estado === 'en_consolidacion' ? 'border-l-amber-500'
+                    : 'border-l-gray-300'
             return (
               <div key={p.id} className={`flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-gray-50 group border-l-4 ${borderColor}`}>
                 <Package className={`h-4 w-4 flex-shrink-0 ${bodegaDistinta ? 'text-amber-500' : 'text-gray-400'}`} />

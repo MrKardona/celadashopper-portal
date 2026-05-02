@@ -34,11 +34,12 @@ export async function GET(req: NextRequest) {
   const bodega = req.nextUrl.searchParams.get('bodega')
   const q = req.nextUrl.searchParams.get('q')?.trim() ?? ''
   const todasBodegas = req.nextUrl.searchParams.get('todas') === '1'
-  // Estados elegibles para meter en una caja (CSV). Default: recibido_usa,listo_envio
+  // Estados elegibles para meter en una caja (CSV).
+  // Default: recibido_usa, listo_envio, en_consolidacion (los huérfanos sin caja_id)
   const estadosParam = req.nextUrl.searchParams.get('estados')?.trim()
   const estadosElegibles = estadosParam
     ? estadosParam.split(',').map(s => s.trim()).filter(Boolean)
-    : ['recibido_usa', 'listo_envio']
+    : ['recibido_usa', 'listo_envio', 'en_consolidacion']
 
   const admin = getSupabaseAdmin()
 
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   // Conteos por estado (sin filtro q) para mostrar tabs
   const conteoPorEstado: Record<string, number> = {}
-  for (const e of ['recibido_usa', 'listo_envio']) {
+  for (const e of ['recibido_usa', 'listo_envio', 'en_consolidacion']) {
     let countQuery = admin
       .from('paquetes')
       .select('*', { count: 'exact', head: true })
