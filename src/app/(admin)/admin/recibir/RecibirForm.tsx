@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
+import HistorialRecibidos from '@/components/admin/HistorialRecibidos'
 
 interface PaqueteEncontrado {
   id: string
@@ -126,6 +127,8 @@ export default function RecibirForm() {
   // --- Historial de sesión ---
   const [ultimoRecibido, setUltimoRecibido] = useState<PaqueteRecibido | null>(null)
   const [recibidosHoy, setRecibidosHoy] = useState<PaqueteRecibido[]>([])
+  // refreshKey para que el HistorialRecibidos persistente se recargue tras cada recepción
+  const [historialKey, setHistorialKey] = useState(0)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -366,6 +369,7 @@ export default function RecibirForm() {
       }
       setUltimoRecibido(nuevo)
       setRecibidosHoy(prev => [nuevo, ...prev.slice(0, 29)])
+      setHistorialKey(k => k + 1) // refresca historial persistente
       limpiar()
     } finally {
       setGuardando(false)
@@ -406,6 +410,7 @@ export default function RecibirForm() {
       }
       setUltimoRecibido(nuevo)
       setRecibidosHoy(prev => [nuevo, ...prev.slice(0, 29)])
+      setHistorialKey(k => k + 1) // refresca historial persistente
       limpiar()
     } finally {
       setGuardandoManual(false)
@@ -961,28 +966,8 @@ export default function RecibirForm() {
         </form>
       )}
 
-      {/* Historial sesión */}
-      {recibidosHoy.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">Recibidos en esta sesión</span>
-            <span className="text-xs bg-orange-100 text-orange-700 font-semibold px-2 py-0.5 rounded-full">
-              {recibidosHoy.length}
-            </span>
-          </div>
-          <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-            {recibidosHoy.map((r, i) => (
-              <div key={`${r.id}-${i}`} className="flex items-center gap-3 px-5 py-3 text-sm">
-                <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${r.sinAsignar ? 'text-amber-400' : 'text-green-500'}`} />
-                <span className="font-mono font-semibold text-orange-700 w-32 truncate">{r.tracking}</span>
-                <span className={`flex-1 truncate ${r.sinAsignar ? 'text-amber-600 italic' : 'text-gray-600'}`}>{r.cliente}</span>
-                <span className="text-gray-500 font-medium">{r.peso} lb</span>
-                <span className="text-gray-400 text-xs w-12 text-right">{r.hora}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Historial persistente con edición inline */}
+      <HistorialRecibidos refreshKey={historialKey} />
     </div>
   )
 }
