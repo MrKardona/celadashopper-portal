@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
+import HistorialRecibidasColombia from '@/components/admin/HistorialRecibidasColombia'
 
 interface PaqueteCaja {
   id: string
@@ -49,6 +50,8 @@ export default function RecibirColombiaForm() {
   const [notificar, setNotificar] = useState(true)
   const [notas, setNotas] = useState('')
   const [confirmando, setConfirmando] = useState(false)
+  // refreshKey para que el historial se recargue tras cada recepción exitosa
+  const [historialKey, setHistorialKey] = useState(0)
   const [resultado, setResultado] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const [scannerAbierto, setScannerAbierto] = useState(false)
 
@@ -126,6 +129,7 @@ export default function RecibirColombiaForm() {
     if (data.sin_cliente) txt += ` ${data.sin_cliente} sin cliente asignado.`
 
     setResultado({ tipo: 'ok', texto: txt })
+    setHistorialKey(k => k + 1) // refresca el historial inferior
 
     // Recargar la caja después de 1.5s
     setTimeout(() => buscar(caja.tracking_usaco), 1500)
@@ -383,6 +387,9 @@ export default function RecibirColombiaForm() {
           )}
         </div>
       )}
+
+      {/* Historial de cajas recibidas en Colombia */}
+      <HistorialRecibidasColombia refreshKey={historialKey} />
     </div>
   )
 }
