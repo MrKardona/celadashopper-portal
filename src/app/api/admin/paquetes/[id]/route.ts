@@ -90,12 +90,27 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       estado_nuevo: estado,
       descripcion: `Estado actualizado por admin: ${estadoPrevio} → ${estado}`,
     }).then(() => {/* ok */}, (e) => console.error('[PATCH] evento:', e))
+
+    // Registro de auditoría: dejar constancia incondicional del intento de notificación
+    await supabaseAdmin.from('notificaciones').insert({
+      paquete_id: id,
+      tipo: 'patch_recibido',
+      titulo: `PATCH recibido: ${estadoPrevio} → ${estado}`,
+      mensaje: `body.notificar=${notificar} | hubo_cambio=${huboCambioDeEstado} | esperando llamada a notificarCambioEstado`,
+      enviada_whatsapp: false,
+    }).then(() => {/* ok */}, (e) => console.error('[PATCH] auditoria:', e))
   }
 
-  // ── Disparar notificaciones por WhatsApp si aplica ──────────────────────
+  // ── Disparar notificaciones por WhatsApp ────────────────────────────────
+  // IMPORTANTE: siempre intentamos notificar al cambiar algo relevante.
+  // El flag `notificar` solo puede deshabilitarlo explícitamente cuando
+  // viene === false. Si viene undefined o true, asumimos que SÍ notificar.
   const notificacionesEnviadas: string[] = []
+  const debeNotificar = notificar !== false
 
-  if (notificar !== false) {
+  console.log('[PATCH paquete]', { id, estado, estado_anterior, paqueteAntesEstado: paqueteAntes?.estado, huboCambioDeEstado, debeNotificar })
+
+  if (debeNotificar) {
     // 1) Cambio de estado
     if (huboCambioDeEstado) {
       try {
