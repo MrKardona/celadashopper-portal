@@ -14,10 +14,10 @@ function getSupabaseAdmin() {
 }
 
 async function enviarMetaDirecto(phone: string, texto: string): Promise<{ ok: boolean; error?: string }> {
-  const phoneId = process.env.META_PHONE_NUMBER_ID
-  const token = process.env.META_ACCESS_TOKEN
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
   if (!phoneId || !token) {
-    return { ok: false, error: 'META_PHONE_NUMBER_ID o META_ACCESS_TOKEN no configurados' }
+    return { ok: false, error: 'META_WA_PHONE_ID o META_WA_TOKEN no configurados en Vercel' }
   }
 
   const numero = phone.replace(/\D/g, '')

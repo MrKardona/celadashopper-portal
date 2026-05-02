@@ -15,8 +15,8 @@ function getSupabaseAdmin() {
 }
 
 async function enviarWhatsappTexto(phone: string, texto: string): Promise<void> {
-  const phoneId = process.env.META_PHONE_NUMBER_ID
-  const token = process.env.META_ACCESS_TOKEN
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
   if (!phoneId || !token) return
 
   const numero = phone.replace(/\D/g, '')
@@ -35,8 +35,8 @@ async function enviarWhatsappTexto(phone: string, texto: string): Promise<void> 
 }
 
 async function enviarWhatsappImagen(phone: string, imageUrl: string, caption: string): Promise<void> {
-  const phoneId = process.env.META_PHONE_NUMBER_ID
-  const token = process.env.META_ACCESS_TOKEN
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
   if (!phoneId || !token) return
 
   const numero = phone.replace(/\D/g, '')
@@ -252,8 +252,8 @@ export async function POST(req: NextRequest) {
       `👉 Sigue tus paquetes aquí:\n${linkSeguimiento}`
 
     try {
-      const phoneId = process.env.META_PHONE_NUMBER_ID
-      const token = process.env.META_ACCESS_TOKEN
+      const phoneId = process.env.META_WA_PHONE_ID
+      const token = process.env.META_WA_TOKEN
       if (phoneId && token) {
         await enviarWhatsappTexto(phoneCliente, textoConfirmacion)
         whatsappEnviado = true
