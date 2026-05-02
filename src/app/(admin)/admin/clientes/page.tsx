@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { Users, Search } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { Search } from 'lucide-react'
+import ClientesTabla, { type ClienteRow } from '@/components/admin/ClientesTabla'
 
 interface Props {
   searchParams: Promise<{ q?: string; ciudad?: string }>
@@ -52,12 +52,12 @@ export default async function AdminClientesPage({ searchParams }: Props) {
   }
 
   // Filtro texto
-  const filtrados = q
+  const filtrados: ClienteRow[] = (q
     ? lista.filter(c => {
         const txt = `${c.nombre_completo} ${c.email} ${c.numero_casilla} ${c.ciudad ?? ''}`.toLowerCase()
         return txt.includes(q.toLowerCase())
       })
-    : lista
+    : lista) as ClienteRow[]
 
   const ciudades = [...new Set(lista.map(c => c.ciudad).filter(Boolean))]
 
@@ -104,79 +104,8 @@ export default async function AdminClientesPage({ searchParams }: Props) {
         )}
       </form>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Contacto</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Ciudad</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Paquetes</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Desde</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtrados.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400">
-                    <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                    No hay clientes con esos filtros
-                  </td>
-                </tr>
-              ) : (
-                filtrados.map(c => {
-                  const stats = paquetesMap[c.id] ?? { total: 0, activos: 0 }
-                  return (
-                    <tr key={c.id} className="hover:bg-orange-50/40 transition-colors">
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="font-medium text-gray-900">{c.nombre_completo}</p>
-                          <p className="text-xs text-orange-600 font-mono">{c.numero_casilla}</p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="space-y-0.5">
-                          <p className="text-gray-600 text-xs truncate max-w-[180px]">{c.email}</p>
-                          {(c.whatsapp ?? c.telefono) && (
-                            <a
-                              href={`https://wa.me/${(c.whatsapp ?? c.telefono)?.replace(/\D/g, '')}`}
-                              target="_blank" rel="noopener noreferrer"
-                              className="text-green-600 text-xs hover:underline"
-                            >
-                              {c.whatsapp ?? c.telefono}
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-gray-500 capitalize">{c.ciudad ?? '—'}</td>
-                      <td className="px-4 py-3 text-center">
-                        <Link
-                          href={`/admin/paquetes?q=${encodeURIComponent(c.nombre_completo)}`}
-                          className="inline-flex items-center gap-1 hover:underline"
-                        >
-                          <span className="font-bold text-gray-900">{stats.activos}</span>
-                          <span className="text-gray-400 text-xs">/ {stats.total}</span>
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-gray-400 text-xs">
-                        {new Date(c.created_at).toLocaleDateString('es-CO')}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <Badge variant="outline" className={c.activo ? 'border-green-200 text-green-700' : 'border-red-200 text-red-600'}>
-                          {c.activo ? 'Activo' : 'Inactivo'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Tabla con edición inline */}
+      <ClientesTabla clientes={filtrados} paquetesMap={paquetesMap} />
     </div>
   )
 }
