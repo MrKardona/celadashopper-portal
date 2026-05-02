@@ -110,14 +110,38 @@ async function enviarConFallback(phone: string, mensaje: string): Promise<{ envi
 }
 
 // ─── Cargar paquete + plantilla en una función reutilizable ─────────────────
+// Hacemos 3 queries separadas (paquete, perfil, plantilla) en paralelo en
+// lugar de embeds — los embeds de PostgREST a veces fallan silenciosamente.
 async function cargarContexto(paqueteId: string, evento: string) {
   const supabase = getSupabase()
-  const [paqueteRes, plantillaRes] = await Promise.all([
+
+  // 1. Cargar el paquete (sin embed)
+  const { data: paquete, error: errPaquete } = await supabase
+    .from('paquetes')
+    .select('*')
+    .eq('id', paqueteId)
+    .maybeSingle()
+
+  if (errPaquete) {
+    console.error('[cargarContexto] error paquete:', errPaquete.message)
+    return null
+  }
+  if (!paquete) {
+    console.warn(`[cargarContexto] paquete ${paqueteId} no encontrado`)
+    return null
+  }
+  if (!paquete.cliente_id) {
+    console.warn(`[cargarContexto] paquete ${paqueteId} sin cliente_id`)
+    return null
+  }
+
+  // 2. Cargar perfil del cliente y plantilla en paralelo
+  const [perfilRes, plantillaRes] = await Promise.all([
     supabase
-      .from('paquetes')
-      .select('*, perfiles(nombre_completo, whatsapp, telefono, email)')
-      .eq('id', paqueteId)
-      .single(),
+      .from('perfiles')
+      .select('nombre_completo, whatsapp, telefono, email')
+      .eq('id', paquete.cliente_id)
+      .maybeSingle(),
     supabase
       .from('plantillas_notificacion')
       .select('texto_plantilla')
@@ -126,20 +150,22 @@ async function cargarContexto(paqueteId: string, evento: string) {
       .maybeSingle(),
   ])
 
-  if (paqueteRes.error || !paqueteRes.data) return null
-  if (!plantillaRes.data) return null
+  if (!plantillaRes.data) {
+    console.warn(`[cargarContexto] plantilla "${evento}" no activa o no existe`)
+    return null
+  }
 
-  const paquete = paqueteRes.data
-  const perfil = paquete.perfiles as {
-    nombre_completo: string
-    whatsapp: string | null
-    telefono: string | null
-    email: string | null
-  } | null
+  const perfil = perfilRes.data
+  if (!perfil) {
+    console.warn(`[cargarContexto] perfil del cliente ${paquete.cliente_id} no encontrado`)
+    return null
+  }
 
-  if (!perfil) return null
   const phone = perfil.whatsapp ?? perfil.telefono ?? ''
-  if (!phone) return null
+  if (!phone) {
+    console.warn(`[cargarContexto] cliente ${paquete.cliente_id} sin teléfono ni whatsapp`)
+    return null
+  }
 
   const nombre = perfil.nombre_completo?.split(' ')[0] ?? 'Cliente'
   const peso = paquete.peso_facturable
@@ -252,32 +278,20 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         .order('created_at', { ascending: true })
         .limit(5)
 
+      // Estrategia: enviar primero el TEXTO (siempre llega aunque las
+      // fotos fallen), después cada foto como mensaje separado.
+      const r = await enviarConFallback(ctx.phone, mensaje)
+      envioOk = r.enviado
+      viaUsada = r.via
+
       if (fotos && fotos.length > 0) {
-        // 1ra foto con caption (el mensaje completo)
-        const okPrimera = await enviarImagenMeta(ctx.phone, fotos[0].url, mensaje)
-        if (okPrimera) fotosEnviadas++
-
-        // Fotos adicionales sin caption (solo descripción si tiene)
-        for (let i = 1; i < fotos.length; i++) {
-          const ok = await enviarImagenMeta(ctx.phone, fotos[i].url, fotos[i].descripcion ?? undefined)
+        for (let i = 0; i < fotos.length; i++) {
+          const cap = fotos[i].descripcion ?? undefined
+          const ok = await enviarImagenMeta(ctx.phone, fotos[i].url, cap)
           if (ok) fotosEnviadas++
+          else console.warn(`[notif] Foto ${i + 1} falló:`, fotos[i].url)
         }
-
-        envioOk = fotosEnviadas > 0
-        viaUsada = `meta_imagen_x${fotosEnviadas}`
-
-        // Si todas las fotos fallaron, fallback a texto
-        if (!envioOk) {
-          console.warn('[notif] Todas las fotos fallaron, fallback a texto')
-          const r = await enviarConFallback(ctx.phone, mensaje)
-          envioOk = r.enviado
-          viaUsada = `${r.via}_fallback_texto`
-        }
-      } else {
-        // No hay fotos, solo texto
-        const r = await enviarConFallback(ctx.phone, mensaje)
-        envioOk = r.enviado
-        viaUsada = r.via
+        viaUsada = `${viaUsada}+meta_imagen_x${fotosEnviadas}/${fotos.length}`
       }
     } else {
       // Otros estados: solo texto
