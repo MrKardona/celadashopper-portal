@@ -32,9 +32,7 @@ function RecuperarForm() {
 
     const supabase = createClient()
     // Apuntamos directamente a /nueva-contrasena. El SDK PKCE del browser
-    // detecta el ?code=... en URL e intercambia automáticamente. No usamos
-    // el callback server-side porque los scanners de email consumen el
-    // one-time token antes que el usuario al hacer preview del link.
+    // detecta el ?code=... en URL e intercambia automáticamente.
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/nueva-contrasena`,
     })
@@ -42,8 +40,18 @@ function RecuperarForm() {
     setLoading(false)
 
     if (err) {
-      // No revelar si el correo existe o no — siempre mostrar éxito (seguridad)
       console.error('[recuperar]', err.message)
+
+      // Detectar rate limit y mostrar mensaje específico
+      const msg = err.message.toLowerCase()
+      if (msg.includes('rate limit') || msg.includes('only request this after') || msg.includes('seconds')) {
+        // Extraer segundos del mensaje si vienen
+        const segundos = err.message.match(/(\d+)\s*seconds?/i)?.[1] ?? '60'
+        setError(`Por seguridad, debes esperar ${segundos} segundos antes de solicitar otro enlace. Intenta de nuevo en un momento.`)
+        return
+      }
+
+      // Otros errores no críticos: no revelar si el correo existe (seguridad)
     }
 
     // Siempre mostrar pantalla de éxito aunque el email no exista
