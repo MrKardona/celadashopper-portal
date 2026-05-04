@@ -77,7 +77,7 @@ function RecuperarForm() {
               </div>
               <div>
                 <CardTitle>Recuperar contraseña</CardTitle>
-                <CardDescription>Te enviaremos un código de 6 dígitos a tu correo</CardDescription>
+                <CardDescription>Te enviaremos un código numérico a tu correo</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -99,7 +99,7 @@ function RecuperarForm() {
             {/* Info: usamos código en vez de link para evitar problemas con scanners de email */}
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 mb-4">
               <p className="leading-relaxed">
-                💡 Te enviaremos un <strong>código de 6 dígitos</strong> que copias e ingresas en la siguiente pantalla.
+                💡 Te enviaremos un <strong>código numérico</strong> que copias e ingresas en la siguiente pantalla.
                 Funciona con Gmail, Outlook, iCloud y cualquier proveedor de correo.
               </p>
             </div>

@@ -32,7 +32,7 @@ function CodigoForm() {
     setLoading(true)
     setError('')
 
-    const codigoLimpio = codigo.replace(/\s/g, '')
+    const codigoLimpio = codigo.replace(/\s/g, '').replace(/\D/g, '')
     if (codigoLimpio.length < 6) {
       setError('El código debe tener al menos 6 dígitos')
       setLoading(false)
@@ -107,7 +107,7 @@ function CodigoForm() {
               </div>
               <div>
                 <CardTitle>Ingresa el código</CardTitle>
-                <CardDescription>Te enviamos un código de 6 dígitos a tu correo</CardDescription>
+                <CardDescription>Te enviamos un código numérico a tu correo</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -127,22 +127,22 @@ function CodigoForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="codigo">Código de 6 dígitos</Label>
+                <Label htmlFor="codigo">Código del correo</Label>
                 <Input
                   id="codigo"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  maxLength={10}
-                  placeholder="123456"
+                  maxLength={12}
+                  placeholder="12345678"
                   autoComplete="one-time-code"
                   value={codigo}
                   onChange={e => setCodigo(e.target.value.replace(/[^\d\s]/g, ''))}
                   required
                   autoFocus
-                  className="text-center text-2xl font-mono tracking-[0.5em]"
+                  className="text-center text-2xl font-mono tracking-[0.4em]"
                 />
-                <p className="text-xs text-gray-400">Encuentra el código en el correo que te enviamos</p>
+                <p className="text-xs text-gray-400">Copia el código del correo que te enviamos (6 a 8 dígitos)</p>
               </div>
 
               {error && (
