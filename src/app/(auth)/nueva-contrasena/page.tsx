@@ -37,11 +37,48 @@ export default function NuevaContrasenaPage() {
   const [sesionValida, setSesionValida] = useState<boolean | null>(null)
 
   // Verificar que hay sesión activa (viene del link de recuperación)
-  // Usamos getUser() que verifica con el servidor — más confiable que getSession()
+  // Con PKCE flow, el SDK procesa el ?code=... del URL automáticamente al
+  // cargar (detectSessionInUrl: true). Escuchamos onAuthStateChange para
+  // saber cuándo terminó de procesar y se creó (o no) la sesión.
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setSesionValida(!!user)
+
+    // 1. Si hay error explícito en el URL (token ya usado / enlace inválido), mostrar inválido
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      const err = url.searchParams.get('error') || url.searchParams.get('error_code')
+      if (err) {
+        console.warn('[nueva-contrasena] error en URL:', err)
+        setSesionValida(false)
+        return
+      }
+    }
+
+    // 2. Verificar sesión actual (puede ya estar lista si el SDK terminó)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setSesionValida(true)
+        return
+      }
+
+      // 3. Si aún no, escuchar cambios. El SDK procesa el ?code=... y emite SIGNED_IN
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+          setSesionValida(true)
+        }
+      })
+
+      // 4. Timeout de seguridad: si después de 4 segundos no hay sesión, asumir inválido
+      const timeout = setTimeout(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          setSesionValida(!!session)
+        })
+      }, 4000)
+
+      return () => {
+        subscription.unsubscribe()
+        clearTimeout(timeout)
+      }
     })
   }, [])
 

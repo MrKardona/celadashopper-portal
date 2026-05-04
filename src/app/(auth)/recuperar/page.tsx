@@ -31,8 +31,12 @@ function RecuperarForm() {
     setError('')
 
     const supabase = createClient()
+    // Apuntamos directamente a /nueva-contrasena. El SDK PKCE del browser
+    // detecta el ?code=... en URL e intercambia automáticamente. No usamos
+    // el callback server-side porque los scanners de email consumen el
+    // one-time token antes que el usuario al hacer preview del link.
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/api/auth/callback?next=/nueva-contrasena`,
+      redirectTo: `${window.location.origin}/nueva-contrasena`,
     })
 
     setLoading(false)
