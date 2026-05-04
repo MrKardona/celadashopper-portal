@@ -36,50 +36,67 @@ export default function NuevaContrasenaPage() {
   const [listo, setListo] = useState(false)
   const [sesionValida, setSesionValida] = useState<boolean | null>(null)
 
-  // Verificar que hay sesión activa (viene del link de recuperación)
-  // Con PKCE flow, el SDK procesa el ?code=... del URL automáticamente al
-  // cargar (detectSessionInUrl: true). Escuchamos onAuthStateChange para
-  // saber cuándo terminó de procesar y se creó (o no) la sesión.
+  // Verificar que hay sesión activa o procesar ?code= del link de recuperación
   useEffect(() => {
     const supabase = createClient()
 
-    // 1. Si hay error explícito en el URL (token ya usado / enlace inválido), mostrar inválido
-    if (typeof window !== 'undefined') {
+    async function procesar() {
+      if (typeof window === 'undefined') return
+
       const url = new URL(window.location.href)
+
+      // 1. Si hay error explícito en URL → enlace inválido
       const err = url.searchParams.get('error') || url.searchParams.get('error_code')
       if (err) {
         console.warn('[nueva-contrasena] error en URL:', err)
         setSesionValida(false)
         return
       }
-    }
 
-    // 2. Verificar sesión actual (puede ya estar lista si el SDK terminó)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+      // 2. Si hay ?code=... → intercambiar por sesión usando code_verifier de localStorage
+      const code = url.searchParams.get('code')
+      if (code) {
+        const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code)
+        // Limpiar el code de la URL para evitar reintentos al refrescar
+        url.searchParams.delete('code')
+        window.history.replaceState({}, '', url.toString())
+
+        if (exchangeErr) {
+          console.error('[nueva-contrasena] exchangeCodeForSession falló:', exchangeErr.message)
+          setSesionValida(false)
+          return
+        }
+        setSesionValida(true)
+        return
+      }
+
+      // 3. Sin ?code, verificar si ya hay sesión (puede haber llegado vía OTP)
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         setSesionValida(true)
         return
       }
 
-      // 3. Si aún no, escuchar cambios. El SDK procesa el ?code=... y emite SIGNED_IN
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // 4. Escuchar PASSWORD_RECOVERY como fallback (algunos flujos lo emiten)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
           setSesionValida(true)
         }
       })
 
-      // 4. Timeout de seguridad: si después de 4 segundos no hay sesión, asumir inválido
-      const timeout = setTimeout(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          setSesionValida(!!session)
-        })
+      // 5. Timeout: si en 4s no llegó nada, marcar como inválido
+      const timeout = setTimeout(async () => {
+        const { data: { session: s } } = await supabase.auth.getSession()
+        setSesionValida(!!s)
       }, 4000)
 
       return () => {
         subscription.unsubscribe()
         clearTimeout(timeout)
       }
-    })
+    }
+
+    procesar()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
