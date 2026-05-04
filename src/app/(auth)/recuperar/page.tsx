@@ -2,19 +2,19 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Package, ArrowLeft, Mail, CheckCircle, AlertCircle } from 'lucide-react'
+import { Package, ArrowLeft, Mail, AlertCircle } from 'lucide-react'
 
 function RecuperarForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
-  const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
   const [errorEnlace, setErrorEnlace] = useState(false)
 
@@ -45,72 +45,17 @@ function RecuperarForm() {
       // Detectar rate limit y mostrar mensaje específico
       const msg = err.message.toLowerCase()
       if (msg.includes('rate limit') || msg.includes('only request this after') || msg.includes('seconds')) {
-        // Extraer segundos del mensaje si vienen
         const segundos = err.message.match(/(\d+)\s*seconds?/i)?.[1] ?? '60'
-        setError(`Por seguridad, debes esperar ${segundos} segundos antes de solicitar otro enlace. Intenta de nuevo en un momento.`)
+        setError(`Por seguridad, debes esperar ${segundos} segundos antes de solicitar otro código. Intenta de nuevo en un momento.`)
         return
       }
-
       // Otros errores no críticos: no revelar si el correo existe (seguridad)
     }
 
-    // Siempre mostrar pantalla de éxito aunque el email no exista
-    setEnviado(true)
-  }
-
-  if (enviado) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-white">
-        <div className="w-full max-w-md space-y-6">
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 text-orange-600">
-              <Package className="h-8 w-8" />
-              <span className="text-2xl font-bold">CeladaShopper</span>
-            </div>
-          </div>
-
-          <Card>
-            <CardContent className="pt-8 pb-6">
-              <div className="flex flex-col items-center text-center gap-4">
-                <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="h-7 w-7 text-green-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Revisa tu correo</h2>
-                  <p className="text-gray-500 text-sm mt-2 leading-relaxed">
-                    Si <span className="font-medium text-gray-700">{email}</span> está registrado,
-                    recibirás un enlace para restablecer tu contraseña en los próximos minutos.
-                  </p>
-                </div>
-                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 w-full text-left space-y-1">
-                  <p className="text-xs font-semibold text-blue-700">¿No ves el correo?</p>
-                  <ul className="text-xs text-blue-600 space-y-0.5 list-disc list-inside">
-                    <li>Revisa tu carpeta de spam o correo no deseado</li>
-                    <li>El enlace expira en 1 hora</li>
-                    <li>Asegúrate de usar el correo con el que te registraste</li>
-                  </ul>
-                </div>
-                <div className="flex flex-col gap-2 w-full pt-2">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => { setEnviado(false); setEmail('') }}
-                  >
-                    Intentar con otro correo
-                  </Button>
-                  <Link
-                    href="/login"
-                    className="text-center text-sm text-orange-600 hover:underline font-medium"
-                  >
-                    Volver al inicio de sesión
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )
+    // Redirigir a la página del código (en vez de mostrar mensaje "revisa tu correo")
+    // El cliente ingresa el código de 6 dígitos del email allí.
+    // Esto resuelve el problema de Outlook/Gmail que consumen tokens al hacer preview.
+    router.push(`/recuperar/codigo?email=${encodeURIComponent(email.trim())}`)
   }
 
   return (
@@ -132,7 +77,7 @@ function RecuperarForm() {
               </div>
               <div>
                 <CardTitle>Recuperar contraseña</CardTitle>
-                <CardDescription>Te enviaremos un enlace a tu correo</CardDescription>
+                <CardDescription>Te enviaremos un código de 6 dígitos a tu correo</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -145,11 +90,19 @@ function RecuperarForm() {
                   <p className="font-semibold">El enlace ya no es válido</p>
                   <p className="text-xs mt-1">
                     Los enlaces de recuperación expiran después de 1 hora o pueden haberse usado ya.
-                    Solicita uno nuevo abajo.
+                    Solicita un nuevo código abajo.
                   </p>
                 </div>
               </div>
             )}
+
+            {/* Info: usamos código en vez de link para evitar problemas con scanners de email */}
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 mb-4">
+              <p className="leading-relaxed">
+                💡 Te enviaremos un <strong>código de 6 dígitos</strong> que copias e ingresas en la siguiente pantalla.
+                Funciona con Gmail, Outlook, iCloud y cualquier proveedor de correo.
+              </p>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -181,7 +134,7 @@ function RecuperarForm() {
                 disabled={loading}
                 aria-busy={loading}
               >
-                {loading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                {loading ? 'Enviando código...' : 'Enviar código de recuperación'}
               </Button>
             </form>
 
