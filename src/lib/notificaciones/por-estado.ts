@@ -36,14 +36,23 @@ function rellenarPlantilla(plantilla: string, vars: Record<string, string>): str
   return plantilla.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
 }
 
+// Tracker de último resultado de Meta (para trazabilidad en notificaciones)
+let __ultimoMetaInfo: { messageId?: string; destino?: string; statusFinal?: string; rawError?: string } = {}
+export function getUltimoMetaInfo() { return { ...__ultimoMetaInfo } }
+
 // ─── Envío vía Meta directo (preferido) ──────────────────────────────────────
 async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolean> {
+  __ultimoMetaInfo = {}
   const phoneId = process.env.META_WA_PHONE_ID
   const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) return false
+  if (!phoneId || !token) {
+    __ultimoMetaInfo = { rawError: 'META_WA_PHONE_ID/TOKEN no configurados' }
+    return false
+  }
 
   const numero = phone.replace(/\D/g, '')
   const dest = numero.startsWith('57') ? numero : `57${numero}`
+  __ultimoMetaInfo.destino = dest
 
   try {
     const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
@@ -56,8 +65,28 @@ async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolea
         text: { body: mensaje },
       }),
     })
-    return res.ok
+
+    const raw = await res.text()
+    if (!res.ok) {
+      __ultimoMetaInfo.rawError = `Meta ${res.status}: ${raw.slice(0, 400)}`
+      console.error('[Meta directo]', __ultimoMetaInfo.rawError)
+      return false
+    }
+    try {
+      const data = JSON.parse(raw) as {
+        messages?: { id?: string; message_status?: string }[]
+        contacts?: { wa_id?: string; input?: string }[]
+      }
+      __ultimoMetaInfo.messageId = data.messages?.[0]?.id
+      __ultimoMetaInfo.statusFinal = data.messages?.[0]?.message_status ?? 'accepted'
+      // Si Meta no incluyó el destino en contacts, podría ser señal de número no-WhatsApp
+      if (data.contacts && data.contacts.length === 0) {
+        __ultimoMetaInfo.rawError = 'Meta no resolvió contactos (número podría no tener WhatsApp activo)'
+      }
+    } catch { /* ignorar parse error */ }
+    return true
   } catch (err) {
+    __ultimoMetaInfo.rawError = err instanceof Error ? err.message : String(err)
     console.error('[Meta directo] Error:', err)
     return false
   }
@@ -121,12 +150,17 @@ async function subirMedia(imageUrl: string): Promise<string | null> {
 
 // ─── Envío de imagen vía Meta directo (con upload media) ─────────────────────
 async function enviarImagenMeta(phone: string, imageUrl: string, caption?: string): Promise<boolean> {
+  __ultimoMetaInfo = {}
   const phoneId = process.env.META_WA_PHONE_ID
   const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) return false
+  if (!phoneId || !token) {
+    __ultimoMetaInfo = { rawError: 'META_WA_PHONE_ID/TOKEN no configurados' }
+    return false
+  }
 
   const numero = phone.replace(/\D/g, '')
   const dest = numero.startsWith('57') ? numero : `57${numero}`
+  __ultimoMetaInfo.destino = dest
 
   // Estrategia 1: subir media a Meta (más confiable)
   const mediaId = await subirMedia(imageUrl)
@@ -146,14 +180,26 @@ async function enviarImagenMeta(phone: string, imageUrl: string, caption?: strin
         image: imagePayload,
       }),
     })
+    const raw = await res.text()
     if (!res.ok) {
-      const body = await res.text()
-      console.error('[Meta imagen send]', res.status, body.slice(0, 200), 'mediaId=', mediaId)
-    } else {
-      console.log('[Meta imagen send] OK', mediaId ? `via media_id=${mediaId}` : 'via link')
+      __ultimoMetaInfo.rawError = `Meta imagen ${res.status}: ${raw.slice(0, 400)}`
+      console.error('[Meta imagen]', __ultimoMetaInfo.rawError)
+      return false
     }
-    return res.ok
+    try {
+      const data = JSON.parse(raw) as {
+        messages?: { id?: string }[]
+        contacts?: { wa_id?: string; input?: string }[]
+      }
+      __ultimoMetaInfo.messageId = data.messages?.[0]?.id
+      if (data.contacts && data.contacts.length === 0) {
+        __ultimoMetaInfo.rawError = 'Meta no resolvió contactos (número podría no tener WhatsApp activo)'
+      }
+    } catch { /* ignorar */ }
+    console.log('[Meta imagen send] OK', mediaId ? `via media_id=${mediaId}` : 'via link', 'msg_id=', __ultimoMetaInfo.messageId)
+    return true
   } catch (err) {
+    __ultimoMetaInfo.rawError = err instanceof Error ? err.message : String(err)
     console.error('[Meta imagen] Error:', err)
     return false
   }
@@ -383,12 +429,21 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
     console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${viaUsada} enviado=${envioOk} fotos=${fotosEnviadas}`)
 
+    // Capturar info de Meta para trazabilidad
+    const metaInfo = getUltimoMetaInfo()
+    const tituloEnriquecido = `Estado: ${estadoNuevo} (${viaUsada}${fotosEnviadas > 0 ? `, ${fotosEnviadas} foto${fotosEnviadas > 1 ? 's' : ''}` : ''})${metaInfo.messageId ? ` [msg_id=${metaInfo.messageId.slice(-12)}]` : ''}${metaInfo.rawError ? ' [ALERTA]' : ''}`
+    const mensajeEnriquecido = metaInfo.rawError
+      ? `${mensaje}\n\n[META INFO]\nDestino: ${metaInfo.destino ?? '?'}\nError: ${metaInfo.rawError}`
+      : metaInfo.messageId
+        ? `${mensaje}\n\n[META OK] msg_id=${metaInfo.messageId} destino=${metaInfo.destino ?? '?'}`
+        : mensaje
+
     await logNotificacion(supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
-      titulo: `Estado: ${estadoNuevo} (${viaUsada}${fotosEnviadas > 0 ? `, ${fotosEnviadas} foto${fotosEnviadas > 1 ? 's' : ''}` : ''})`,
-      mensaje,
+      titulo: tituloEnriquecido,
+      mensaje: mensajeEnriquecido,
       enviada_whatsapp: envioOk,
     })
   } catch (err) {
