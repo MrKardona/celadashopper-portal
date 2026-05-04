@@ -33,9 +33,15 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Rutas publicas
+  // Rutas publicas (incluye subrutas: /recuperar/codigo, /recuperar/cualquier-cosa)
   const publicPaths = ['/login', '/register', '/recuperar', '/nueva-contrasena', '/']
-  const isPublic = publicPaths.some(p => pathname === p || pathname.startsWith('/api/auth') || pathname.startsWith('/api/whatsapp') || pathname.startsWith('/api/shopify') || pathname.startsWith('/api/kommo'))
+  const isPublic = publicPaths.some(p =>
+    pathname === p ||
+    (p !== '/' && pathname.startsWith(p + '/')),
+  ) || pathname.startsWith('/api/auth')
+    || pathname.startsWith('/api/whatsapp')
+    || pathname.startsWith('/api/shopify')
+    || pathname.startsWith('/api/kommo')
 
   if (!user && !isPublic) {
     const loginUrl = new URL('/login', request.url)
