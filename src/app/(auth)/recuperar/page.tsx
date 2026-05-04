@@ -1,19 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Package, ArrowLeft, Mail, CheckCircle } from 'lucide-react'
+import { Package, ArrowLeft, Mail, CheckCircle, AlertCircle } from 'lucide-react'
 
-export default function RecuperarPage() {
+function RecuperarForm() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
+  const [errorEnlace, setErrorEnlace] = useState(false)
+
+  // Detectar si llega del callback con error (link expirado o inválido)
+  useEffect(() => {
+    if (searchParams.get('error') === 'expired') {
+      setErrorEnlace(true)
+    }
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -115,6 +125,20 @@ export default function RecuperarPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Aviso si llega del callback con error de enlace expirado */}
+            {errorEnlace && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">El enlace ya no es válido</p>
+                  <p className="text-xs mt-1">
+                    Los enlaces de recuperación expiran después de 1 hora o pueden haberse usado ya.
+                    Solicita uno nuevo abajo.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Correo electrónico</Label>
@@ -162,5 +186,13 @@ export default function RecuperarPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function RecuperarPage() {
+  return (
+    <Suspense fallback={null}>
+      <RecuperarForm />
+    </Suspense>
   )
 }
