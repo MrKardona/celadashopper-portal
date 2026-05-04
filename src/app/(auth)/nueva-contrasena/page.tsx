@@ -118,7 +118,21 @@ export default function NuevaContrasenaPage() {
     setLoading(false)
 
     if (err) {
-      setError('No se pudo actualizar la contraseña. El enlace puede haber expirado.')
+      console.error('[nueva-contrasena] updateUser falló:', err.message, err.code)
+      const msg = err.message.toLowerCase()
+      const code = (err as { code?: string }).code
+
+      // Errores específicos con mensaje claro al usuario
+      if (code === 'same_password' || msg.includes('different from the old')) {
+        setError('La nueva contraseña debe ser diferente a tu contraseña actual. Elige una distinta.')
+      } else if (code === 'weak_password' || msg.includes('weak')) {
+        setError('La contraseña es muy débil. Usa al menos 8 caracteres con letras y números.')
+      } else if (msg.includes('expired') || msg.includes('not authenticated') || msg.includes('jwt') || msg.includes('session')) {
+        setError('Tu sesión expiró. Solicita un nuevo código de recuperación.')
+      } else {
+        // Mensaje real de Supabase si no coincide ningún caso conocido
+        setError(`No se pudo actualizar la contraseña: ${err.message}`)
+      }
       return
     }
 
