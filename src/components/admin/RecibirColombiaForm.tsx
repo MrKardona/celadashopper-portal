@@ -154,25 +154,37 @@ export default function RecibirColombiaForm() {
   }
 
   // ─── Scanner de cámara ────────────────────────────────────────────────────
+  // Usa cámara trasera (facingMode 'environment') con resolución HD —
+  // mejor enfoque para leer códigos de barra que el modo default.
   async function abrirScanner() {
     setScannerAbierto(true)
     await new Promise(r => setTimeout(r, 100)) // esperar a que el video monte
     if (!videoRef.current) return
     try {
       const codeReader = new BrowserMultiFormatReader()
-      const controls = await codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, err, ctrl) => {
-        if (result) {
-          const text = result.getText()
-          ctrl.stop()
-          setScannerAbierto(false)
-          setTracking(text)
-          buscar(text)
-        }
-      })
+      const controls = await codeReader.decodeFromConstraints(
+        {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        },
+        videoRef.current,
+        (result, _err, ctrl) => {
+          if (result) {
+            const text = result.getText().trim()
+            ctrl.stop()
+            setScannerAbierto(false)
+            setTracking(text)
+            buscar(text)
+          }
+        },
+      )
       scannerControlsRef.current = controls
     } catch (err) {
       console.error('[scanner]', err)
-      setError('No se pudo acceder a la cámara')
+      setError('No se pudo acceder a la cámara. Verifica los permisos del navegador.')
       setScannerAbierto(false)
     }
   }
@@ -252,16 +264,30 @@ export default function RecibirColombiaForm() {
 
       {/* Scanner overlay */}
       {scannerAbierto && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={cerrarScanner}>
-          <div className="bg-black rounded-lg overflow-hidden max-w-md w-full" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={cerrarScanner}
+        >
+          <div
+            className="relative bg-black rounded-lg overflow-hidden max-w-md w-full"
+            onClick={e => e.stopPropagation()}
+          >
             <video ref={videoRef} className="w-full max-h-[70vh] object-cover" playsInline muted />
+            {/* Marco de guía visual */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-3/4 h-24 border-2 border-orange-500 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+            </div>
             <button
               type="button"
               onClick={cerrarScanner}
-              className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full"
+              className="absolute top-3 right-3 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-100"
+              aria-label="Cerrar escáner"
             >
               <X className="h-5 w-5" />
             </button>
+            <p className="absolute bottom-3 left-3 right-3 text-center text-xs text-white bg-black/60 rounded px-3 py-2">
+              Apunta la cámara al código de barras del tracking USACO
+            </p>
           </div>
         </div>
       )}
