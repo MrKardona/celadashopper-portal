@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Package, ArrowLeft, Mail, AlertCircle } from 'lucide-react'
+import { Package, ArrowLeft, Mail, AlertCircle, UserPlus } from 'lucide-react'
 
 function RecuperarForm() {
   const router = useRouter()
@@ -17,6 +17,7 @@ function RecuperarForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [errorEnlace, setErrorEnlace] = useState(false)
+  const [emailNoRegistrado, setEmailNoRegistrado] = useState<string | null>(null)
 
   // Detectar si llega del callback con error (link expirado o inválido)
   useEffect(() => {
@@ -29,11 +30,44 @@ function RecuperarForm() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setEmailNoRegistrado(null)
 
+    const emailLimpio = email.trim().toLowerCase()
+
+    // 1. Verificar primero si el email está registrado
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailLimpio }),
+      })
+      const data = await res.json() as { existe?: boolean; error?: string }
+
+      if (res.status === 429) {
+        setLoading(false)
+        setError(data.error ?? 'Demasiadas consultas. Espera un momento.')
+        return
+      }
+      if (!res.ok) {
+        setLoading(false)
+        setError(data.error ?? 'Error al verificar el correo')
+        return
+      }
+      if (!data.existe) {
+        setLoading(false)
+        setEmailNoRegistrado(emailLimpio)
+        return
+      }
+    } catch (err) {
+      setLoading(false)
+      console.error('[recuperar] check-email falló:', err)
+      setError('No se pudo verificar el correo. Intenta de nuevo.')
+      return
+    }
+
+    // 2. Email existe → enviar código de recuperación
     const supabase = createClient()
-    // Apuntamos directamente a /nueva-contrasena. El SDK PKCE del browser
-    // detecta el ?code=... en URL e intercambia automáticamente.
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    const { error: err } = await supabase.auth.resetPasswordForEmail(emailLimpio, {
       redirectTo: `${window.location.origin}/nueva-contrasena`,
     })
 
@@ -42,20 +76,15 @@ function RecuperarForm() {
     if (err) {
       console.error('[recuperar]', err.message)
 
-      // Detectar rate limit y mostrar mensaje específico
       const msg = err.message.toLowerCase()
       if (msg.includes('rate limit') || msg.includes('only request this after') || msg.includes('seconds')) {
         const segundos = err.message.match(/(\d+)\s*seconds?/i)?.[1] ?? '60'
         setError(`Por seguridad, debes esperar ${segundos} segundos antes de solicitar otro código. Intenta de nuevo en un momento.`)
         return
       }
-      // Otros errores no críticos: no revelar si el correo existe (seguridad)
     }
 
-    // Redirigir a la página del código (en vez de mostrar mensaje "revisa tu correo")
-    // El cliente ingresa el código de 6 dígitos del email allí.
-    // Esto resuelve el problema de Outlook/Gmail que consumen tokens al hacer preview.
-    router.push(`/recuperar/codigo?email=${encodeURIComponent(email.trim())}`)
+    router.push(`/recuperar/codigo?email=${encodeURIComponent(emailLimpio)}`)
   }
 
   return (
@@ -121,6 +150,28 @@ function RecuperarForm() {
                   Ingresa el correo con el que te registraste en CeladaShopper
                 </p>
               </div>
+
+              {emailNoRegistrado && (
+                <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-red-900">Correo no registrado</p>
+                      <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                        El correo <strong className="break-all">{emailNoRegistrado}</strong> no está registrado en CeladaShopper.
+                        ¿Quieres crear una cuenta nueva?
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/register?email=${encodeURIComponent(emailNoRegistrado)}`}
+                    className="flex items-center justify-center gap-2 w-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold py-2.5 rounded-md transition-colors"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Crear cuenta nueva
+                  </Link>
+                </div>
+              )}
 
               {error && (
                 <p role="alert" aria-live="polite" className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md">
