@@ -9,6 +9,7 @@ import {
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import HistorialRecibidos from '@/components/admin/HistorialRecibidos'
+import BuscadorClienteInline, { type ClienteSugerido } from '@/components/admin/BuscadorClienteInline'
 
 interface PaqueteEncontrado {
   id: string
@@ -123,6 +124,8 @@ export default function RecibirForm() {
     notas: '',
   })
   const [guardandoManual, setGuardandoManual] = useState(false)
+  // Cliente identificado manualmente por el agente (opcional en modo manual)
+  const [clienteManual, setClienteManual] = useState<ClienteSugerido | null>(null)
 
   // --- Historial de sesión ---
   const [ultimoRecibido, setUltimoRecibido] = useState<PaqueteRecibido | null>(null)
@@ -332,6 +335,7 @@ export default function RecibirForm() {
     setUltimoRecibido(null)
     setModoManual(false)
     setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '' })
+    setClienteManual(null)
     setFoto1({ preview: null, url: null, subiendo: false })
     setFoto2({ preview: null, url: null, subiendo: false })
     setFotoManual1({ preview: null, url: null, subiendo: false })
@@ -396,17 +400,18 @@ export default function RecibirForm() {
           notas_internas: formManual.notas || undefined,
           foto_url: fotoManual1.url || undefined,
           foto2_url: fotoManual2.url || undefined,
+          cliente_id: clienteManual?.id ?? undefined,
         }),
       })
-      const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string }
+      const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; asignado?: boolean }
       if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
       const nuevo: PaqueteRecibido = {
         id: data.tracking_casilla ?? '',
         tracking: data.tracking_casilla ?? 'S/N',
-        cliente: '⏳ Sin asignar',
+        cliente: clienteManual?.nombre_completo ?? '⏳ Sin asignar',
         peso: parseFloat(formManual.peso),
         hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-        sinAsignar: true,
+        sinAsignar: !clienteManual,
       }
       setUltimoRecibido(nuevo)
       setRecibidosHoy(prev => [nuevo, ...prev.slice(0, 29)])
@@ -834,14 +839,30 @@ export default function RecibirForm() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-700 font-semibold">
               <ClipboardList className="h-5 w-5" />
-              Recibir sin asignar — datos del paquete
+              Recibir paquete — datos del paquete
             </div>
             <button type="button" onClick={limpiar} className="text-gray-400 hover:text-gray-600">
               <X className="h-4 w-4" />
             </button>
           </div>
+
+          {/* Buscador de cliente: opcional, permite asociar el paquete por casillero/nombre */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Cliente <span className="text-gray-400 font-normal">(opcional — busca por casillero, nombre, email o teléfono)</span>
+            </label>
+            <BuscadorClienteInline
+              valor={clienteManual}
+              onSelect={setClienteManual}
+              placeholder="CS-1234, nombre, email o teléfono..."
+            />
+          </div>
+
           <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            Este paquete quedará en espera. Cuando el cliente lo reporte con el tracking <strong>{formManual.tracking_courier || 'del courier'}</strong>, el sistema lo asociará automáticamente y le enviará un WhatsApp.
+            {clienteManual
+              ? <>El paquete se asignará a <strong>{clienteManual.nombre_completo}</strong> y le llegará notificación por email/WhatsApp con la foto del paquete.</>
+              : <>Este paquete quedará en espera. Cuando el cliente lo reporte con el tracking <strong>{formManual.tracking_courier || 'del courier'}</strong>, el sistema lo asociará automáticamente.</>
+            }
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5 col-span-2 sm:col-span-1">

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     .eq('id', user.id)
     .single()
 
-  if (!perfilAdmin || perfilAdmin.rol !== 'admin') {
+  if (!perfilAdmin || !['admin', 'agente_usa'].includes(perfilAdmin.rol)) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
   }
 

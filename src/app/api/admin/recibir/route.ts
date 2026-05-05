@@ -109,13 +109,14 @@ export async function POST(req: NextRequest) {
     peso_libras?: number
     tracking_usaco?: string
     notas_internas?: string
-    // Modo B: sin asignar
+    // Modo B: sin asignar (puede traer cliente_id si el agente lo identificó)
     sin_asignar?: boolean
     descripcion?: string
     tienda?: string
     tracking_origen?: string
     categoria?: string
     bodega_destino?: string
+    cliente_id?: string | null  // ← opcional: si el agente asignó cliente desde el form manual
     // Ambos modos
     foto_url?: string
     foto2_url?: string
@@ -124,13 +125,32 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin()
 
   // ── MODO B: Crear paquete sin cliente (con detección de duplicados) ─────
+  // Nota: aunque el flag se llame sin_asignar, el agente puede haber identificado
+  // al cliente y pasarlo en body.cliente_id. En ese caso el paquete se crea/asigna
+  // directamente al cliente y se le notifica.
   if (body.sin_asignar) {
     const { descripcion, tienda, tracking_origen, categoria, bodega_destino, notas_internas, foto_url } = body
     const peso_libras = body.peso_libras
     const trackingOrigenLimpio = tracking_origen?.trim() || null
+    const clienteIdManual = body.cliente_id?.trim() || null
 
     if (!descripcion || !peso_libras || peso_libras <= 0 || !categoria) {
       return NextResponse.json({ error: 'descripcion, peso y categoria son requeridos' }, { status: 400 })
+    }
+
+    // Validar que el cliente existe si fue proporcionado
+    if (clienteIdManual) {
+      const { data: clienteCheck } = await admin
+        .from('perfiles')
+        .select('id, rol')
+        .eq('id', clienteIdManual)
+        .maybeSingle()
+      if (!clienteCheck) {
+        return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+      }
+      if (clienteCheck.rol !== 'cliente') {
+        return NextResponse.json({ error: 'El usuario seleccionado no es un cliente' }, { status: 400 })
+      }
     }
 
     // ─ Antes de crear, buscar si ya existe paquete con ese tracking_origen ─
@@ -154,6 +174,8 @@ export async function POST(req: NextRequest) {
         if (tienda) updates.tienda = tienda
         if (categoria) updates.categoria = categoria
         if (bodega_destino) updates.bodega_destino = bodega_destino
+        // Si el agente identificó al cliente y el paquete no tenía cliente_id, asignarlo
+        if (clienteIdManual && !existente.cliente_id) updates.cliente_id = clienteIdManual
 
         const { error: updErr } = await admin
           .from('paquetes')
@@ -175,8 +197,9 @@ export async function POST(req: NextRequest) {
           ubicacion: 'Miami, USA',
         })
 
-        // Si tenía cliente, notificar (Meta directo con fotos)
-        if (existente.cliente_id) {
+        // Si tenía cliente (o se asignó ahora), notificar (Meta directo con fotos)
+        const clienteFinal = existente.cliente_id ?? clienteIdManual
+        if (clienteFinal) {
           try {
             await notificarCambioEstado(existente.id, 'recibido_usa')
           } catch (err) {
@@ -193,11 +216,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ─ No hay duplicado: crear paquete nuevo sin asignar ─
+    // ─ No hay duplicado: crear paquete nuevo (con o sin cliente) ─
     const { data: nuevo, error: insertErr } = await admin
       .from('paquetes')
       .insert({
-        cliente_id: null,
+        cliente_id: clienteIdManual,
         tienda: tienda ?? 'Sin especificar',
         descripcion,
         categoria,
@@ -226,13 +249,31 @@ export async function POST(req: NextRequest) {
       paquete_id: nuevo.id,
       estado_anterior: null,
       estado_nuevo: 'recibido_usa',
-      descripcion: notas_internas
-        ? `Recibido sin asignar. ${notas_internas}`
-        : 'Recibido en bodega USA — sin cliente asignado',
+      descripcion: clienteIdManual
+        ? (notas_internas
+            ? `Recibido y asignado al cliente desde recepción. ${notas_internas}`
+            : 'Recibido en bodega USA — asignado al cliente desde recepción')
+        : (notas_internas
+            ? `Recibido sin asignar. ${notas_internas}`
+            : 'Recibido en bodega USA — sin cliente asignado'),
       ubicacion: 'Miami, USA',
     })
 
-    return NextResponse.json({ ok: true, tracking_casilla: nuevo.tracking_casilla, fusionado: false })
+    // Si el agente identificó al cliente, notificar (foto incluida si existe)
+    if (clienteIdManual) {
+      try {
+        await notificarCambioEstado(nuevo.id, 'recibido_usa')
+      } catch (err) {
+        console.error('[recibir manual] notificación:', err)
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      tracking_casilla: nuevo.tracking_casilla,
+      fusionado: false,
+      asignado: !!clienteIdManual,
+    })
   }
 
   // ── MODO A: Actualizar paquete existente ────────────────────────────────
