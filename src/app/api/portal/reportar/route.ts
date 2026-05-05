@@ -281,39 +281,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 })
   }
 
-  // ── Enviar WhatsApp de confirmación al cliente (best-effort, no bloquea) ──
-  let whatsappEnviado = false
-  if (phoneCliente) {
-    const linkSeguimiento = `https://portal.celadashopper.com/paquetes`
-    const textoConfirmacion =
-      `¡Hola ${nombreCorto}! 👋\n\n` +
-      `*Recibimos tu pedido en CeladaShopper* ✅\n\n` +
-      `📦 *${body.descripcion}*\n` +
-      `🏬 ${body.tienda}\n` +
-      (trackingOrigen ? `🚚 Tracking del courier: *${trackingOrigen}*\n` : '') +
-      `🔖 Tu número CeladaShopper: *${nuevo.tracking_casilla}*\n\n` +
-      `Te avisaremos por WhatsApp cuando tu paquete:\n` +
-      `• Llegue a nuestra bodega de Miami 📍\n` +
-      `• Esté en camino a Colombia ✈️\n` +
-      `• Esté listo para recoger 🎉\n\n` +
-      `👉 Sigue tus paquetes aquí:\n${linkSeguimiento}`
+  // ── Texto base para WhatsApp y log ──
+  const linkSeguimiento = `https://portal.celadashopper.com/paquetes`
+  const textoConfirmacion =
+    `¡Hola ${nombreCorto}! 👋\n\n` +
+    `*Recibimos tu pedido en CeladaShopper* ✅\n\n` +
+    `📦 *${body.descripcion}*\n` +
+    `🏬 ${body.tienda}\n` +
+    (trackingOrigen ? `🚚 Tracking del courier: *${trackingOrigen}*\n` : '') +
+    `🔖 Tu número CeladaShopper: *${nuevo.tracking_casilla}*\n\n` +
+    `Te avisaremos cuando tu paquete:\n` +
+    `• Llegue a nuestra bodega de Miami 📍\n` +
+    `• Esté en camino a Colombia ✈️\n` +
+    `• Esté listo para recoger 🎉\n\n` +
+    `👉 Sigue tus paquetes aquí:\n${linkSeguimiento}`
 
-    let envioError: string | undefined
+  // ── Enviar WhatsApp (best-effort, solo si hay teléfono) ──
+  let whatsappEnviado = false
+  let whatsappError: string | undefined
+  if (phoneCliente) {
     try {
       const r = await enviarWhatsappTexto(phoneCliente, textoConfirmacion)
       whatsappEnviado = r.ok
-      envioError = r.error
-      if (!r.ok) console.error('[reportar] Envío falló:', r.error)
+      whatsappError = r.error
+      if (!r.ok) console.error('[reportar] WhatsApp falló:', r.error)
     } catch (err) {
-      console.error('[reportar] Error enviando WhatsApp de confirmación:', err)
-      envioError = err instanceof Error ? err.message : String(err)
+      console.error('[reportar] Error enviando WhatsApp:', err)
+      whatsappError = err instanceof Error ? err.message : String(err)
     }
+  }
 
-    // ── Enviar también por EMAIL (canal principal) ──
-    let emailOk = false
-    let emailMsgId: string | undefined
-    let emailErr: string | undefined
-    if (perfil?.email) {
+  // ── Enviar EMAIL (canal principal, siempre que haya email del cliente) ──
+  let emailOk = false
+  let emailMsgId: string | undefined
+  let emailErr: string | undefined
+  if (perfil?.email) {
+    try {
       const r = await enviarEmailPedidoReportado({
         emailDestino: perfil.email,
         nombre: nombreCorto,
@@ -323,22 +326,35 @@ export async function POST(req: NextRequest) {
         tracking_origen: trackingOrigen,
         bodega_destino: body.bodega_destino,
         tienda: body.tienda,
+        categoria: body.categoria,
+        valor_declarado: body.valor_declarado ?? null,
+        fecha_compra: body.fecha_compra ?? null,
+        fecha_estimada_llegada: body.fecha_estimada_llegada ?? null,
+        notas_cliente: body.notas_cliente ?? null,
       })
       emailOk = r.ok
       emailMsgId = r.messageId
       emailErr = r.error
+      if (!r.ok) console.error('[reportar] Email falló:', r.error)
+    } catch (err) {
+      console.error('[reportar] Error enviando email:', err)
+      emailErr = err instanceof Error ? err.message : String(err)
     }
-
-    // Registrar SIEMPRE la notificación (ok o fallido) para diagnóstico
-    await admin.from('notificaciones').insert({
-      cliente_id: user.id,
-      paquete_id: nuevo.id,
-      tipo: 'paquete_reportado',
-      titulo: `Pedido reportado: ${nuevo.tracking_casilla}${emailOk ? ' [EMAIL ✓]' : perfil?.email ? ' [EMAIL ✗]' : ''}`,
-      mensaje: `${textoConfirmacion}\n\n[WhatsApp] ${whatsappEnviado ? 'OK' : 'FALLÓ'}${envioError ? ` - ${envioError}` : ''}\n[Email] ${emailOk ? `OK - ${emailMsgId ?? ''}` : perfil?.email ? `FALLÓ - ${emailErr ?? ''}` : 'sin email'}`,
-      enviada_whatsapp: whatsappEnviado,
-    }).then(() => {/* ok */}, () => {/* swallow */})
   }
+
+  // ── Registrar notificación con auditoría limpia en columnas ──
+  await admin.from('notificaciones').insert({
+    cliente_id: user.id,
+    paquete_id: nuevo.id,
+    tipo: 'paquete_reportado',
+    titulo: `Pedido reportado: ${nuevo.tracking_casilla}`,
+    mensaje: textoConfirmacion + (whatsappError ? `\n\n[WhatsApp ERROR] ${whatsappError}` : ''),
+    enviada_whatsapp: whatsappEnviado,
+    enviada_email: emailOk,
+    email_message_id: emailMsgId ?? null,
+    email_error: emailErr ?? null,
+    email_destino: perfil?.email ?? null,
+  }).then(() => {/* ok */}, (e) => console.error('[reportar] log notificacion:', e))
 
   return NextResponse.json({
     ok: true,

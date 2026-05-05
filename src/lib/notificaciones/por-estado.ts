@@ -4,7 +4,12 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
-import { enviarEmailPorEstado } from '@/lib/email/notificaciones'
+import {
+  enviarEmailPorEstado,
+  enviarEmailCostoCalculado,
+  enviarEmailTrackingActualizado,
+} from '@/lib/email/notificaciones'
+import type { ResultadoEmail } from '@/lib/email/transporter'
 import sharp from 'sharp'
 
 function getSupabase() {
@@ -263,21 +268,22 @@ async function cargarContexto(paqueteId: string, evento: string) {
       .maybeSingle(),
   ])
 
-  if (!plantillaRes.data) {
-    console.warn(`[cargarContexto] plantilla "${evento}" no activa o no existe`)
-    return null
-  }
-
   const perfil = perfilRes.data
   if (!perfil) {
     console.warn(`[cargarContexto] perfil del cliente ${paquete.cliente_id} no encontrado`)
     return null
   }
 
+  // ⚠️  La plantilla y el teléfono SOLO son requeridos para WhatsApp.
+  // El email se envía aunque ambos falten (canal principal independiente).
+  const plantilla = plantillaRes.data?.texto_plantilla ?? null
+  if (!plantilla) {
+    console.warn(`[cargarContexto] plantilla "${evento}" no activa — email seguirá enviándose`)
+  }
+
   const phone = perfil.whatsapp ?? perfil.telefono ?? ''
   if (!phone) {
-    console.warn(`[cargarContexto] cliente ${paquete.cliente_id} sin teléfono ni whatsapp`)
-    return null
+    console.warn(`[cargarContexto] cliente ${paquete.cliente_id} sin teléfono — email seguirá enviándose`)
   }
 
   const nombre = perfil.nombre_completo?.split(' ')[0] ?? 'Cliente'
@@ -296,7 +302,7 @@ async function cargarContexto(paqueteId: string, evento: string) {
     paquete,
     perfil,
     phone,
-    plantilla: plantillaRes.data.texto_plantilla,
+    plantilla,
     vars: {
       nombre,
       descripcion: paquete.descripcion ?? '',
@@ -320,6 +326,10 @@ async function logNotificacion(
     titulo: string
     mensaje: string
     enviada_whatsapp?: boolean
+    enviada_email?: boolean
+    email_message_id?: string | null
+    email_error?: string | null
+    email_destino?: string | null
   },
 ) {
   const { error } = await supabase.from('notificaciones').insert({
@@ -329,6 +339,10 @@ async function logNotificacion(
     titulo: data.titulo,
     mensaje: data.mensaje,
     enviada_whatsapp: data.enviada_whatsapp ?? false,
+    enviada_email: data.enviada_email ?? false,
+    email_message_id: data.email_message_id ?? null,
+    email_error: data.email_error ?? null,
+    email_destino: data.email_destino ?? null,
   })
   if (error) {
     console.error('[logNotificacion] INSERT falló:', error.message, error.code, error.details)
@@ -375,16 +389,18 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
       return
     }
 
-    const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
+    // Mensaje WA: solo si hay plantilla y teléfono
+    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : ''
+    const puedeEnviarWa = !!ctx.plantilla && !!ctx.phone
 
     // ── Solo 'recibido_usa' envía foto del paquete ──────────────────────────
     // Los demás estados (en_consolidacion, en_transito, etc.) van solo texto
     const enviaFotos = estadoNuevo === 'recibido_usa'
     let fotosEnviadas = 0
     let envioOk = false
-    let viaUsada = 'meta'
+    let viaUsada = puedeEnviarWa ? 'meta' : 'sin_whatsapp'
 
-    if (enviaFotos) {
+    if (puedeEnviarWa && enviaFotos) {
       // Buscar fotos asociadas al paquete
       const { data: fotos } = await supabase
         .from('fotos_paquetes')
@@ -421,12 +437,13 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         envioOk = r.enviado
         viaUsada = r.via
       }
-    } else {
+    } else if (puedeEnviarWa) {
       // Otros estados: solo texto
       const r = await enviarConFallback(ctx.phone, mensaje)
       envioOk = r.enviado
       viaUsada = r.via
     }
+    // Si !puedeEnviarWa: envioOk queda false, viaUsada='sin_whatsapp', email igual se envía abajo
 
     console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${viaUsada} enviado=${envioOk} fotos=${fotosEnviadas}`)
 
@@ -440,9 +457,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         : mensaje
 
     // ── Enviar también por EMAIL (canal principal: siempre llega) ──
-    let emailOk = false
-    let emailMessageId: string | undefined
-    let emailError: string | undefined
+    let emailRes: ResultadoEmail = { ok: false }
     if (ctx.perfil.email) {
       // Buscar primera foto si es recibido_usa para incluir en el email
       let fotoUrlContenido: string | null = null
@@ -459,7 +474,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         fotoUrlContenido = fotoContenido?.url ?? null
       }
 
-      const r = await enviarEmailPorEstado(estadoNuevo, {
+      emailRes = await enviarEmailPorEstado(estadoNuevo, {
         emailDestino: ctx.perfil.email,
         nombre: ctx.vars.nombre,
         paqueteId,
@@ -473,23 +488,22 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         tienda: ctx.paquete.tienda,
         fotoUrlContenido,
       })
-      emailOk = r.ok
-      emailMessageId = r.messageId
-      emailError = r.error
-      console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailOk} msg_id=${emailMessageId ?? '?'}`)
+      console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailRes.ok} msg_id=${emailRes.messageId ?? '?'}`)
+    } else {
+      emailRes = { ok: false, error: 'Cliente sin email' }
     }
-
-    // Registrar resultado combinado
-    const tituloFinal = `${tituloEnriquecido}${emailOk ? ' [EMAIL ✓]' : ctx.perfil.email ? ' [EMAIL ✗]' : ''}`
-    const mensajeFinal = `${mensajeEnriquecido}\n\n[EMAIL]\nDestino: ${ctx.perfil.email ?? 'sin email'}\nResultado: ${emailOk ? 'OK' : 'FALLÓ'}${emailMessageId ? `\nmessage_id: ${emailMessageId}` : ''}${emailError ? `\nError: ${emailError}` : ''}`
 
     await logNotificacion(supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
-      titulo: tituloFinal,
-      mensaje: mensajeFinal,
+      titulo: tituloEnriquecido,
+      mensaje: mensajeEnriquecido,
       enviada_whatsapp: envioOk,
+      enviada_email: emailRes.ok,
+      email_message_id: emailRes.messageId ?? null,
+      email_error: emailRes.error ?? null,
+      email_destino: ctx.perfil.email ?? null,
     })
   } catch (err) {
     console.error('[notificarCambioEstado] Error:', err)
@@ -510,16 +524,43 @@ export async function notificarTrackingActualizado(paqueteId: string): Promise<v
     if (!ctx) return
     if (!ctx.vars.tracking_usaco) return // sin valor no notificamos
 
-    const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
-    const r = await enviarConFallback(ctx.phone, mensaje)
+    const puedeWa = !!ctx.plantilla && !!ctx.phone
+    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : `Tracking USACO asignado: ${ctx.vars.tracking_usaco}`
 
-    await ctx.supabase.from('notificaciones').insert({
+    // WhatsApp (solo si hay plantilla y teléfono)
+    const wa = puedeWa
+      ? await enviarConFallback(ctx.phone, mensaje)
+      : { enviado: false, via: 'sin_whatsapp' }
+
+    // Email (canal principal, siempre llega)
+    let emailRes: ResultadoEmail = { ok: false, error: 'Cliente sin email' }
+    if (ctx.perfil.email) {
+      emailRes = await enviarEmailTrackingActualizado({
+        emailDestino: ctx.perfil.email,
+        nombre: ctx.vars.nombre,
+        paqueteId,
+        tracking: ctx.vars.tracking,
+        descripcion: ctx.vars.descripcion,
+        tracking_origen: ctx.paquete.tracking_origen,
+        tracking_usaco: ctx.paquete.tracking_usaco,
+        peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras,
+        bodega_destino: ctx.paquete.bodega_destino,
+        tienda: ctx.paquete.tienda,
+      })
+      console.log(`[notificarTrackingActualizado] EMAIL paquete=${paqueteId} ok=${emailRes.ok}`)
+    }
+
+    await logNotificacion(ctx.supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: 'tracking_actualizado',
       titulo: 'Tracking interno asignado',
       mensaje,
-      enviada_whatsapp: r.enviado,
+      enviada_whatsapp: wa.enviado,
+      enviada_email: emailRes.ok,
+      email_message_id: emailRes.messageId ?? null,
+      email_error: emailRes.error ?? null,
+      email_destino: ctx.perfil.email ?? null,
     })
   } catch (err) {
     console.error('[notificarTrackingActualizado] Error:', err)
@@ -533,16 +574,44 @@ export async function notificarCostoCalculado(paqueteId: string): Promise<void> 
     if (!ctx) return
     if (!ctx.paquete.costo_servicio) return // sin costo no notificamos
 
-    const mensaje = rellenarPlantilla(ctx.plantilla, ctx.vars)
-    const r = await enviarConFallback(ctx.phone, mensaje)
+    const puedeWa = !!ctx.plantilla && !!ctx.phone
+    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : `Costo del servicio calculado: ${ctx.vars.costo}`
 
-    await ctx.supabase.from('notificaciones').insert({
+    // WhatsApp (solo si hay plantilla y teléfono)
+    const wa = puedeWa
+      ? await enviarConFallback(ctx.phone, mensaje)
+      : { enviado: false, via: 'sin_whatsapp' }
+
+    // Email (canal principal)
+    let emailRes: ResultadoEmail = { ok: false, error: 'Cliente sin email' }
+    if (ctx.perfil.email) {
+      emailRes = await enviarEmailCostoCalculado({
+        emailDestino: ctx.perfil.email,
+        nombre: ctx.vars.nombre,
+        paqueteId,
+        tracking: ctx.vars.tracking,
+        descripcion: ctx.vars.descripcion,
+        tracking_origen: ctx.paquete.tracking_origen,
+        tracking_usaco: ctx.paquete.tracking_usaco,
+        peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras,
+        costo_servicio: ctx.paquete.costo_servicio,
+        bodega_destino: ctx.paquete.bodega_destino,
+        tienda: ctx.paquete.tienda,
+      })
+      console.log(`[notificarCostoCalculado] EMAIL paquete=${paqueteId} ok=${emailRes.ok}`)
+    }
+
+    await logNotificacion(ctx.supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: 'costo_calculado',
       titulo: 'Costo del servicio calculado',
       mensaje,
-      enviada_whatsapp: r.enviado,
+      enviada_whatsapp: wa.enviado,
+      enviada_email: emailRes.ok,
+      email_message_id: emailRes.messageId ?? null,
+      email_error: emailRes.error ?? null,
+      email_destino: ctx.perfil.email ?? null,
     })
   } catch (err) {
     console.error('[notificarCostoCalculado] Error:', err)

@@ -10,6 +10,7 @@ import {
   plantillaPaqueteListoRecoger,
   plantillaPaqueteEntregado,
   plantillaCostoCalculado,
+  plantillaTrackingActualizado,
   plantillaEstadoGenerico,
   plantillaPrueba,
 } from './plantillas'
@@ -34,6 +35,13 @@ interface DatosEmail {
   tienda?: string | null
   fotoUrl?: string | null
   fotoUrlContenido?: string | null
+  // Datos extra del pedido (al reportar)
+  categoria?: string | null
+  valor_declarado?: number | string | null
+  fecha_compra?: string | null
+  fecha_estimada_llegada?: string | null
+  notas_cliente?: string | null
+  estadoActual?: string | null
 }
 
 function buildVars(d: DatosEmail) {
@@ -41,6 +49,7 @@ function buildVars(d: DatosEmail) {
   const costo = d.costo_servicio ? `$${d.costo_servicio} USD` : 'Por determinar'
   const bodega = d.bodega_destino ? (BODEGA_LABELS[d.bodega_destino] ?? d.bodega_destino) : undefined
   const link = `https://portal.celadashopper.com/paquetes/${d.paqueteId}`
+  const valor = d.valor_declarado ? `$${d.valor_declarado} USD` : undefined
 
   return {
     nombre: d.nombre,
@@ -55,6 +64,12 @@ function buildVars(d: DatosEmail) {
     link,
     fotoUrl: d.fotoUrl,
     fotoUrlContenido: d.fotoUrlContenido,
+    categoria: d.categoria ?? undefined,
+    valor,
+    fecha_compra: d.fecha_compra ?? undefined,
+    fecha_estimada_llegada: d.fecha_estimada_llegada ?? undefined,
+    notas_cliente: d.notas_cliente ?? undefined,
+    estadoActual: d.estadoActual ?? undefined,
   }
 }
 
@@ -63,7 +78,7 @@ export async function enviarEmailPorEstado(
   estadoNuevo: string,
   d: DatosEmail,
 ): Promise<ResultadoEmail> {
-  const vars = buildVars(d)
+  const vars = buildVars({ ...d, estadoActual: estadoNuevo })
 
   let plantilla: { subject: string; html: string; text: string }
 
@@ -104,6 +119,13 @@ export async function enviarEmailPedidoReportado(d: DatosEmail): Promise<Resulta
 export async function enviarEmailCostoCalculado(d: DatosEmail): Promise<ResultadoEmail> {
   const vars = buildVars(d)
   const p = plantillaCostoCalculado(vars)
+  return enviarEmail({ to: d.emailDestino, subject: p.subject, html: p.html, text: p.text })
+}
+
+// ─── Tracking USACO actualizado ─────────────────────────────────────────────
+export async function enviarEmailTrackingActualizado(d: DatosEmail): Promise<ResultadoEmail> {
+  const vars = buildVars(d)
+  const p = plantillaTrackingActualizado(vars)
   return enviarEmail({ to: d.emailDestino, subject: p.subject, html: p.html, text: p.text })
 }
 

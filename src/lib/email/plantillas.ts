@@ -14,6 +14,12 @@ interface VariablesPlantilla {
   fotoUrl?: string | null
   fotoUrlContenido?: string | null
   tienda?: string
+  categoria?: string
+  valor?: string
+  fecha_compra?: string
+  fecha_estimada_llegada?: string
+  notas_cliente?: string
+  estadoActual?: string
 }
 
 const SITE_URL = 'https://portal.celadashopper.com'
@@ -97,37 +103,156 @@ function bloqueDatos(label: string, valor: string): string {
   `
 }
 
+// ─── Tracker visual de progreso del paquete ─────────────────────────────────
+// Mapea cada estado del paquete a uno de los 5 hitos visibles del tracker.
+// Compatible con Gmail, Outlook, Apple Mail (sin animaciones CSS, solo HTML/inline).
+const HITOS = [
+  { key: 'reportado', icono: '📝', label: 'Reportado' },
+  { key: 'recibido_usa', icono: '🇺🇸', label: 'En Miami' },
+  { key: 'en_transito', icono: '✈️', label: 'En camino' },
+  { key: 'en_bodega_local', icono: '📍', label: 'Listo' },
+  { key: 'entregado', icono: '✅', label: 'Entregado' },
+] as const
+
+// Cuál hito visible corresponde al estado interno
+const ESTADO_A_HITO: Record<string, number> = {
+  reportado: 0,
+  recibido_usa: 1,
+  en_consolidacion: 1,
+  listo_envio: 1,
+  en_transito: 2,
+  en_colombia: 2,
+  en_bodega_local: 3,
+  en_camino_cliente: 3,
+  entregado: 4,
+  retenido: 1, // mostrar como "en USA" pero con badge de retenido
+  devuelto: 4, // mostrar como entregado (devuelto al remitente)
+}
+
+function trackerProgreso(estadoActual?: string): string {
+  if (!estadoActual) return ''
+  const hitoActivo = ESTADO_A_HITO[estadoActual] ?? 0
+
+  // Cada celda del tracker
+  const celdas = HITOS.map((h, i) => {
+    const completado = i < hitoActivo
+    const actual = i === hitoActivo
+    const bg = actual ? COLOR_NARANJA : completado ? '#fb923c' : '#e7e5e4'
+    const colorTexto = actual || completado ? '#ffffff' : '#a8a29e'
+    const labelColor = actual ? COLOR_NARANJA : completado ? '#9a3412' : '#a8a29e'
+    const peso = actual ? 'bold' : 'normal'
+    const ring = actual
+      ? `box-shadow:0 0 0 4px #fed7aa;`
+      : ''
+
+    return `
+      <td align="center" style="vertical-align:top;padding:0 2px;width:20%;">
+        <div style="background:${bg};color:${colorTexto};width:44px;height:44px;border-radius:50%;line-height:44px;font-size:20px;margin:0 auto;${ring}">
+          ${h.icono}
+        </div>
+        <p style="margin:8px 0 0 0;font-size:11px;font-weight:${peso};color:${labelColor};font-family:Arial,sans-serif;">
+          ${h.label}
+        </p>
+      </td>
+    `
+  }).join('')
+
+  // Línea de progreso entre los hitos
+  const porcentaje = Math.round((hitoActivo / (HITOS.length - 1)) * 100)
+
+  return `
+    <div style="margin:24px 0 28px 0;padding:20px 12px 16px 12px;background:#ffffff;border:1px solid #fed7aa;border-radius:10px;">
+      <p style="margin:0 0 14px 0;text-align:center;font-size:12px;color:#78716c;font-family:Arial,sans-serif;letter-spacing:0.5px;text-transform:uppercase;">
+        Estado del envío
+      </p>
+      <!-- Barra de fondo y progreso -->
+      <div style="position:relative;height:4px;background:#e7e5e4;border-radius:2px;margin:0 22px 12px 22px;">
+        <div style="height:4px;background:${COLOR_NARANJA};border-radius:2px;width:${porcentaje}%;"></div>
+      </div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>${celdas}</tr>
+      </table>
+    </div>
+  `
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // PLANTILLAS POR TIPO DE EVENTO
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Mapa de categorías a labels legibles
+const CATEGORIA_LABELS_EMAIL: Record<string, string> = {
+  celular: 'Celular',
+  computador: 'Computador',
+  ipad_tablet: 'iPad / Tablet',
+  ropa_accesorios: 'Ropa y accesorios',
+  electrodomestico: 'Electrodoméstico',
+  juguetes: 'Juguetes',
+  cosmeticos: 'Cosméticos',
+  suplementos: 'Suplementos',
+  libros: 'Libros',
+  otro: 'Otro',
+}
+
+function formatearFecha(fechaIso?: string): string | undefined {
+  if (!fechaIso) return undefined
+  try {
+    const d = new Date(fechaIso)
+    if (isNaN(d.getTime())) return undefined
+    return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch {
+    return undefined
+  }
+}
+
 export function plantillaPaqueteReportado(vars: VariablesPlantilla): { subject: string; html: string; text: string } {
   const subject = `📦 Pedido reportado: ${vars.descripcion}`
+  const categoriaLabel = vars.categoria ? (CATEGORIA_LABELS_EMAIL[vars.categoria] ?? vars.categoria) : undefined
+  const fechaCompra = formatearFecha(vars.fecha_compra)
+  const fechaLlegada = formatearFecha(vars.fecha_estimada_llegada)
+
   const contenido = `
     <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">¡Hola ${vars.nombre}! 👋</h2>
-    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
-      Recibimos tu pedido en <strong>CeladaShopper</strong>. Te confirmaremos por correo cada paso.
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 8px 0;">
+      Recibimos tu pedido en <strong>CeladaShopper</strong>. Te confirmaremos cada paso por correo.
     </p>
-    <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
+
+    ${trackerProgreso('reportado')}
+
+    <h3 style="color:#1c1917;font-size:16px;margin:24px 0 12px 0;">Detalles de tu pedido</h3>
+    <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:0 0 16px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
+        ${categoriaLabel ? bloqueDatos('🏷️ Categoría', categoriaLabel) : ''}
         ${vars.tienda ? bloqueDatos('🏬 Tienda', vars.tienda) : ''}
+        ${vars.valor ? bloqueDatos('💵 Valor declarado', vars.valor) : ''}
+        ${fechaCompra ? bloqueDatos('🛒 Fecha de compra', fechaCompra) : ''}
+        ${fechaLlegada ? bloqueDatos('📅 Llegada estimada a Miami', fechaLlegada) : ''}
         ${vars.tracking_origen ? bloqueDatos('🚚 Tracking del courier', vars.tracking_origen) : ''}
+        ${vars.bodega ? bloqueDatos('📍 Ciudad destino', vars.bodega) : ''}
         ${bloqueDatos('🔖 Tu número CeladaShopper', vars.tracking)}
       </table>
     </div>
+
+    ${vars.notas_cliente ? `
+      <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:4px;padding:12px 16px;margin:0 0 20px 0;">
+        <p style="color:#78716c;font-size:11px;margin:0 0 4px 0;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">Tus notas</p>
+        <p style="color:#44403c;font-size:14px;margin:0;line-height:1.5;">${vars.notas_cliente}</p>
+      </div>
+    ` : ''}
+
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 8px 0;">Te avisaremos cuando:</p>
     <ul style="color:#44403c;font-size:14px;line-height:1.8;margin:0 0 24px 24px;padding:0;">
-      <li>Llegue a nuestra bodega de Miami 📍</li>
+      <li>Llegue a nuestra bodega de Miami 🇺🇸</li>
       <li>Esté en camino a Colombia ✈️</li>
-      <li>Esté listo para recoger 🎉</li>
+      <li>Esté listo para recoger en ${vars.bodega ?? 'tu ciudad'} 🎉</li>
     </ul>
     ${botonVerSeguimiento(vars.link)}
   `
   return {
     subject,
     html: layout(subject, contenido, vars),
-    text: `Hola ${vars.nombre}, recibimos tu pedido "${vars.descripcion}". Tu número CeladaShopper: ${vars.tracking}. Sigue tu paquete en ${vars.link}`,
+    text: `Hola ${vars.nombre}, recibimos tu pedido "${vars.descripcion}" de ${vars.tienda ?? 'tu tienda'}. Tu número CeladaShopper: ${vars.tracking}. Sigue tu paquete en ${vars.link}`,
   }
 }
 
@@ -135,9 +260,10 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
   const subject = `📍 Tu paquete llegó a Miami: ${vars.descripcion}`
   const contenido = `
     <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">¡Tu paquete llegó! 🎉</h2>
-    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 8px 0;">
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya está en nuestra bodega de Miami.
     </p>
+    ${trackerProgreso('recibido_usa')}
     ${vars.fotoUrlContenido ? `
       <div style="margin:20px 0;text-align:center;">
         <img src="${vars.fotoUrlContenido}" alt="Foto del paquete" style="max-width:100%;border-radius:8px;border:1px solid #fed7aa;" />
@@ -167,9 +293,10 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
   const subject = `✈️ Tu paquete está en camino a Colombia`
   const contenido = `
     <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">¡En camino a Colombia! ✈️</h2>
-    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 8px 0;">
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya salió de Miami rumbo a Colombia.
     </p>
+    ${trackerProgreso('en_transito')}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
@@ -194,9 +321,10 @@ export function plantillaPaqueteListoRecoger(vars: VariablesPlantilla): { subjec
   const subject = `🎉 Tu paquete está listo en bodega ${vars.bodega ?? ''}`
   const contenido = `
     <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">¡Listo para recoger! 🎉</h2>
-    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 8px 0;">
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya llegó a nuestra bodega ${vars.bodega ? `en ${vars.bodega}` : 'local'}.
     </p>
+    ${trackerProgreso('en_bodega_local')}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
@@ -222,9 +350,10 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
   const subject = `✅ Paquete entregado: ${vars.descripcion}`
   const contenido = `
     <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">¡Entregado! ✅</h2>
-    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 8px 0;">
       ¡Hola ${vars.nombre}! Confirmamos que tu paquete <strong>${vars.descripcion}</strong> fue entregado.
     </p>
+    ${trackerProgreso('entregado')}
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
       Gracias por confiar en CeladaShopper 🙏. Si tienes algún comentario o problema, contáctanos.
     </p>
@@ -261,14 +390,31 @@ export function plantillaCostoCalculado(vars: VariablesPlantilla): { subject: st
   }
 }
 
+// Mapa de estados internos a etiquetas legibles en español.
+const ESTADO_LABELS_EMAIL: Record<string, string> = {
+  reportado: 'Pedido reportado',
+  recibido_usa: 'Recibido en bodega Miami',
+  en_consolidacion: 'En consolidación',
+  listo_envio: 'Listo para envío',
+  en_transito: 'En tránsito a Colombia',
+  en_colombia: 'Llegó a Colombia',
+  en_bodega_local: 'Listo para recoger',
+  en_camino_cliente: 'En camino al cliente',
+  entregado: 'Entregado',
+  retenido: 'Retenido en aduana',
+  devuelto: 'Devuelto',
+}
+
 // Plantilla genérica para estados no específicos
 export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla): { subject: string; html: string; text: string } {
-  const subject = `📦 Actualización de tu paquete: ${vars.descripcion}`
+  const label = ESTADO_LABELS_EMAIL[estado] ?? estado
+  const subject = `📦 ${label}: ${vars.descripcion}`
   const contenido = `
-    <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">Actualización</h2>
-    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
-      ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> tiene una actualización: <strong>${estado}</strong>.
+    <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">${label}</h2>
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 8px 0;">
+      ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> tiene una nueva actualización: <strong>${label}</strong>.
     </p>
+    ${trackerProgreso(estado)}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
@@ -282,6 +428,32 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
     subject,
     html: layout(subject, contenido, vars),
     text: `Hola ${vars.nombre}, tu paquete "${vars.descripcion}" tiene actualización: ${estado}. Detalle en ${vars.link}`,
+  }
+}
+
+export function plantillaTrackingActualizado(vars: VariablesPlantilla): { subject: string; html: string; text: string } {
+  const subject = `🔖 Tracking asignado para tu paquete: ${vars.descripcion}`
+  const contenido = `
+    <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">Tracking asignado</h2>
+    <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
+      ¡Hola ${vars.nombre}! Asignamos un número de tracking interno para tu paquete <strong>${vars.descripcion}</strong>.
+    </p>
+    <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        ${bloqueDatos('📦 Producto', vars.descripcion)}
+        ${vars.tracking_usaco ? bloqueDatos('🚚 Tracking USACO', vars.tracking_usaco) : ''}
+        ${bloqueDatos('🔖 Tracking CeladaShopper', vars.tracking)}
+      </table>
+    </div>
+    <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
+      Puedes consultar el estado completo de tu paquete en cualquier momento desde el portal.
+    </p>
+    ${botonVerSeguimiento(vars.link)}
+  `
+  return {
+    subject,
+    html: layout(subject, contenido, vars),
+    text: `Hola ${vars.nombre}, asignamos tracking a tu paquete "${vars.descripcion}". Tracking USACO: ${vars.tracking_usaco ?? '—'}. Detalle en ${vars.link}`,
   }
 }
 
