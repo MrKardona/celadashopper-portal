@@ -459,19 +459,31 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
     // ── Enviar también por EMAIL (canal principal: siempre llega) ──
     let emailRes: ResultadoEmail = { ok: false }
     if (ctx.perfil.email) {
-      // Buscar primera foto si es recibido_usa para incluir en el email
+      // Foto a incluir en el email según el estado:
+      // - recibido_usa → foto del contenido del paquete
+      // - entregado    → foto de la entrega al cliente
       let fotoUrlContenido: string | null = null
-      if (estadoNuevo === 'recibido_usa') {
+      if (estadoNuevo === 'recibido_usa' || estadoNuevo === 'entregado') {
         const { data: fotos } = await supabase
           .from('fotos_paquetes')
-          .select('url, descripcion')
+          .select('url, descripcion, created_at')
           .eq('paquete_id', paqueteId)
-          .order('created_at', { ascending: true })
-          .limit(5)
-        const fotoContenido = fotos?.find(f =>
-          (f.descripcion ?? '').toLowerCase().includes('contenido')
-        ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
-        fotoUrlContenido = fotoContenido?.url ?? null
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (estadoNuevo === 'entregado') {
+          // Para entregado: priorizar la foto de entrega más reciente
+          const fotoEntrega = fotos?.find(f =>
+            (f.descripcion ?? '').toLowerCase().includes('entrega')
+          )
+          fotoUrlContenido = fotoEntrega?.url ?? null
+        } else {
+          // recibido_usa: foto del contenido
+          const fotoContenido = fotos?.find(f =>
+            (f.descripcion ?? '').toLowerCase().includes('contenido')
+          ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
+          fotoUrlContenido = fotoContenido?.url ?? null
+        }
       }
 
       emailRes = await enviarEmailPorEstado(estadoNuevo, {

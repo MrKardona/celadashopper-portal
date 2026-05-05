@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, Package, Users, DollarSign,
-  LogOut, ShieldCheck, Menu, X, ScanBarcode, MapPin, Box
+  LogOut, ShieldCheck, Menu, X, ScanBarcode, MapPin, Box, CheckCircle2,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/admin/recibir', label: 'Recibir USA', icon: ScanBarcode, exact: false },
   { href: '/admin/cajas', label: 'Cajas USA', icon: Box, exact: false },
   { href: '/admin/recibir-colombia', label: 'Recibir Colombia', icon: MapPin, exact: false },
+  { href: '/admin/listos-entrega', label: 'Listos para entrega', icon: CheckCircle2, exact: false },
   { href: '/admin/paquetes', label: 'Paquetes', icon: Package, exact: false },
   { href: '/admin/clientes', label: 'Clientes', icon: Users, exact: false },
   { href: '/admin/tarifas', label: 'Tarifas', icon: DollarSign, exact: false },

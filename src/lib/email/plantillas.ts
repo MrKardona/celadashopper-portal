@@ -354,6 +354,19 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
       ¡Hola ${vars.nombre}! Confirmamos que tu paquete <strong>${vars.descripcion}</strong> fue entregado.
     </p>
     ${trackerProgreso('entregado')}
+    ${vars.fotoUrlContenido ? `
+      <div style="margin:20px 0;text-align:center;">
+        <p style="color:#78716c;font-size:11px;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;">Foto de la entrega</p>
+        <img src="${vars.fotoUrlContenido}" alt="Comprobante de entrega" style="max-width:100%;border-radius:8px;border:1px solid #fed7aa;" />
+      </div>
+    ` : ''}
+    <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        ${bloqueDatos('📦 Producto', vars.descripcion)}
+        ${vars.bodega ? bloqueDatos('📍 Bodega', vars.bodega) : ''}
+        ${bloqueDatos('🔖 Tracking', vars.tracking)}
+      </table>
+    </div>
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
       Gracias por confiar en CeladaShopper 🙏. Si tienes algún comentario o problema, contáctanos.
     </p>
