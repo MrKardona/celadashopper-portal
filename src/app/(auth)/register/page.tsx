@@ -58,7 +58,19 @@ function RegisterForm() {
       email: form.email.trim(),
       password: form.password,
       options: {
-        data: { nombre_completo: form.nombre_completo },
+        // Pasamos TODOS los datos en metadata para que el trigger
+        // handle_new_user los persista en perfiles. No podemos hacer
+        // UPDATE después del signUp porque cuando email confirmation
+        // está activo no hay sesión inmediata y RLS bloquea la escritura.
+        data: {
+          nombre_completo: form.nombre_completo,
+          telefono: form.telefono.trim(),
+          whatsapp: (form.whatsapp || form.telefono).trim(),
+          ciudad: form.ciudad.trim(),
+          direccion: form.direccion.trim(),
+          barrio: form.barrio.trim(),
+          referencia: form.referencia.trim(),
+        },
         emailRedirectTo: `${window.location.origin}/api/auth/callback`,
       },
     })
@@ -83,20 +95,10 @@ function RegisterForm() {
       return
     }
 
-    // Actualizar datos adicionales del perfil
-    // Usamos data.user del signUp (disponible de inmediato) y también getUser() como respaldo
-    const userId = data?.user?.id
-    if (userId) {
-      await supabase.from('perfiles').update({
-        nombre_completo: form.nombre_completo,
-        telefono: form.telefono,
-        whatsapp: form.whatsapp || form.telefono,
-        ciudad: form.ciudad,
-        direccion: form.direccion.trim() || null,
-        barrio: form.barrio.trim() || null,
-        referencia: form.referencia.trim() || null,
-      }).eq('id', userId)
-    }
+    // El trigger handle_new_user ya guardó todos los datos del perfil al
+    // leer raw_user_meta_data. No necesitamos UPDATE adicional aquí.
+    // (Antes intentábamos un UPDATE pero fallaba silenciosamente por RLS
+    // cuando email confirmation está activo y no hay sesión inmediata.)
 
     // Cerrar la sesión que creó el signUp (Supabase auto-loguea, pero queremos
     // que el usuario verifique su email antes de entrar al portal).
