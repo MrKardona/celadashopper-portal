@@ -95,7 +95,7 @@ export default async function AdminClientesPage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="Buscar nombre, email, casilla..."
+            placeholder="Buscar nombre, email, casillero..."
             className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-72"
           />
         </div>

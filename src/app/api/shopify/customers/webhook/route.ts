@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
 
   // Send WhatsApp welcome message via Kommo
   if (phone) {
-    const mensaje = `¡Hola ${firstName || 'cliente'}! 👋 Tu casilla en CeladaShopper es *${casilla}*. Accede a tu portal en: https://portal.celadashopper.com`
+    const mensaje = `¡Hola ${firstName || 'cliente'}! 👋 Tu casillero en CeladaShopper es *${casilla}*. Accede a tu portal en: https://portal.celadashopper.com`
 
     try {
       const result = await sendProactiveWhatsApp(phone, mensaje)

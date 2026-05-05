@@ -329,16 +329,16 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     return
   }
 
-  // ── 3. Casilla por keywords (rápido) ───────────────────────
+  // ── 3. Casillero por keywords (rápido) ───────────────────────
   if (contieneKeyword(texto, BOT_CONFIG.casillaSiDice)) {
     if (!cliente) {
       const respuesta = await generarRespuesta(texto, null,
-        'El cliente pide su casilla pero no está registrado. Pídele su correo o teléfono para buscarlo.')
+        'El cliente pide su casillero pero no está registrado. Pídele su correo o teléfono para buscarlo.')
       await enviar(respuesta)
       return
     }
     const respuesta = await generarRespuesta(texto, nombreCliente,
-      `DATOS CASILLA: Número de casilla del cliente: ${cliente.numero_casilla}. Dirección completa: 8164 NW 108TH PL, Doral, FL 33178, Suite ${cliente.numero_casilla}. Explícale cómo usarla.`)
+      `DATOS CASILLERO: Número de casillero del cliente: ${cliente.numero_casilla}. Dirección completa: 8164 NW 108TH PL, Doral, FL 33178, Suite ${cliente.numero_casilla}. Explícale cómo usarla.`)
     await enviar(respuesta)
     return
   }

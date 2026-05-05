@@ -159,7 +159,7 @@ export default function AgentePanel({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 className="pl-9 bg-gray-700 border-gray-600 text-white placeholder:text-gray-400"
-                placeholder="Escanea o busca: casilla, tracking, nombre..."
+                placeholder="Escanea o busca: casillero, tracking, nombre..."
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 autoFocus

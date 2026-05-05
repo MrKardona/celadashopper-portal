@@ -176,7 +176,7 @@ function ModalAsignar({
                 setQuery(e.target.value)
                 if (seleccionado) setSeleccionado(null)
               }}
-              placeholder="Buscar cliente por nombre, email, casilla o teléfono..."
+              placeholder="Buscar cliente por nombre, email, casillero o teléfono..."
               className="w-full pl-9 pr-9 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             {seleccionado && (

@@ -24,7 +24,7 @@ export default async function PerfilPage() {
         </p>
       </div>
 
-      {/* Casilla USA */}
+      {/* Casillero USA */}
       {perfil?.numero_casilla && (
         <Card className="bg-orange-50 border-orange-200">
           <CardContent className="pt-4">
@@ -33,7 +33,7 @@ export default async function PerfilPage() {
                 <Package className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-xs text-orange-600 font-medium">Tu número de casilla</p>
+                <p className="text-xs text-orange-600 font-medium">Tu número de casillero</p>
                 <p className="font-mono font-bold text-orange-800 text-lg">{perfil.numero_casilla}</p>
               </div>
             </div>

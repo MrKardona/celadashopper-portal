@@ -392,9 +392,9 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
               />
             </div>
 
-            {/* Casilla */}
+            {/* Casillero */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">Número de casilla *</label>
+              <label className="text-xs font-medium text-gray-700 block mb-1">Número de casillero *</label>
               <input
                 type="text"
                 name="numero_casilla"
@@ -404,7 +404,7 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
                 className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Cambiar la casilla puede afectar paquetes ya asignados a este cliente
+                Cambiar el casillero puede afectar paquetes ya asignados a este cliente
               </p>
             </div>
 

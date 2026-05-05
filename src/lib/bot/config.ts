@@ -29,10 +29,11 @@ export const BOT_CONFIG = {
     'mis compras', 'lo mio', 'lo mío',
   ],
 
-  // ── PALABRAS QUE PIDEN LA CASILLA (evita llamar Claude) ──
+  // ── PALABRAS QUE PIDEN EL CASILLERO (evita llamar Claude) ──
   casillaSiDice: [
     'casilla', 'casillero', 'mi casilla', 'mi casillero',
-    'mi numero', 'mi número', 'numero de casilla', 'número de casilla',
+    'mi numero', 'mi número', 'numero de casillero', 'número de casillero',
+    'numero de casilla', 'número de casilla',
     'mi direccion', 'mi dirección', 'direccion bodega',
     'address', 'donde envio', 'dónde envío', 'donde mando',
   ],
@@ -61,7 +62,7 @@ Retorna ÚNICAMENTE este JSON sin texto adicional:
 REGLAS:
 - tracking: mensaje contiene número de guía (UPS 1Z..., FedEx, USPS 94..., Amazon TBA..., etc.)
 - ver_paquetes: pregunta por estado de sus pedidos/paquetes/envíos
-- casilla: pregunta por su dirección o número de casilla en Miami
+- casilla: pregunta por su dirección o número de casillero en Miami
 - escalar: queja, problema, reclamo, pide hablar con persona
 - confirmacion: responde sí/no/si/ok/dale/nop a algo previo
 - saludo: hola, buenos días, info, qué tal, buenas, hi, buen día

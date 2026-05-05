@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 Actualizado: ${ahora} (hora Colombia)
 
 ## QUÉ ES CELADASHOPPER
-Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU., el paquete llega a nuestra bodega en Miami, y nosotros lo enviamos a Colombia. Cada cliente tiene un número de casilla único (ej: CS-1234).
+Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU., el paquete llega a nuestra bodega en Miami, y nosotros lo enviamos a Colombia. Cada cliente tiene un número de casillero único (ej: CS-1234).
 
 ## TARIFAS POR LIBRA
 `
@@ -96,7 +96,7 @@ Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU.,
     clientesConPaquetes++
 
     const tel = perfil.whatsapp || perfil.telefono || 'Sin teléfono'
-    doc += `\n### ${perfil.nombre_completo} | Casilla: ${perfil.numero_casilla} | Tel: ${tel} | Ciudad: ${perfil.ciudad}\n`
+    doc += `\n### ${perfil.nombre_completo} | Casillero: ${perfil.numero_casilla} | Tel: ${tel} | Ciudad: ${perfil.ciudad}\n`
 
     paquetesActivos.forEach((p: {
       tracking_casilla: string
@@ -134,7 +134,7 @@ Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU.,
   doc += `\n## INSTRUCCIONES PARA EL AGENTE
 Cuando un cliente pregunte por su paquete:
 1. Identifica al cliente por su nombre o número de teléfono
-2. Busca su casilla en esta lista
+2. Busca su casillero en esta lista
 3. Informa el estado de cada paquete activo
 4. Si el pago está pendiente, mencionarlo
 5. Si el paquete está en "Listo para entregar" o "En tránsito", dar esa buena noticia
