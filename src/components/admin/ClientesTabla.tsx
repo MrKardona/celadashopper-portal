@@ -310,6 +310,7 @@ function EliminarClienteModal({
 function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose: () => void }) {
   const [form, setForm] = useState({
     nombre_completo: cliente.nombre_completo,
+    email: cliente.email,
     telefono: cliente.telefono ?? '',
     whatsapp: cliente.whatsapp ?? '',
     ciudad: cliente.ciudad ?? '',
@@ -512,15 +513,20 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
               </label>
             </div>
 
-            {/* Email (read-only) */}
+            {/* Email (editable, sincroniza auth.users) */}
             <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Correo electrónico (no editable)</label>
+              <label className="text-xs font-medium text-gray-700 block mb-1">Correo electrónico</label>
               <input
                 type="email"
-                value={cliente.email}
-                disabled
-                className="w-full px-3 py-2 text-sm bg-gray-50 text-gray-500 border border-gray-200 rounded-lg"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
+              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+                ⚠️ Cambiar el correo afecta el inicio de sesión del cliente. El nuevo correo quedará confirmado automáticamente.
+              </p>
             </div>
 
             {mensaje && (

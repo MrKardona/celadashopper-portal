@@ -51,6 +51,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   const body = await req.json() as {
     nombre_completo?: string
+    email?: string
     telefono?: string | null
     whatsapp?: string | null
     ciudad?: string | null
@@ -65,6 +66,29 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   if (typeof body.nombre_completo === 'string' && body.nombre_completo.trim()) {
     updates.nombre_completo = body.nombre_completo.trim()
+  }
+
+  // Email: si viene en el body, validar y actualizar tanto auth.users como perfiles
+  let nuevoEmail: string | null = null
+  if (typeof body.email === 'string') {
+    const emailLimpio = body.email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpio)) {
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 })
+    }
+    // Buscar duplicados (otro perfil con ese email)
+    const { data: dup } = await admin
+      .from('perfiles')
+      .select('id')
+      .eq('email', emailLimpio)
+      .neq('id', id)
+      .maybeSingle()
+    if (dup) {
+      return NextResponse.json({
+        error: 'Ese correo ya está siendo usado por otro cliente',
+      }, { status: 409 })
+    }
+    nuevoEmail = emailLimpio
+    updates.email = emailLimpio
   }
   if (body.telefono !== undefined) {
     updates.telefono = normalizarTelefono(body.telefono)
@@ -119,6 +143,23 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (error) {
     console.error('[admin/clientes PATCH]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Si se cambió el email, propagar también a auth.users.
+  // email_confirm:true marca el nuevo email como confirmado sin pedir verificación.
+  if (nuevoEmail) {
+    const { error: errAuth } = await admin.auth.admin.updateUserById(id, {
+      email: nuevoEmail,
+      email_confirm: true,
+    })
+    if (errAuth) {
+      console.error('[admin/clientes PATCH] auth.users:', errAuth.message)
+      // El perfil ya cambió. Avisamos al admin que auth no se sincronizó.
+      return NextResponse.json({
+        ok: true,
+        warning: `El email del perfil se actualizó pero falló la sincronización con la cuenta de auth: ${errAuth.message}`,
+      })
+    }
   }
 
   return NextResponse.json({ ok: true })
