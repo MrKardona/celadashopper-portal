@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
+import { enviarEmailPedidoReportado } from '@/lib/email/notificaciones'
 
 function getSupabaseAdmin() {
   return createAdmin(
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
   // ── Obtener perfil del cliente (nombre + whatsapp) ────────────────────────
   const { data: perfil } = await admin
     .from('perfiles')
-    .select('nombre_completo, whatsapp, telefono')
+    .select('nombre_completo, whatsapp, telefono, email')
     .eq('id', user.id)
     .single()
 
@@ -273,7 +274,7 @@ export async function POST(req: NextRequest) {
       bodega_destino: body.bodega_destino,
       notas_cliente: body.notas_cliente ?? null,
     })
-    .select('tracking_casilla')
+    .select('id, tracking_casilla')
     .single()
 
   if (insertErr) {
@@ -308,14 +309,33 @@ export async function POST(req: NextRequest) {
       envioError = err instanceof Error ? err.message : String(err)
     }
 
+    // ── Enviar también por EMAIL (canal principal) ──
+    let emailOk = false
+    let emailMsgId: string | undefined
+    let emailErr: string | undefined
+    if (perfil?.email) {
+      const r = await enviarEmailPedidoReportado({
+        emailDestino: perfil.email,
+        nombre: nombreCorto,
+        paqueteId: nuevo.id ?? '',
+        tracking: nuevo.tracking_casilla ?? '',
+        descripcion: body.descripcion,
+        tracking_origen: trackingOrigen,
+        bodega_destino: body.bodega_destino,
+        tienda: body.tienda,
+      })
+      emailOk = r.ok
+      emailMsgId = r.messageId
+      emailErr = r.error
+    }
+
     // Registrar SIEMPRE la notificación (ok o fallido) para diagnóstico
     await admin.from('notificaciones').insert({
       cliente_id: user.id,
+      paquete_id: nuevo.id,
       tipo: 'paquete_reportado',
-      titulo: `Pedido reportado: ${nuevo.tracking_casilla}`,
-      mensaje: whatsappEnviado
-        ? textoConfirmacion
-        : `${textoConfirmacion}\n\n[ERROR DE ENVÍO]: ${envioError ?? 'desconocido'}`,
+      titulo: `Pedido reportado: ${nuevo.tracking_casilla}${emailOk ? ' [EMAIL ✓]' : perfil?.email ? ' [EMAIL ✗]' : ''}`,
+      mensaje: `${textoConfirmacion}\n\n[WhatsApp] ${whatsappEnviado ? 'OK' : 'FALLÓ'}${envioError ? ` - ${envioError}` : ''}\n[Email] ${emailOk ? `OK - ${emailMsgId ?? ''}` : perfil?.email ? `FALLÓ - ${emailErr ?? ''}` : 'sin email'}`,
       enviada_whatsapp: whatsappEnviado,
     }).then(() => {/* ok */}, () => {/* swallow */})
   }

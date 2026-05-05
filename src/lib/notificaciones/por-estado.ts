@@ -4,6 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
+import { enviarEmailPorEstado } from '@/lib/email/notificaciones'
 import sharp from 'sharp'
 
 function getSupabase() {
@@ -438,12 +439,56 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         ? `${mensaje}\n\n[META OK] msg_id=${metaInfo.messageId} destino=${metaInfo.destino ?? '?'}`
         : mensaje
 
+    // ── Enviar también por EMAIL (canal principal: siempre llega) ──
+    let emailOk = false
+    let emailMessageId: string | undefined
+    let emailError: string | undefined
+    if (ctx.perfil.email) {
+      // Buscar primera foto si es recibido_usa para incluir en el email
+      let fotoUrlContenido: string | null = null
+      if (estadoNuevo === 'recibido_usa') {
+        const { data: fotos } = await supabase
+          .from('fotos_paquetes')
+          .select('url, descripcion')
+          .eq('paquete_id', paqueteId)
+          .order('created_at', { ascending: true })
+          .limit(5)
+        const fotoContenido = fotos?.find(f =>
+          (f.descripcion ?? '').toLowerCase().includes('contenido')
+        ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
+        fotoUrlContenido = fotoContenido?.url ?? null
+      }
+
+      const r = await enviarEmailPorEstado(estadoNuevo, {
+        emailDestino: ctx.perfil.email,
+        nombre: ctx.vars.nombre,
+        paqueteId,
+        tracking: ctx.vars.tracking,
+        descripcion: ctx.vars.descripcion,
+        tracking_origen: ctx.paquete.tracking_origen,
+        tracking_usaco: ctx.paquete.tracking_usaco,
+        peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras,
+        costo_servicio: ctx.paquete.costo_servicio,
+        bodega_destino: ctx.paquete.bodega_destino,
+        tienda: ctx.paquete.tienda,
+        fotoUrlContenido,
+      })
+      emailOk = r.ok
+      emailMessageId = r.messageId
+      emailError = r.error
+      console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailOk} msg_id=${emailMessageId ?? '?'}`)
+    }
+
+    // Registrar resultado combinado
+    const tituloFinal = `${tituloEnriquecido}${emailOk ? ' [EMAIL ✓]' : ctx.perfil.email ? ' [EMAIL ✗]' : ''}`
+    const mensajeFinal = `${mensajeEnriquecido}\n\n[EMAIL]\nDestino: ${ctx.perfil.email ?? 'sin email'}\nResultado: ${emailOk ? 'OK' : 'FALLÓ'}${emailMessageId ? `\nmessage_id: ${emailMessageId}` : ''}${emailError ? `\nError: ${emailError}` : ''}`
+
     await logNotificacion(supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: evento,
-      titulo: tituloEnriquecido,
-      mensaje: mensajeEnriquecido,
+      titulo: tituloFinal,
+      mensaje: mensajeFinal,
       enviada_whatsapp: envioOk,
     })
   } catch (err) {

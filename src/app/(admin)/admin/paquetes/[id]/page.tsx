@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
+import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
 import { format } from 'date-fns'
@@ -315,6 +316,8 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                   </Link>
 
                   <div className="pt-3 border-t border-gray-100 space-y-2">
+                    {/* Prueba de Email al cliente */}
+                    <PruebaEmailButton emailSugerido={perfil.email} nombreSugerido={perfil.nombre_completo} />
                     {/* Prueba de WhatsApp al cliente */}
                     <PruebaWhatsappButton telefonoSugerido={perfil.whatsapp ?? perfil.telefono ?? null} />
                     {/* Reasignar a otro cliente */}
