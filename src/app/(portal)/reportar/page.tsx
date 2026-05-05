@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Package, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react'
+import { Package, CheckCircle, AlertCircle, AlertTriangle, MapPin } from 'lucide-react'
+import Link from 'next/link'
 import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type BodegaDestino, type EstadoPaquete } from '@/types'
 
 const BODEGAS: { value: BodegaDestino; label: string }[] = [
@@ -45,6 +46,37 @@ export default function ReportarPage() {
   const [duplicado, setDuplicado] = useState<Duplicado>(null)
   const [exito, setExito] = useState<{ tracking: string; match?: boolean } | null>(null)
 
+  // Dirección de entrega: cliente puede usar la guardada en su perfil u otra puntual.
+  const [direccionPerfil, setDireccionPerfil] = useState<{
+    direccion: string | null
+    barrio: string | null
+    referencia: string | null
+  } | null>(null)
+  const [direccionOpcion, setDireccionOpcion] = useState<'guardada' | 'otra'>('guardada')
+  const [direccionOtra, setDireccionOtra] = useState({ direccion: '', barrio: '', referencia: '' })
+
+  useEffect(() => {
+    let cancelado = false
+    async function cargarPerfil() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('perfiles')
+        .select('direccion, barrio, referencia')
+        .eq('id', user.id)
+        .single()
+      if (cancelado) return
+      if (data) {
+        setDireccionPerfil(data)
+        // Si el cliente no tiene dirección guardada, ofrecer "otra" por defecto
+        if (!data.direccion) setDireccionOpcion('otra')
+      }
+    }
+    cargarPerfil()
+    return () => { cancelado = true }
+  }, [])
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
     // Limpiar alertas de duplicado si cambia el tracking
@@ -70,6 +102,24 @@ export default function ReportarPage() {
       return
     }
 
+    // Determinar la dirección que se enviará con el paquete.
+    // - Si elige "guardada" y el perfil tiene dirección, copiamos esos campos.
+    // - Si elige "otra", usamos lo que escribió.
+    // Snapshotear la dirección al paquete asegura que cambios futuros del perfil
+    // no afecten paquetes ya reportados.
+    const direccionPayload =
+      direccionOpcion === 'otra'
+        ? {
+            direccion_entrega: direccionOtra.direccion.trim() || null,
+            barrio_entrega: direccionOtra.barrio.trim() || null,
+            referencia_entrega: direccionOtra.referencia.trim() || null,
+          }
+        : {
+            direccion_entrega: direccionPerfil?.direccion ?? null,
+            barrio_entrega: direccionPerfil?.barrio ?? null,
+            referencia_entrega: direccionPerfil?.referencia ?? null,
+          }
+
     const res = await fetch('/api/portal/reportar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -83,6 +133,7 @@ export default function ReportarPage() {
         fecha_estimada_llegada: form.fecha_estimada_llegada || null,
         bodega_destino: form.bodega_destino,
         notas_cliente: form.notas_cliente || null,
+        ...direccionPayload,
       }),
     })
 
@@ -374,6 +425,101 @@ export default function ReportarPage() {
                   <AlertCircle className="h-3 w-3" />
                   Los celulares normalmente llegan a Barranquilla. ¿Confirmas Medellín?
                 </p>
+              )}
+            </div>
+
+            {/* Dirección de entrega (cascada: guardada / otra) */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-orange-600" />
+                Dirección de entrega *
+              </Label>
+              <Select
+                value={direccionOpcion}
+                onValueChange={val => setDireccionOpcion(val as 'guardada' | 'otra')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {direccionPerfil?.direccion && (
+                    <SelectItem value="guardada">
+                      📍 Mi dirección guardada
+                    </SelectItem>
+                  )}
+                  <SelectItem value="otra">
+                    ✏️ Otra dirección (puntual)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Mostrar la dirección guardada como tarjeta de info */}
+              {direccionOpcion === 'guardada' && direccionPerfil?.direccion && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+                  <p className="text-gray-900">{direccionPerfil.direccion}</p>
+                  {(direccionPerfil.barrio || direccionPerfil.referencia) && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {direccionPerfil.barrio && <span>Barrio: {direccionPerfil.barrio}</span>}
+                      {direccionPerfil.barrio && direccionPerfil.referencia && <span> · </span>}
+                      {direccionPerfil.referencia && <span>{direccionPerfil.referencia}</span>}
+                    </p>
+                  )}
+                  <Link
+                    href="/perfil"
+                    className="inline-block mt-2 text-[11px] text-orange-700 font-medium hover:underline"
+                  >
+                    Cambiar dirección guardada en mi perfil →
+                  </Link>
+                </div>
+              )}
+
+              {/* Si NO hay dirección guardada, avisar */}
+              {direccionOpcion === 'guardada' && !direccionPerfil?.direccion && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                  Aún no has registrado una dirección en tu perfil.{' '}
+                  <Link href="/perfil" className="font-semibold underline">Agregarla</Link>{' '}
+                  o usa la opción &quot;Otra dirección&quot; para este paquete.
+                </div>
+              )}
+
+              {/* Si elige "otra", mostrar inputs */}
+              {direccionOpcion === 'otra' && (
+                <div className="space-y-2 bg-white border border-gray-200 rounded-lg p-3">
+                  <div>
+                    <Label htmlFor="direccion_otra" className="text-xs">Dirección *</Label>
+                    <Textarea
+                      id="direccion_otra"
+                      placeholder="Calle 10 #45-20, Apto 502, Torre B"
+                      rows={2}
+                      value={direccionOtra.direccion}
+                      onChange={e => setDireccionOtra(p => ({ ...p, direccion: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="barrio_otra" className="text-xs">Barrio</Label>
+                      <Input
+                        id="barrio_otra"
+                        placeholder="Poblado"
+                        value={direccionOtra.barrio}
+                        onChange={e => setDireccionOtra(p => ({ ...p, barrio: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="referencia_otra" className="text-xs">Referencia</Label>
+                      <Input
+                        id="referencia_otra"
+                        placeholder="Cerca al parque"
+                        value={direccionOtra.referencia}
+                        onChange={e => setDireccionOtra(p => ({ ...p, referencia: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Esta dirección se usará solo para este paquete. Tu dirección del perfil no cambia.
+                  </p>
+                </div>
               )}
             </div>
 

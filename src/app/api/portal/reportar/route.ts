@@ -88,6 +88,11 @@ export async function POST(req: NextRequest) {
     fecha_estimada_llegada?: string | null
     bodega_destino: string
     notas_cliente?: string | null
+    // Dirección de entrega — opcional. Si llega, se guarda en el paquete;
+    // si no, queda null y al despachar se usa la del perfil.
+    direccion_entrega?: string | null
+    barrio_entrega?: string | null
+    referencia_entrega?: string | null
   }
 
   const admin = getSupabaseAdmin()
@@ -174,6 +179,9 @@ export async function POST(req: NextRequest) {
         bodega_destino: body.bodega_destino,
         notas_cliente: body.notas_cliente ?? null,
         tracking_origen: trackingOrigen,
+        direccion_entrega: body.direccion_entrega?.trim() || null,
+        barrio_entrega: body.barrio_entrega?.trim() || null,
+        referencia_entrega: body.referencia_entrega?.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', matchId)
@@ -273,6 +281,9 @@ export async function POST(req: NextRequest) {
       fecha_estimada_llegada: body.fecha_estimada_llegada ?? null,
       bodega_destino: body.bodega_destino,
       notas_cliente: body.notas_cliente ?? null,
+      direccion_entrega: body.direccion_entrega?.trim() || null,
+      barrio_entrega: body.barrio_entrega?.trim() || null,
+      referencia_entrega: body.referencia_entrega?.trim() || null,
     })
     .select('id, tracking_casilla')
     .single()
