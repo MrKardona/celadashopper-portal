@@ -126,6 +126,8 @@ export default function RecibirForm() {
   const [guardandoManual, setGuardandoManual] = useState(false)
   // Cliente identificado manualmente por el agente (opcional en modo manual)
   const [clienteManual, setClienteManual] = useState<ClienteSugerido | null>(null)
+  // Sugerencias de clientes cuando lo ingresado no es un tracking sino un casillero/nombre
+  const [clientesSugeridos, setClientesSugeridos] = useState<ClienteSugerido[]>([])
 
   // --- Historial de sesión ---
   const [ultimoRecibido, setUltimoRecibido] = useState<PaqueteRecibido | null>(null)
@@ -287,13 +289,21 @@ export default function RecibirForm() {
     setErrorBusqueda('')
     setPaquete(null)
     setModoManual(false)
+    setClientesSugeridos([])
     try {
       const res = await fetch(`/api/admin/recibir?tracking=${encodeURIComponent(q)}`)
-      const data = await res.json() as { paquete?: PaqueteEncontrado; error?: string }
-      if (!res.ok || !data.paquete) {
-        setErrorBusqueda(data.error ?? 'Paquete no encontrado')
-      } else {
+      const data = await res.json() as {
+        paquete?: PaqueteEncontrado
+        clientes?: ClienteSugerido[]
+        error?: string
+      }
+      if (data.paquete) {
         setPaquete(data.paquete)
+      } else if (data.clientes && data.clientes.length > 0) {
+        // No hay paquete pero hay clientes que coinciden con lo escrito
+        setClientesSugeridos(data.clientes)
+      } else {
+        setErrorBusqueda(data.error ?? 'Paquete no encontrado')
       }
     } catch {
       setErrorBusqueda('Error de conexión')
@@ -336,6 +346,7 @@ export default function RecibirForm() {
     setModoManual(false)
     setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '' })
     setClienteManual(null)
+    setClientesSugeridos([])
     setFoto1({ preview: null, url: null, subiendo: false })
     setFoto2({ preview: null, url: null, subiendo: false })
     setFotoManual1({ preview: null, url: null, subiendo: false })
@@ -671,8 +682,72 @@ export default function RecibirForm() {
           </p>
         )}
 
-        {/* Error: no encontrado */}
-        {errorBusqueda && !modoManual && (
+        {/* Sugerencias de cliente: cuando lo ingresado coincide con un cliente, no con paquete */}
+        {clientesSugeridos.length > 0 && !modoManual && (
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-blue-900">
+                    {clientesSugeridos.length === 1
+                      ? 'Este usuario ya está registrado en el sistema'
+                      : `${clientesSugeridos.length} usuarios coinciden con la búsqueda`}
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    No hay un paquete con ese tracking, pero el dato coincide con un cliente. Puedes recibir el paquete asignándolo directamente.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {clientesSugeridos.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setClienteManual(c)
+                      setClientesSugeridos([])
+                      setErrorBusqueda('')
+                      setModoManual(true)
+                    }}
+                    className="w-full text-left bg-white border border-blue-200 hover:border-blue-400 hover:shadow-sm rounded-lg p-3 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-700 font-bold text-sm">
+                          {c.nombre_completo?.[0]?.toUpperCase() ?? '?'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{c.nombre_completo}</p>
+                        <p className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-orange-600">{c.numero_casilla ?? 'sin casillero'}</span>
+                          <span className="text-gray-300">·</span>
+                          <span className="truncate">{c.email}</span>
+                          {(c.whatsapp || c.telefono) && (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span>{c.whatsapp ?? c.telefono}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <ClipboardList className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[11px] text-blue-600">
+                💡 Click en un cliente para iniciar la recepción manual con ese cliente preseleccionado.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Error: no encontrado (sin sugerencias de cliente) */}
+        {errorBusqueda && !modoManual && clientesSugeridos.length === 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-4 py-3 text-sm">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />

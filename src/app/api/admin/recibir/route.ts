@@ -69,7 +69,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: queryErr.message }, { status: 500 })
   }
 
+  // Si NO se encontró paquete, intentar buscar como cliente:
+  // por número de casillero, nombre, email, whatsapp o teléfono.
+  // Esto ayuda al agente USA: si escribió un CS-XXXX o el nombre del cliente,
+  // le devolvemos la lista de coincidencias para que pueda arrancar el modo
+  // manual con el cliente preseleccionado.
   if (!paquetes || paquetes.length === 0) {
+    const term = `%${tracking}%`
+    const { data: clientes } = await admin
+      .from('perfiles')
+      .select('id, nombre_completo, email, numero_casilla, whatsapp, telefono, ciudad')
+      .eq('rol', 'cliente')
+      .or(
+        `nombre_completo.ilike.${term},email.ilike.${term},numero_casilla.ilike.${term},whatsapp.ilike.${term},telefono.ilike.${term}`
+      )
+      .limit(5)
+
+    if (clientes && clientes.length > 0) {
+      return NextResponse.json({
+        error: 'Paquete no encontrado',
+        clientes,
+      }, { status: 404 })
+    }
+
     return NextResponse.json({ error: 'Paquete no encontrado' }, { status: 404 })
   }
 
