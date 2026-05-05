@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, MailCheck } from 'lucide-react'
+import { Package, MailCheck, Eye, EyeOff } from 'lucide-react'
 
 function LoginForm() {
   const router = useRouter()
@@ -17,6 +17,7 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [verPassword, setVerPassword] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -88,15 +89,27 @@ function LoginForm() {
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
-        <Input
-          id="password"
-          type="password"
-          placeholder="••••••••"
-          autoComplete="current-password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
+        <div className="relative">
+          <Input
+            id="password"
+            type={verPassword ? 'text' : 'password'}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setVerPassword(v => !v)}
+            aria-label={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            tabIndex={-1}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-700 rounded-md transition-colors"
+          >
+            {verPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
       {error && <p role="alert" aria-live="polite" className="text-sm text-red-600">{error}</p>}
       <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading} aria-busy={loading}>
