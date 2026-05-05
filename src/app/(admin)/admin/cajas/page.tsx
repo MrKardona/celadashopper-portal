@@ -4,6 +4,7 @@ import { Box, PlusCircle, Package, MapPin, Truck, CheckCircle2, ScanBarcode } fr
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import NuevaCajaButton from '@/components/admin/NuevaCajaButton'
+import EliminarCajaIconButton from '@/components/admin/EliminarCajaIconButton'
 
 const ESTADO_LABELS: Record<string, string> = {
   abierta: 'Abierta',
@@ -105,12 +106,25 @@ export default async function CajasPage({ searchParams }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {lista.map(caja => {
             const count = conteoMap[caja.id] ?? 0
+            const puedeEliminar = caja.estado !== 'recibida_colombia'
             return (
-              <Link
+              <div
                 key={caja.id}
-                href={`/admin/cajas/${caja.id}`}
-                className="bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-sm transition-all p-4 space-y-3 group"
+                className="relative bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-sm transition-all group"
               >
+                {puedeEliminar && (
+                  <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <EliminarCajaIconButton
+                      cajaId={caja.id}
+                      codigo={caja.codigo_interno}
+                      paquetesCount={count}
+                    />
+                  </div>
+                )}
+                <Link
+                  href={`/admin/cajas/${caja.id}`}
+                  className="block p-4 space-y-3"
+                >
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-mono text-sm font-bold text-gray-900">{caja.codigo_interno}</p>
@@ -118,7 +132,7 @@ export default async function CajasPage({ searchParams }: Props) {
                       <p className="text-xs text-orange-600 font-mono mt-0.5">USACO: {caja.tracking_usaco}</p>
                     )}
                   </div>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${ESTADO_BADGE[caja.estado]}`}>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${ESTADO_BADGE[caja.estado]} ${puedeEliminar ? 'mr-8' : ''}`}>
                     {ESTADO_LABELS[caja.estado]}
                   </span>
                 </div>
@@ -156,7 +170,8 @@ export default async function CajasPage({ searchParams }: Props) {
                     </span>
                   )}
                 </div>
-              </Link>
+                </Link>
+              </div>
             )
           })}
         </div>
