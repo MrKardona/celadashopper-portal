@@ -83,13 +83,13 @@ export async function POST(req: NextRequest) {
     tracking_origen?: string
     descripcion: string
     categoria: string
+    condicion?: 'nuevo' | 'usado' | null
+    cantidad?: number | null
     valor_declarado?: number | null
     fecha_compra?: string | null
     fecha_estimada_llegada?: string | null
     bodega_destino: string
     notas_cliente?: string | null
-    // Dirección de entrega — opcional. Si llega, se guarda en el paquete;
-    // si no, queda null y al despachar se usa la del perfil.
     direccion_entrega?: string | null
     barrio_entrega?: string | null
     referencia_entrega?: string | null
@@ -173,6 +173,8 @@ export async function POST(req: NextRequest) {
         tienda: body.tienda,
         descripcion: body.descripcion,
         categoria: body.categoria,
+        condicion: body.condicion ?? null,
+        cantidad: body.cantidad && body.cantidad > 0 ? body.cantidad : 1,
         valor_declarado: body.valor_declarado ?? null,
         fecha_compra: body.fecha_compra ?? null,
         fecha_estimada_llegada: body.fecha_estimada_llegada ?? null,
@@ -276,6 +278,8 @@ export async function POST(req: NextRequest) {
       tracking_origen: trackingOrigen,
       descripcion: body.descripcion,
       categoria: body.categoria,
+      condicion: body.condicion ?? null,
+      cantidad: body.cantidad && body.cantidad > 0 ? body.cantidad : 1,
       valor_declarado: body.valor_declarado ?? null,
       fecha_compra: body.fecha_compra ?? null,
       fecha_estimada_llegada: body.fecha_estimada_llegada ?? null,

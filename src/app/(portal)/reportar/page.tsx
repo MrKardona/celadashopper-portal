@@ -35,6 +35,8 @@ export default function ReportarPage() {
     tracking_origen: '',
     descripcion: '',
     categoria: '' as CategoriaProducto | '',
+    condicion: '' as 'nuevo' | 'usado' | '',
+    cantidad: '1',
     valor_declarado: '',
     fecha_compra: '',
     fecha_estimada_llegada: '',
@@ -45,6 +47,44 @@ export default function ReportarPage() {
   const [error, setError] = useState('')
   const [duplicado, setDuplicado] = useState<Duplicado>(null)
   const [exito, setExito] = useState<{ tracking: string; match?: boolean } | null>(null)
+
+  // Cotización estimada (se calcula cuando el cliente cambia categoría/condición/cantidad/valor)
+  const [cotizacion, setCotizacion] = useState<{
+    subtotal_envio: number
+    seguro: number
+    total: number
+    metodo: string
+    detalle: string
+  } | null>(null)
+
+  useEffect(() => {
+    if (!form.categoria) { setCotizacion(null); return }
+    // Para celular y computador necesitamos condición
+    const requiereCondicion = form.categoria === 'celular' || form.categoria === 'computador'
+    if (requiereCondicion && !form.condicion) { setCotizacion(null); return }
+
+    const ctrl = new AbortController()
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/portal/cotizar', {
+          method: 'POST',
+          signal: ctrl.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            categoria: form.categoria,
+            condicion: form.condicion || null,
+            cantidad: form.cantidad ? parseInt(form.cantidad, 10) || 1 : 1,
+            valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
+          }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setCotizacion(data)
+        }
+      } catch { /* ignorar abort */ }
+    }, 300)
+    return () => { clearTimeout(t); ctrl.abort() }
+  }, [form.categoria, form.condicion, form.cantidad, form.valor_declarado])
 
   // Dirección de entrega: cliente puede usar la guardada en su perfil u otra puntual.
   const [direccionPerfil, setDireccionPerfil] = useState<{
@@ -128,6 +168,8 @@ export default function ReportarPage() {
         tracking_origen: form.tracking_origen || null,
         descripcion: form.descripcion,
         categoria: form.categoria,
+        condicion: form.condicion || null,
+        cantidad: form.cantidad ? parseInt(form.cantidad, 10) || 1 : 1,
         valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
         fecha_compra: form.fecha_compra || null,
         fecha_estimada_llegada: form.fecha_estimada_llegada || null,
@@ -208,7 +250,8 @@ export default function ReportarPage() {
                     setExito(null)
                     setForm({
                       tienda: '', tracking_origen: '', descripcion: '',
-                      categoria: '', valor_declarado: '', fecha_compra: '',
+                      categoria: '', condicion: '', cantidad: '1',
+                      valor_declarado: '', fecha_compra: '',
                       fecha_estimada_llegada: '', bodega_destino: 'medellin', notas_cliente: '',
                     })
                   }}
@@ -282,6 +325,82 @@ export default function ReportarPage() {
                 </Select>
               </div>
             </div>
+
+            {/* Condición y cantidad — solo cuando la categoría tiene tarifas escalonadas */}
+            {(form.categoria === 'celular' || form.categoria === 'computador') && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-3">
+                <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">
+                  Datos para calcular tarifa
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Condición *</Label>
+                    <Select
+                      value={form.condicion}
+                      onValueChange={val => setForm(prev => ({ ...prev, condicion: val as 'nuevo' | 'usado' }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Nuevo o usado..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nuevo">Nuevo (en caja)</SelectItem>
+                        <SelectItem value="usado">Usado (sin caja)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cantidad">Cantidad de unidades *</Label>
+                    <Input
+                      id="cantidad"
+                      name="cantidad"
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      value={form.cantidad}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+                {form.categoria === 'celular' && form.condicion === 'usado' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Tarifas por cantidad: 1-4 uds = $55/u · 5-9 uds = $45/u · +10 uds = $40/u
+                  </p>
+                )}
+                {form.categoria === 'celular' && form.condicion === 'nuevo' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Celular nuevo: $75 por unidad
+                  </p>
+                )}
+                {form.categoria === 'computador' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 {form.condicion === 'usado' ? '$55' : '$75'} por unidad + 4% del valor declarado (seguro)
+                  </p>
+                )}
+
+                {/* Cotización estimada */}
+                {cotizacion && cotizacion.metodo !== 'sin_tarifa' && cotizacion.total > 0 && (
+                  <div className="bg-white border-2 border-orange-300 rounded-lg p-3 mt-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] text-orange-700 uppercase font-bold tracking-wide">
+                          Costo estimado
+                        </p>
+                        <p className="text-2xl font-bold text-orange-700">
+                          ${cotizacion.total.toFixed(2)} <span className="text-xs font-normal text-gray-500">USD</span>
+                        </p>
+                      </div>
+                      <div className="text-right text-[11px] text-gray-600">
+                        <p>Envío: ${cotizacion.subtotal_envio.toFixed(2)}</p>
+                        {cotizacion.seguro > 0 && <p>Seguro: ${cotizacion.seguro.toFixed(2)}</p>}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      {cotizacion.detalle}. Costo final lo confirma el agente al recibir.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Descripcion */}
             <div className="space-y-2">
