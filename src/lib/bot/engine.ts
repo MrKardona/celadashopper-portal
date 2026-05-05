@@ -230,7 +230,7 @@ async function enviarPorMeta(phone: string, texto: string): Promise<boolean> {
       }),
     })
     const body = await res.text()
-    if (res.ok) { console.log(`[bot] ✅ WhatsApp enviado → ${cleanPhone}`); return true }
+    if (res.ok) return true
     console.warn(`[bot] ⚠️ Meta API falló (${res.status}): ${body.slice(0, 300)}`)
     return false
   } catch (e) {

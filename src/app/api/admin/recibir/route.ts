@@ -47,8 +47,13 @@ export async function GET(req: NextRequest) {
   const user = await verificarAdmin()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const tracking = req.nextUrl.searchParams.get('tracking')?.trim()
-  if (!tracking) return NextResponse.json({ error: 'tracking requerido' }, { status: 400 })
+  const trackingRaw = req.nextUrl.searchParams.get('tracking')?.trim()
+  if (!trackingRaw) return NextResponse.json({ error: 'tracking requerido' }, { status: 400 })
+
+  // Sanitizar para evitar romper el filtro .or() de PostgREST con caracteres
+  // especiales (comas, paréntesis, comillas, backslash). Truncar a 80 chars.
+  const tracking = trackingRaw.replace(/[,()'"\\]/g, '').slice(0, 80)
+  if (!tracking) return NextResponse.json({ error: 'tracking inválido' }, { status: 400 })
 
   const admin = getSupabaseAdmin()
 
@@ -372,22 +377,6 @@ export async function POST(req: NextRequest) {
       : 'Recibido en bodega USA',
     ubicacion: 'Miami, USA',
   })
-
-  // Auditoría incondicional: confirma que el endpoint llegó hasta este punto
-  const { data: pq } = await admin
-    .from('paquetes')
-    .select('cliente_id')
-    .eq('id', paquete_id)
-    .maybeSingle()
-
-  await admin.from('notificaciones').insert({
-    cliente_id: pq?.cliente_id ?? null,
-    paquete_id,
-    tipo: 'recibir_audit',
-    titulo: `[AUDIT] /admin/recibir modo A ejecutado: ${estadoAnterior} → recibido_usa`,
-    mensaje: `Endpoint llegó hasta notificarCambioEstado. Peso: ${peso_libras} lbs.`,
-    enviada_whatsapp: false,
-  }).then(() => {/* ok */}, (e) => console.error('[recibir audit]', e))
 
   // Notificar WhatsApp al cliente (con fotos si las hay)
   try {

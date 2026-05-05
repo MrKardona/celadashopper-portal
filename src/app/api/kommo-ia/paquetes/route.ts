@@ -12,11 +12,32 @@ function getSupabase() {
   )
 }
 
+// Comparación segura contra timing attacks (string corto, OK con length+xor).
+function safeEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let r = 0
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return r === 0
+}
+
 export async function GET(req: NextRequest) {
   const supabase = getSupabase()
-  // Token mínimo de seguridad — agrega ?token=celadashopper2026 en Kommo IA
-  const token = req.nextUrl.searchParams.get('token')
-  if (token !== 'celadashopper2026') {
+
+  // Auth: requiere KOMMO_IA_TOKEN como query param o Bearer header.
+  // Acepta también el header X-Kommo-Token. Sin token configurado, deniega siempre.
+  const tokenEsperado = process.env.KOMMO_IA_TOKEN
+  if (!tokenEsperado) {
+    console.error('[kommo-ia/paquetes] KOMMO_IA_TOKEN no configurado en env')
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
+  const tokenQuery = req.nextUrl.searchParams.get('token') ?? ''
+  const authHeader = req.headers.get('authorization') ?? ''
+  const tokenBearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  const tokenHeader = req.headers.get('x-kommo-token') ?? ''
+  const recibido = tokenQuery || tokenBearer || tokenHeader
+
+  if (!recibido || !safeEq(recibido, tokenEsperado)) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
 

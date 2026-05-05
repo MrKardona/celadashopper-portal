@@ -45,8 +45,14 @@ export async function GET(req: NextRequest) {
     .limit(50)
 
   if (q.length > 0) {
-    // Buscar en nombre, email, casilla, teléfono o whatsapp
-    const term = `%${q}%`
+    // Sanitizar input: PostgREST .or() rompe con comas, paréntesis, comillas
+    // y puntos. Permitimos letras (incluido acentos), números, espacios, @ . - + _
+    // y truncamos a 80 caracteres.
+    const sanitized = q.replace(/[,()'"\\]/g, '').slice(0, 80)
+    if (sanitized.length === 0) {
+      return NextResponse.json({ clientes: [], total: totalClientes ?? 0, mostrando: 0 })
+    }
+    const term = `%${sanitized}%`
     query = query.or(
       `nombre_completo.ilike.${term},email.ilike.${term},numero_casilla.ilike.${term},whatsapp.ilike.${term},telefono.ilike.${term}`
     )

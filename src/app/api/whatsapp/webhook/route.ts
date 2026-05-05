@@ -7,12 +7,6 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text()
   const contentType = req.headers.get('content-type') || ''
 
-  console.log('[Webhook] Received POST', {
-    contentType,
-    bodyLength: rawBody.length,
-    headers: Object.fromEntries(req.headers.entries()),
-  })
-
   // Kommo puede enviar JSON o form-encoded — manejamos ambos
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let payload: any = {}
@@ -38,8 +32,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  console.log('[Webhook] Parsed payload:', JSON.stringify(payload).slice(0, 500))
-
   // Detectar mensajes entrantes de clientes
   const mensajesEntrantes = payload.message?.add?.filter(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,14 +39,11 @@ export async function POST(req: NextRequest) {
   ) ?? []
 
   if (mensajesEntrantes.length === 0) {
-    console.log('[Webhook] No incoming messages, skipping')
     return NextResponse.json({ ok: true })
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-  console.log('[Webhook] Calling Edge Function for message:', mensajesEntrantes[0])
 
   // Usar after() para garantizar que el fetch se complete aunque respondamos 200 primero
   // Esto resuelve el problema de fire-and-forget en serverless (fetch cancelado al terminar)
@@ -71,7 +60,7 @@ export async function POST(req: NextRequest) {
           account: payload.account ?? {},
         }),
       })
-      console.log('[Webhook] Edge Function responded:', res.status)
+      if (!res.ok) console.error('[Webhook] Edge Function responded:', res.status)
     } catch (err) {
       console.error('[Webhook] Edge Function call failed:', err)
     }
