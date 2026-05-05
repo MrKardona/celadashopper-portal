@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package } from 'lucide-react'
+import { Package, MailCheck } from 'lucide-react'
 
 function LoginForm() {
   const router = useRouter()
@@ -53,8 +53,22 @@ function LoginForm() {
     router.refresh()
   }
 
+  const recienRegistrado = searchParams.get('registrado') === '1'
+
   return (
     <form onSubmit={handleLogin} className="space-y-4">
+      {recienRegistrado && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-2">
+          <MailCheck className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-green-900">¡Cuenta creada!</p>
+            <p className="text-xs text-green-800 mt-1 leading-relaxed">
+              Verifica tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada
+              (y spam por las dudas).
+            </p>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="email">Correo electrónico</Label>
         <Input

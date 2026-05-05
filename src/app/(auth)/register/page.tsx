@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, AlertCircle, KeyRound } from 'lucide-react'
+import { Package, AlertCircle, KeyRound, MailCheck, CheckCircle2 } from 'lucide-react'
 
 function RegisterForm() {
   const router = useRouter()
@@ -26,6 +26,7 @@ function RegisterForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [cuentaExiste, setCuentaExiste] = useState(false)
+  const [registroExitoso, setRegistroExitoso] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -91,8 +92,17 @@ function RegisterForm() {
       }).eq('id', userId)
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    // Cerrar la sesión que creó el signUp (Supabase auto-loguea, pero queremos
+    // que el usuario verifique su email antes de entrar al portal).
+    await supabase.auth.signOut()
+
+    setRegistroExitoso(true)
+    setLoading(false)
+
+    // Redirigir al login después de 6 segundos para que lea el mensaje
+    setTimeout(() => {
+      router.push('/login?registrado=1')
+    }, 6000)
   }
 
   return (
@@ -106,6 +116,48 @@ function RegisterForm() {
           <p className="text-sm text-gray-500">Crea tu cuenta de casillero</p>
         </div>
 
+        {registroExitoso ? (
+          <Card>
+            <CardContent className="pt-6 pb-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle2 className="h-9 w-9 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">¡Cuenta creada exitosamente!</h3>
+                  <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+                    Te enviamos un correo de verificación a{' '}
+                    <strong className="text-gray-900 break-all">{form.email}</strong>.
+                  </p>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-left w-full">
+                  <div className="flex items-start gap-2">
+                    <MailCheck className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-orange-900">Verifica tu correo</p>
+                      <p className="text-xs text-orange-800 mt-1 leading-relaxed">
+                        Abre el correo de CeladaShopper y haz click en el botón de
+                        confirmación. Después podrás iniciar sesión.
+                      </p>
+                      <p className="text-[11px] text-orange-700 mt-2">
+                        ¿No lo ves? Revisa tu carpeta de <strong>spam</strong> o correo no deseado.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Te llevaremos al inicio de sesión en unos segundos…
+                </p>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center w-full bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold py-2.5 rounded-md transition-colors"
+                >
+                  Ir al inicio de sesión ahora
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
         <Card>
           <CardHeader>
             <CardTitle>Crear cuenta</CardTitle>
@@ -254,6 +306,7 @@ function RegisterForm() {
             </p>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   )
