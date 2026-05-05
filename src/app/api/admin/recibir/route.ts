@@ -184,8 +184,22 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .maybeSingle()
 
+      // Si ya fue recibido o está en estado posterior → bloquear segundo registro
+      if (existente && [
+        'recibido_usa', 'en_consolidacion', 'listo_envio',
+        'en_transito', 'en_colombia', 'en_bodega_local',
+        'en_camino_cliente', 'entregado', 'devuelto',
+      ].includes(existente.estado)) {
+        return NextResponse.json({
+          error: 'paquete_ya_recibido',
+          mensaje: `Este paquete con tracking ${trackingOrigenLimpio} ya fue reportado. Estado actual: ${existente.estado}. No se permite un segundo registro.`,
+          estado_actual: existente.estado,
+          tracking_casilla: existente.tracking_casilla,
+        }, { status: 409 })
+      }
+
       if (existente) {
-        // ¡Ya existe! Actualizar en lugar de duplicar
+        // ¡Ya existe en estado previo (esperando_en_usa o sin_asignar)! Actualizar en lugar de duplicar
         const updates: Record<string, unknown> = {
           estado: 'recibido_usa',
           peso_libras,
@@ -312,6 +326,22 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!paquete) return NextResponse.json({ error: 'Paquete no encontrado' }, { status: 404 })
+
+  // Bloquear segundo registro: si el paquete ya fue recibido o está en un
+  // estado posterior, no permitir un segundo "recibir".
+  const estadosBloqueoRecepcion = [
+    'recibido_usa', 'en_consolidacion', 'listo_envio',
+    'en_transito', 'en_colombia', 'en_bodega_local',
+    'en_camino_cliente', 'entregado', 'devuelto',
+  ]
+  if (estadosBloqueoRecepcion.includes(paquete.estado)) {
+    return NextResponse.json({
+      error: 'paquete_ya_recibido',
+      mensaje: `Este paquete ya fue reportado. Estado actual: ${paquete.estado}. No se permite un segundo registro con el mismo tracking.`,
+      estado_actual: paquete.estado,
+      tracking_casilla: paquete.tracking_casilla,
+    }, { status: 409 })
+  }
 
   const estadoAnterior = paquete.estado
   const updates: Record<string, unknown> = {

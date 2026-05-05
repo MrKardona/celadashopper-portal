@@ -373,8 +373,16 @@ export default function RecibirForm() {
           foto2_url: foto2.url || undefined,
         }),
       })
-      const data = await res.json() as { ok?: boolean; error?: string }
-      if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
+      const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
+      if (!res.ok || !data.ok) {
+        // Mensaje específico si el paquete ya fue reportado
+        if (data.error === 'paquete_ya_recibido') {
+          setErrorBusqueda(data.mensaje ?? 'Este paquete ya fue reportado.')
+        } else {
+          setErrorBusqueda(data.error ?? 'Error al guardar')
+        }
+        return
+      }
       const nuevo: PaqueteRecibido = {
         id: paquete.id,
         tracking: paquete.tracking_casilla ?? tracking,
@@ -414,8 +422,15 @@ export default function RecibirForm() {
           cliente_id: clienteManual?.id ?? undefined,
         }),
       })
-      const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; asignado?: boolean }
-      if (!res.ok || !data.ok) { setErrorBusqueda(data.error ?? 'Error al guardar'); return }
+      const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; mensaje?: string; asignado?: boolean }
+      if (!res.ok || !data.ok) {
+        if (data.error === 'paquete_ya_recibido') {
+          setErrorBusqueda(data.mensaje ?? 'Este paquete ya fue reportado.')
+        } else {
+          setErrorBusqueda(data.error ?? 'Error al guardar')
+        }
+        return
+      }
       const nuevo: PaqueteRecibido = {
         id: data.tracking_casilla ?? '',
         tracking: data.tracking_casilla ?? 'S/N',
@@ -812,17 +827,32 @@ export default function RecibirForm() {
               </p>
             )}
             {yaRecibido && (
-              <p className="text-sm text-amber-700 font-medium flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
-                Este paquete ya fue procesado (estado: {ESTADO_LABELS[paquete.estado]})
-              </p>
+              <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-bold text-red-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Este paquete ya fue reportado
+                </p>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  Estado actual: <strong>{ESTADO_LABELS[paquete.estado]}</strong>.
+                  No se permite un segundo registro con el mismo tracking. Si crees que es un
+                  error, busca el paquete en el listado de paquetes o contacta a un admin.
+                </p>
+                {paquete.id && (
+                  <a
+                    href={`/admin/paquetes/${paquete.id}`}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-red-800 hover:underline"
+                  >
+                    Ver detalle del paquete →
+                  </a>
+                )}
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Formulario recepción normal */}
-      {paquete && (
+      {/* Formulario recepción normal — solo si NO fue ya recibido */}
+      {paquete && !yaRecibido && (
         <form onSubmit={handleConfirmar} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
           <div className="flex items-center gap-2 text-gray-700 font-semibold">
             <Scale className="h-5 w-5 text-orange-600" />
