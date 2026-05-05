@@ -94,7 +94,6 @@ export default function RecibirForm() {
 
   // --- Estado: recepción normal ---
   const [peso, setPeso] = useState('')
-  const [trackingUsaco, setTrackingUsaco] = useState('')
   const [notas, setNotas] = useState('')
   const [guardando, setGuardando] = useState(false)
 
@@ -340,7 +339,6 @@ export default function RecibirForm() {
     setPaquete(null)
     setErrorBusqueda('')
     setPeso('')
-    setTrackingUsaco('')
     setNotas('')
     setUltimoRecibido(null)
     setModoManual(false)
@@ -367,7 +365,6 @@ export default function RecibirForm() {
         body: JSON.stringify({
           paquete_id: paquete.id,
           peso_libras: parseFloat(peso),
-          tracking_usaco: trackingUsaco || undefined,
           notas_internas: notas || undefined,
           foto_url: foto1.url || undefined,
           foto2_url: foto2.url || undefined,
@@ -871,14 +868,6 @@ export default function RecibirForm() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">lb</span>
               </div>
-            </div>
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Tracking USACO <span className="text-gray-400 font-normal">(opcional)</span></label>
-              <input
-                type="text" value={trackingUsaco} onChange={e => setTrackingUsaco(e.target.value)}
-                placeholder="1Z..." autoComplete="off"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
             </div>
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
