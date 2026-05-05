@@ -48,7 +48,8 @@ function ModalEntregar({
   paqueteId, tracking, descripcion, clienteEmail, onClose,
 }: Props & { onClose: () => void }) {
   const router = useRouter()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const camaraInputRef = useRef<HTMLInputElement>(null)
+  const galeriaInputRef = useRef<HTMLInputElement>(null)
   const [fotoUrl, setFotoUrl] = useState<string | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -99,7 +100,8 @@ function ModalEntregar({
   function quitarFoto() {
     setFotoUrl(null)
     setFotoPreview(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (camaraInputRef.current) camaraInputRef.current.value = ''
+    if (galeriaInputRef.current) galeriaInputRef.current.value = ''
   }
 
   async function confirmar() {
@@ -203,7 +205,7 @@ function ModalEntregar({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => camaraInputRef.current?.click()}
                     className="border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50 rounded-lg p-4 flex flex-col items-center gap-1 text-xs text-gray-600 transition-colors"
                   >
                     <Camera className="h-5 w-5 text-orange-600" />
@@ -211,7 +213,7 @@ function ModalEntregar({
                   </button>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => galeriaInputRef.current?.click()}
                     className="border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50 rounded-lg p-4 flex flex-col items-center gap-1 text-xs text-gray-600 transition-colors"
                   >
                     <Upload className="h-5 w-5 text-orange-600" />
@@ -220,11 +222,20 @@ function ModalEntregar({
                 </div>
               )}
 
+              {/* Input para CÁMARA (móvil): el atributo capture fuerza abrir la cámara */}
               <input
-                ref={fileInputRef}
+                ref={camaraInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+                className="hidden"
+              />
+              {/* Input para GALERÍA: sin capture, abre selector de archivos */}
+              <input
+                ref={galeriaInputRef}
+                type="file"
+                accept="image/*"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
                 className="hidden"
               />
