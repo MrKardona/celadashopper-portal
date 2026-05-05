@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { Package, Clock, Plane, AlertTriangle, Users } from 'lucide-react'
+import { Package, Clock, Plane, AlertTriangle, Users, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { ESTADO_LABELS, ESTADO_COLORES } from '@/types'
@@ -11,7 +11,16 @@ export default async function AdminDashboard() {
     { db: { schema: 'public' }, auth: { persistSession: false } }
   )
 
-  const [conteoRes, recientesRes, alertasRes, clientesRes] = await Promise.all([
+  const hace30Dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const [
+    conteoRes,
+    recientesRes,
+    alertasRes,
+    clientesRes,
+    entregadosTotalRes,
+    entregadosMesRes,
+  ] = await Promise.all([
     supabase
       .from('paquetes')
       .select('estado')
@@ -36,12 +45,27 @@ export default async function AdminDashboard() {
       .select('id', { count: 'exact', head: true })
       .eq('rol', 'cliente')
       .eq('activo', true),
+
+    // Total de paquetes entregados (histórico)
+    supabase
+      .from('paquetes')
+      .select('id', { count: 'exact', head: true })
+      .eq('estado', 'entregado'),
+
+    // Entregados en los últimos 30 días
+    supabase
+      .from('paquetes')
+      .select('id', { count: 'exact', head: true })
+      .eq('estado', 'entregado')
+      .gte('updated_at', hace30Dias),
   ])
 
   const paquetes = conteoRes.data ?? []
   const recientes = recientesRes.data ?? []
   const alertas = alertasRes.data ?? []
   const totalClientes = clientesRes.count ?? 0
+  const totalEntregados = entregadosTotalRes.count ?? 0
+  const entregadosMes = entregadosMesRes.count ?? 0
 
   // Cargar nombres de clientes para recientes + alertas
   const clienteIds = [...new Set([
@@ -73,6 +97,14 @@ export default async function AdminDashboard() {
       value: (conteo['en_transito'] ?? 0) + (conteo['en_consolidacion'] ?? 0) + (conteo['listo_envio'] ?? 0),
       icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50',
     },
+    {
+      label: 'Entregados',
+      value: totalEntregados,
+      icon: CheckCircle2,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      sub: entregadosMes > 0 ? `${entregadosMes} en últimos 30 días` : undefined,
+    },
     { label: 'Clientes activos', value: totalClientes, icon: Users, color: 'text-green-600', bg: 'bg-green-50' },
   ]
 
@@ -84,16 +116,19 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, color, bg }) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {stats.map(({ label, value, icon: Icon, color, bg, sub }) => (
           <Card key={label}>
             <CardContent className="pt-5">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm text-gray-500">{label}</p>
                   <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+                  {sub && (
+                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{sub}</p>
+                  )}
                 </div>
-                <div className={`${bg} p-3 rounded-xl`}>
+                <div className={`${bg} p-3 rounded-xl flex-shrink-0`}>
                   <Icon className={`h-6 w-6 ${color}`} />
                 </div>
               </div>
