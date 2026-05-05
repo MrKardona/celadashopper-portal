@@ -20,6 +20,9 @@ function RegisterForm() {
     telefono: '',
     whatsapp: '',
     ciudad: '',
+    direccion: '',
+    barrio: '',
+    referencia: '',
     password: '',
     confirm: '',
   })
@@ -28,7 +31,7 @@ function RegisterForm() {
   const [cuentaExiste, setCuentaExiste] = useState(false)
   const [registroExitoso, setRegistroExitoso] = useState(false)
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
     // Si el usuario cambia el email, limpiar la alerta
     if (e.target.name === 'email') setCuentaExiste(false)
@@ -89,6 +92,9 @@ function RegisterForm() {
         telefono: form.telefono,
         whatsapp: form.whatsapp || form.telefono,
         ciudad: form.ciudad,
+        direccion: form.direccion.trim() || null,
+        barrio: form.barrio.trim() || null,
+        referencia: form.referencia.trim() || null,
       }).eq('id', userId)
     }
 
@@ -220,7 +226,53 @@ function RegisterForm() {
                   onChange={handleChange}
                 />
               </div>
-              <div className="space-y-2">
+
+              {/* Dirección de entrega */}
+              <div className="pt-3 border-t border-gray-100 space-y-3">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Dirección de entrega
+                </p>
+                <p className="text-[11px] text-gray-500 -mt-2">
+                  Donde quieres recibir tus paquetes en Colombia. Puedes editarlo después.
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <textarea
+                    id="direccion"
+                    name="direccion"
+                    placeholder="Calle 10 #45-20, Apto 502, Torre B"
+                    rows={2}
+                    value={form.direccion}
+                    onChange={handleChange}
+                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-1 resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="barrio">Barrio</Label>
+                    <Input
+                      id="barrio"
+                      name="barrio"
+                      placeholder="Poblado"
+                      value={form.barrio}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referencia">Referencia</Label>
+                    <Input
+                      id="referencia"
+                      name="referencia"
+                      placeholder="Cerca al parque"
+                      value={form.referencia}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-3 border-t border-gray-100">
                 <Label htmlFor="password">Contraseña *</Label>
                 <Input
                   id="password"

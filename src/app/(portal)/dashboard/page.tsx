@@ -6,7 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
-  Package, PlusCircle, Truck, CheckCircle, Clock, AlertTriangle, MessageCircle,
+  Package, PlusCircle, Truck, CheckCircle, Clock, AlertTriangle, MessageCircle, MapPin,
 } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS, type EstadoPaquete } from '@/types'
 import { format } from 'date-fns'
@@ -89,6 +89,31 @@ export default async function DashboardPage() {
                 className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:text-amber-900 mt-2"
               >
                 Agregar mi WhatsApp →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aviso: dirección de entrega faltante */}
+      {!perfil?.direccion && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <MapPin className="h-5 w-5 text-orange-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-orange-800">
+                Agrega tu dirección de entrega
+              </p>
+              <p className="text-xs text-orange-700 mt-1 leading-relaxed">
+                Necesitamos saber dónde entregarte tus paquetes en Colombia. Sin dirección no podemos coordinar la entrega final.
+              </p>
+              <Link
+                href="/perfil"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-orange-800 hover:text-orange-900 mt-2"
+              >
+                Completar mi dirección →
               </Link>
             </div>
           </div>
