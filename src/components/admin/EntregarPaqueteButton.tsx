@@ -7,7 +7,7 @@
 // Al confirmar: POST /api/admin/paquetes/[id]/entregar.
 // Si el envío incluye foto, llega al cliente en el email "entregado".
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Camera, Upload, X, Loader2, AlertCircle, Image as ImageIcon, MailCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -48,8 +48,10 @@ function ModalEntregar({
   paqueteId, tracking, descripcion, clienteEmail, onClose,
 }: Props & { onClose: () => void }) {
   const router = useRouter()
-  const camaraInputRef = useRef<HTMLInputElement>(null)
   const galeriaInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const [fotoUrl, setFotoUrl] = useState<string | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -58,6 +60,81 @@ function ModalEntregar({
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [exito, setExito] = useState(false)
+  const [camaraAbierta, setCamaraAbierta] = useState(false)
+  const [errorCamara, setErrorCamara] = useState('')
+
+  // Cleanup al desmontar el modal: detener cámara si quedó activa
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop())
+        streamRef.current = null
+      }
+    }
+  }, [])
+
+  async function abrirCamara() {
+    setErrorCamara('')
+    setCamaraAbierta(true)
+    await new Promise(r => setTimeout(r, 100)) // esperar render del <video>
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play().catch(() => {/* autoplay puede fallar, ignorar */})
+      }
+    } catch (err) {
+      console.error('[entregar] getUserMedia:', err)
+      const msg = err instanceof Error ? err.message : ''
+      setErrorCamara(
+        msg.includes('Permission') || msg.includes('NotAllowed')
+          ? 'Permiso de cámara denegado. Activa el permiso en la configuración del navegador.'
+          : msg.includes('NotFound') || msg.includes('not found')
+            ? 'No se detectó cámara en este dispositivo.'
+            : 'No se pudo acceder a la cámara. Verifica los permisos del navegador.'
+      )
+      setCamaraAbierta(false)
+    }
+  }
+
+  function cerrarCamara() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+    setCamaraAbierta(false)
+  }
+
+  async function capturarFoto() {
+    if (!videoRef.current || !canvasRef.current) return
+    const video = videoRef.current
+    const canvas = canvasRef.current
+
+    // Tamaño del canvas igual al stream actual
+    const w = video.videoWidth || 1280
+    const h = video.videoHeight || 720
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, w, h)
+
+    // Convertir a blob → File para reusar handleFile
+    canvas.toBlob(async (blob) => {
+      if (!blob) return
+      const file = new File([blob], `entrega-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      cerrarCamara()
+      await handleFile(file)
+    }, 'image/jpeg', 0.9)
+  }
 
   async function handleFile(file: File) {
     setError('')
@@ -100,7 +177,6 @@ function ModalEntregar({
   function quitarFoto() {
     setFotoUrl(null)
     setFotoPreview(null)
-    if (camaraInputRef.current) camaraInputRef.current.value = ''
     if (galeriaInputRef.current) galeriaInputRef.current.value = ''
   }
 
@@ -205,7 +281,7 @@ function ModalEntregar({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => camaraInputRef.current?.click()}
+                    onClick={abrirCamara}
                     className="border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50 rounded-lg p-4 flex flex-col items-center gap-1 text-xs text-gray-600 transition-colors"
                   >
                     <Camera className="h-5 w-5 text-orange-600" />
@@ -222,15 +298,13 @@ function ModalEntregar({
                 </div>
               )}
 
-              {/* Input para CÁMARA (móvil): el atributo capture fuerza abrir la cámara */}
-              <input
-                ref={camaraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-                className="hidden"
-              />
+              {errorCamara && (
+                <p className="text-xs text-red-600 mt-2 flex items-start gap-1">
+                  <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+                  {errorCamara}
+                </p>
+              )}
+
               {/* Input para GALERÍA: sin capture, abre selector de archivos */}
               <input
                 ref={galeriaInputRef}
@@ -239,6 +313,8 @@ function ModalEntregar({
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
                 className="hidden"
               />
+              {/* Canvas oculto para capturar el frame de video */}
+              <canvas ref={canvasRef} className="hidden" />
             </div>
 
             {/* Notas */}
@@ -314,6 +390,48 @@ function ModalEntregar({
           </div>
         )}
       </div>
+
+      {/* Overlay de cámara — encima del modal */}
+      {camaraAbierta && (
+        <div
+          className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="relative w-full h-full flex items-center justify-center">
+            <video
+              ref={videoRef}
+              className="max-w-full max-h-full object-contain"
+              playsInline
+              muted
+              autoPlay
+            />
+            {/* Botón cerrar */}
+            <button
+              type="button"
+              onClick={cerrarCamara}
+              className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-100"
+              aria-label="Cerrar cámara"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {/* Indicador */}
+            <p className="absolute top-4 left-4 right-16 text-center text-xs text-white bg-black/60 rounded px-3 py-2">
+              Apunta la cámara al paquete y toma la foto
+            </p>
+            {/* Botón de captura */}
+            <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-6">
+              <button
+                type="button"
+                onClick={capturarFoto}
+                aria-label="Tomar foto"
+                className="h-16 w-16 rounded-full bg-white border-4 border-orange-500 shadow-2xl active:scale-95 transition-transform flex items-center justify-center"
+              >
+                <div className="h-12 w-12 rounded-full bg-orange-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
