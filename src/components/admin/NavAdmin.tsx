@@ -33,7 +33,11 @@ export default function NavAdmin({ nombreAdmin }: { nombreAdmin: string }) {
   }
 
   function isActive(item: { href: string; exact: boolean }) {
-    return item.exact ? pathname === item.href : pathname.startsWith(item.href)
+    if (item.exact) return pathname === item.href
+    // Prefix match real: el path debe ser exacto o tener una '/' después del href.
+    // Antes usaba startsWith puro, lo que hacía que '/admin/recibir-colombia'
+    // matcheara '/admin/recibir' (porque empieza con esos chars).
+    return pathname === item.href || pathname.startsWith(item.href + '/')
   }
 
   const NavLinks = () => (
