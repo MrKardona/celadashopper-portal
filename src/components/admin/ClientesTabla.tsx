@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Users, Pencil, X, Save, Loader2, AlertCircle, CheckCircle, MapPin } from 'lucide-react'
+import { Users, Pencil, X, Save, Loader2, AlertCircle, CheckCircle, MapPin, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -28,6 +28,7 @@ interface Props {
 
 export default function ClientesTabla({ clientes, paquetesMap }: Props) {
   const [editando, setEditando] = useState<ClienteRow | null>(null)
+  const [eliminando, setEliminando] = useState<{ cliente: ClienteRow; paquetesActivos: number } | null>(null)
 
   if (clientes.length === 0) {
     return (
@@ -100,14 +101,24 @@ export default function ClientesTabla({ clientes, paquetesMap }: Props) {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setEditando(c)}
-                        className="inline-flex items-center gap-1 text-xs text-orange-600 hover:bg-orange-50 px-2 py-1 rounded transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Editar
-                      </button>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditando(c)}
+                          className="inline-flex items-center gap-1 text-xs text-orange-600 hover:bg-orange-50 px-2 py-1 rounded transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEliminando({ cliente: c, paquetesActivos: stats.activos })}
+                          aria-label="Eliminar cliente"
+                          className="inline-flex items-center text-xs text-gray-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -123,7 +134,175 @@ export default function ClientesTabla({ clientes, paquetesMap }: Props) {
           onClose={() => setEditando(null)}
         />
       )}
+      {eliminando && (
+        <EliminarClienteModal
+          cliente={eliminando.cliente}
+          paquetesActivos={eliminando.paquetesActivos}
+          onClose={() => setEliminando(null)}
+        />
+      )}
     </>
+  )
+}
+
+// ─── Modal de eliminación ───────────────────────────────────────────────────
+function EliminarClienteModal({
+  cliente,
+  paquetesActivos,
+  onClose,
+}: {
+  cliente: ClienteRow
+  paquetesActivos: number
+  onClose: () => void
+}) {
+  const [confirmTexto, setConfirmTexto] = useState('')
+  const [eliminando, setEliminando] = useState(false)
+  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+  const [requiereForce, setRequiereForce] = useState(paquetesActivos > 0)
+
+  const tieneActivos = paquetesActivos > 0
+  const textoEsperado = 'ELIMINAR'
+  const puedeConfirmar = confirmTexto === textoEsperado
+
+  async function eliminar() {
+    if (!puedeConfirmar) return
+    setEliminando(true)
+    setMensaje(null)
+
+    const url = requiereForce
+      ? `/api/admin/clientes/${cliente.id}?force=1`
+      : `/api/admin/clientes/${cliente.id}`
+
+    const res = await fetch(url, { method: 'DELETE' })
+    const data = await res.json() as {
+      ok?: boolean
+      error?: string
+      mensaje?: string
+      paquetes_activos?: number
+      paquetes_desasignados?: number
+    }
+
+    if (res.status === 409 && data.error === 'paquetes_activos') {
+      setEliminando(false)
+      setRequiereForce(true)
+      setMensaje({
+        tipo: 'error',
+        texto: data.mensaje ?? 'El cliente tiene paquetes activos. Confirma para eliminarlo de todos modos.',
+      })
+      return
+    }
+
+    if (!res.ok || !data.ok) {
+      setEliminando(false)
+      setMensaje({ tipo: 'error', texto: data.error ?? 'No se pudo eliminar' })
+      return
+    }
+
+    setMensaje({
+      tipo: 'ok',
+      texto: data.paquetes_desasignados
+        ? `Cliente eliminado. ${data.paquetes_desasignados} paquete${data.paquetes_desasignados > 1 ? 's' : ''} liberado${data.paquetes_desasignados > 1 ? 's' : ''}.`
+        : 'Cliente eliminado.',
+    })
+    setTimeout(() => { window.location.reload() }, 900)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => !eliminando && onClose()}
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl max-w-md w-full"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
+          <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <Trash2 className="h-4.5 w-4.5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Eliminar cliente</h3>
+            <p className="text-xs text-gray-500">Esta acción no se puede deshacer</p>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-700">
+            Vas a eliminar la cuenta de{' '}
+            <strong className="text-gray-900">{cliente.nombre_completo}</strong>{' '}
+            (<span className="text-gray-500 break-all">{cliente.email}</span>).
+          </p>
+
+          {tieneActivos && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+              <p className="text-sm font-semibold text-amber-900 flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                Tiene {paquetesActivos} paquete{paquetesActivos > 1 ? 's' : ''} en proceso
+              </p>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Los paquetes no se borrarán — quedarán como &quot;sin asignar&quot; en el sistema y un admin podrá reasignarlos manualmente. Lo que se borra es la cuenta y el acceso al portal.
+              </p>
+            </div>
+          )}
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 leading-relaxed">
+            La cuenta de auth y el perfil del cliente se borrarán definitivamente. El cliente ya no podrá iniciar sesión ni recuperar su contraseña.
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-700 block mb-1.5">
+              Para confirmar, escribe <strong className="text-red-600 font-mono">ELIMINAR</strong> abajo:
+            </label>
+            <input
+              type="text"
+              value={confirmTexto}
+              onChange={e => setConfirmTexto(e.target.value.toUpperCase())}
+              placeholder="ELIMINAR"
+              autoComplete="off"
+              className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+
+          {mensaje && (
+            <div
+              className={`flex items-start gap-2 text-sm p-3 rounded-md border ${
+                mensaje.tipo === 'ok'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-600'
+              }`}
+              role="alert"
+            >
+              {mensaje.tipo === 'ok'
+                ? <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                : <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />}
+              <span>{mensaje.texto}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 p-5 border-t border-gray-100">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={onClose}
+            disabled={eliminando}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={eliminar}
+            disabled={eliminando || !puedeConfirmar}
+            className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white gap-2"
+          >
+            {eliminando
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Eliminando...</>
+              : <><Trash2 className="h-4 w-4" /> Eliminar</>}
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 

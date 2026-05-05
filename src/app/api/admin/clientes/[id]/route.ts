@@ -1,6 +1,8 @@
-// PATCH /api/admin/clientes/[id] — admin edita información de un cliente
-// Permite modificar nombre, teléfono, whatsapp, ciudad, casilla y estado activo.
-// El email queda bloqueado (requiere flujo de auth aparte).
+// PATCH  /api/admin/clientes/[id] — admin edita información de un cliente
+// DELETE /api/admin/clientes/[id] — admin elimina cuenta del cliente
+//
+// El email queda bloqueado en PATCH (requiere flujo de auth aparte).
+// DELETE valida que el cliente no tenga paquetes activos antes de eliminar.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
@@ -120,4 +122,92 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   return NextResponse.json({ ok: true })
+}
+
+// ─── DELETE: eliminar cliente ───────────────────────────────────────────────
+export async function DELETE(req: NextRequest, { params }: Props) {
+  const { id } = await params
+
+  // Verificar admin
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  if (user.id === id) {
+    return NextResponse.json({ error: 'No puedes eliminar tu propia cuenta' }, { status: 400 })
+  }
+
+  const admin = getSupabaseAdmin()
+  const { data: perfilAdmin } = await admin
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .single()
+
+  if (!perfilAdmin || perfilAdmin.rol !== 'admin') {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+  }
+
+  // Cargar el perfil del cliente a eliminar
+  const { data: cliente } = await admin
+    .from('perfiles')
+    .select('id, nombre_completo, email, rol')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (!cliente) {
+    return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+  }
+
+  if (cliente.rol === 'admin') {
+    return NextResponse.json({
+      error: 'No se puede eliminar a otro admin desde aquí',
+    }, { status: 400 })
+  }
+
+  // Verificar paquetes activos. Si tiene → exigir ?force=1 para confirmar
+  const url = new URL(req.url)
+  const force = url.searchParams.get('force') === '1'
+
+  const { data: paquetesActivos } = await admin
+    .from('paquetes')
+    .select('id, estado')
+    .eq('cliente_id', id)
+    .not('estado', 'in', '(entregado,devuelto)')
+
+  const activos = paquetesActivos?.length ?? 0
+
+  if (activos > 0 && !force) {
+    return NextResponse.json({
+      error: 'paquetes_activos',
+      mensaje: `Este cliente tiene ${activos} paquete${activos > 1 ? 's' : ''} en proceso. Confirma para eliminarlo de todos modos.`,
+      paquetes_activos: activos,
+    }, { status: 409 })
+  }
+
+  // Desasignar paquetes (no se borran, quedan sin cliente_id) — preserva auditoría
+  await admin
+    .from('paquetes')
+    .update({ cliente_id: null })
+    .eq('cliente_id', id)
+
+  // Eliminar el perfil. Si el schema tiene FK ON DELETE CASCADE, borrar
+  // auth.users borrará perfil. Aquí lo hacemos en orden seguro.
+  const { error: errPerfil } = await admin.from('perfiles').delete().eq('id', id)
+  if (errPerfil) {
+    console.error('[admin/clientes DELETE] perfil:', errPerfil)
+    return NextResponse.json({ error: errPerfil.message }, { status: 500 })
+  }
+
+  // Eliminar de auth.users (Supabase Auth) — service role tiene permiso
+  const { error: errAuth } = await admin.auth.admin.deleteUser(id)
+  if (errAuth) {
+    // Si falla, no es bloqueante: el perfil ya se borró. Lo logueamos.
+    console.error('[admin/clientes DELETE] auth.users:', errAuth.message)
+  }
+
+  return NextResponse.json({
+    ok: true,
+    nombre_eliminado: cliente.nombre_completo,
+    paquetes_desasignados: activos,
+  })
 }
