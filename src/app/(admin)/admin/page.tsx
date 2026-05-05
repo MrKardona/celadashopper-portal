@@ -1,8 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
-import { Package, Clock, Plane, AlertTriangle, Users, CheckCircle2 } from 'lucide-react'
+import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import { ESTADO_LABELS, ESTADO_COLORES } from '@/types'
+import DashboardCharts from '@/components/admin/DashboardCharts'
+
+// Agrupación lógica de estados:
+// - Reportados/En USA: paquetes que ya están físicamente en USA o fueron reportados
+// - En tránsito: en movimiento entre USA y bodega Colombia
+// - En bodega Colombia: listos para entrega o saliendo al cliente
+// - Entregados: finalizados
+const GRUPO_USA = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] as const
+const GRUPO_TRANSITO = ['en_transito', 'en_colombia'] as const
+const GRUPO_BODEGA_LOCAL = ['en_bodega_local', 'en_camino_cliente'] as const
 
 export default async function AdminDashboard() {
   const supabase = createClient(
@@ -12,6 +22,7 @@ export default async function AdminDashboard() {
   )
 
   const hace30Dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const hace14Dias = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
 
   const [
     conteoRes,
@@ -20,6 +31,7 @@ export default async function AdminDashboard() {
     clientesRes,
     entregadosTotalRes,
     entregadosMesRes,
+    recepcionesUsaRes,
   ] = await Promise.all([
     supabase
       .from('paquetes')
@@ -46,18 +58,23 @@ export default async function AdminDashboard() {
       .eq('rol', 'cliente')
       .eq('activo', true),
 
-    // Total de paquetes entregados (histórico)
     supabase
       .from('paquetes')
       .select('id', { count: 'exact', head: true })
       .eq('estado', 'entregado'),
 
-    // Entregados en los últimos 30 días
     supabase
       .from('paquetes')
       .select('id', { count: 'exact', head: true })
       .eq('estado', 'entregado')
       .gte('updated_at', hace30Dias),
+
+    // Recepciones USA por día (últimos 14 días) — para la gráfica de barras
+    supabase
+      .from('paquetes')
+      .select('fecha_recepcion_usa')
+      .gte('fecha_recepcion_usa', hace14Dias)
+      .not('fecha_recepcion_usa', 'is', null),
   ])
 
   const paquetes = conteoRes.data ?? []
@@ -66,6 +83,7 @@ export default async function AdminDashboard() {
   const totalClientes = clientesRes.count ?? 0
   const totalEntregados = entregadosTotalRes.count ?? 0
   const entregadosMes = entregadosMesRes.count ?? 0
+  const recepcionesUsa = recepcionesUsaRes.data ?? []
 
   // Cargar nombres de clientes para recientes + alertas
   const clienteIds = [...new Set([
@@ -84,18 +102,48 @@ export default async function AdminDashboard() {
     }
   }
 
+  // Conteo por estado individual
   const conteo = paquetes.reduce((acc, p) => {
     acc[p.estado] = (acc[p.estado] ?? 0) + 1
     return acc
   }, {} as Record<string, number>)
 
+  // Conteo por grupos lógicos
+  const sumaGrupo = (estados: readonly string[]) =>
+    estados.reduce((s, e) => s + (conteo[e] ?? 0), 0)
+
+  const enUsa = sumaGrupo(GRUPO_USA)
+  const enTransito = sumaGrupo(GRUPO_TRANSITO)
+  const enBodegaLocal = sumaGrupo(GRUPO_BODEGA_LOCAL)
+
   const stats = [
     { label: 'Total activos', value: paquetes.length, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Recibidos USA', value: conteo['recibido_usa'] ?? 0, icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+    {
+      label: 'Recibidos en USA',
+      value: enUsa,
+      icon: ClipboardList,
+      color: 'text-yellow-700',
+      bg: 'bg-yellow-50',
+      sub: 'Reportados + recibidos + consolidación',
+      href: '/admin/paquetes?grupo=usa',
+    },
     {
       label: 'En tránsito',
-      value: (conteo['en_transito'] ?? 0) + (conteo['en_consolidacion'] ?? 0) + (conteo['listo_envio'] ?? 0),
-      icon: Plane, color: 'text-purple-600', bg: 'bg-purple-50',
+      value: enTransito,
+      icon: Plane,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+      sub: 'En camino USA → Colombia',
+      href: '/admin/paquetes?grupo=transito',
+    },
+    {
+      label: 'En bodega Colombia',
+      value: enBodegaLocal,
+      icon: MapPin,
+      color: 'text-orange-700',
+      bg: 'bg-orange-50',
+      sub: 'Listos para entrega',
+      href: '/admin/listos-entrega',
     },
     {
       label: 'Entregados',
@@ -108,6 +156,32 @@ export default async function AdminDashboard() {
     { label: 'Clientes activos', value: totalClientes, icon: Users, color: 'text-green-600', bg: 'bg-green-50' },
   ]
 
+  // ── Datos para gráficas ──────────────────────────────────────────────────
+  // 1. Donut: distribución por GRUPO (visión ejecutiva, 4 segmentos)
+  const datosDonut = [
+    { nombre: 'En USA', valor: enUsa, color: '#eab308' },
+    { nombre: 'En tránsito', valor: enTransito, color: '#a855f7' },
+    { nombre: 'En bodega CO', valor: enBodegaLocal, color: '#ea580c' },
+    { nombre: 'Entregados (30d)', valor: entregadosMes, color: '#10b981' },
+  ].filter(d => d.valor > 0)
+
+  // 2. Barras: recepciones USA por día (últimos 14 días)
+  const recepcionesPorDia: Record<string, number> = {}
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+    const key = d.toISOString().slice(0, 10)
+    recepcionesPorDia[key] = 0
+  }
+  for (const r of recepcionesUsa) {
+    if (!r.fecha_recepcion_usa) continue
+    const key = r.fecha_recepcion_usa.slice(0, 10)
+    if (key in recepcionesPorDia) recepcionesPorDia[key]++
+  }
+  const datosBarras = Object.entries(recepcionesPorDia).map(([fecha, count]) => ({
+    fecha: fecha.slice(5), // "MM-DD"
+    count,
+  }))
+
   return (
     <div className="space-y-6">
       <div>
@@ -115,32 +189,40 @@ export default async function AdminDashboard() {
         <p className="text-gray-500 text-sm mt-1">Vista general de la operación</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {stats.map(({ label, value, icon: Icon, color, bg, sub }) => (
-          <Card key={label}>
-            <CardContent className="pt-5">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm text-gray-500">{label}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-                  {sub && (
-                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{sub}</p>
-                  )}
+      {/* Stats con grupos lógicos */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {stats.map(({ label, value, icon: Icon, color, bg, sub, href }) => {
+          const inner = (
+            <Card className="h-full hover:shadow-md transition-shadow">
+              <CardContent className="pt-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-500">{label}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+                    {sub && (
+                      <p className="text-[11px] text-gray-400 mt-0.5 truncate">{sub}</p>
+                    )}
+                  </div>
+                  <div className={`${bg} p-3 rounded-xl flex-shrink-0`}>
+                    <Icon className={`h-5 w-5 ${color}`} />
+                  </div>
                 </div>
-                <div className={`${bg} p-3 rounded-xl flex-shrink-0`}>
-                  <Icon className={`h-6 w-6 ${color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+          return href
+            ? <Link key={label} href={href} className="block">{inner}</Link>
+            : <div key={label}>{inner}</div>
+        })}
       </div>
 
-      {/* Estado breakdown */}
+      {/* Gráficas interactivas */}
+      <DashboardCharts datosDonut={datosDonut} datosBarras={datosBarras} />
+
+      {/* Estado breakdown (todos los estados individuales) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Paquetes por estado</CardTitle>
+          <CardTitle className="text-base">Detalle por estado individual</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
