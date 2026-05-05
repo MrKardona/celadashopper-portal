@@ -510,6 +510,49 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId:
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
 
+  // Escáner de código de barras para tracking USACO
+  const [scannerAbierto, setScannerAbierto] = useState(false)
+  const [scannerError, setScannerError] = useState('')
+  const videoScanRef = useRef<HTMLVideoElement>(null)
+  const scanControlsRef = useRef<IScannerControls | null>(null)
+
+  async function abrirScanner() {
+    setScannerError('')
+    setScannerAbierto(true)
+    // Esperar al render del <video> antes de iniciar la cámara
+    await new Promise(r => setTimeout(r, 100))
+    try {
+      const reader = new BrowserMultiFormatReader()
+      const controls = await reader.decodeFromConstraints(
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoScanRef.current!,
+        (result) => {
+          if (result) {
+            const texto = result.getText()
+            controls.stop()
+            setScannerAbierto(false)
+            setTrackingUsaco(texto.trim())
+          }
+        }
+      )
+      scanControlsRef.current = controls
+    } catch {
+      setScannerAbierto(false)
+      setScannerError('No se pudo acceder a la cámara. Verifica los permisos del navegador.')
+    }
+  }
+
+  function cerrarScanner() {
+    scanControlsRef.current?.stop()
+    scanControlsRef.current = null
+    setScannerAbierto(false)
+  }
+
+  // Limpiar al desmontar
+  useEffect(() => {
+    return () => { scanControlsRef.current?.stop() }
+  }, [])
+
   async function confirmar() {
     if (!trackingUsaco.trim()) { setError('Tracking USACO requerido'); return }
     setCargando(true)
@@ -541,9 +584,25 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId:
 
         <div>
           <label className="text-xs font-medium text-gray-700 block mb-1">Tracking USACO *</label>
-          <input type="text" value={trackingUsaco} onChange={e => setTrackingUsaco(e.target.value)}
-            placeholder="Ej: 1Z9999AA1234567890"
-            className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" autoFocus />
+          <div className="flex gap-2">
+            <input type="text" value={trackingUsaco} onChange={e => setTrackingUsaco(e.target.value)}
+              placeholder="Ej: 1Z9999AA1234567890"
+              className="flex-1 px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" autoFocus />
+            <button
+              type="button"
+              onClick={abrirScanner}
+              title="Escanear código de barras con la cámara"
+              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-orange-600 transition-colors flex-shrink-0"
+            >
+              <Camera className="h-5 w-5" />
+            </button>
+          </div>
+          {scannerError && (
+            <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              {scannerError}
+            </p>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -578,6 +637,33 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId:
           </Button>
         </div>
       </div>
+
+      {/* Overlay del escáner — encima del modal */}
+      {scannerAbierto && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/90 flex items-center justify-center p-4"
+          onClick={cerrarScanner}
+        >
+          <div className="relative bg-black rounded-lg overflow-hidden max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <video ref={videoScanRef} className="w-full max-h-[70vh] object-cover" playsInline muted />
+            {/* Marco de guía visual */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-3/4 h-24 border-2 border-orange-500 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+            </div>
+            <button
+              type="button"
+              onClick={cerrarScanner}
+              className="absolute top-3 right-3 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-100"
+              aria-label="Cerrar escáner"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <p className="absolute bottom-3 left-3 right-3 text-center text-xs text-white bg-black/60 rounded px-3 py-2">
+              Apunta la cámara al código de barras del tracking USACO
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
