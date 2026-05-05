@@ -225,25 +225,36 @@ export async function DELETE(req: NextRequest, { params }: Props) {
     }, { status: 409 })
   }
 
-  // Desasignar paquetes (no se borran, quedan sin cliente_id) — preserva auditoría
-  await admin
-    .from('paquetes')
-    .update({ cliente_id: null })
-    .eq('cliente_id', id)
-
-  // Eliminar el perfil. Si el schema tiene FK ON DELETE CASCADE, borrar
-  // auth.users borrará perfil. Aquí lo hacemos en orden seguro.
-  const { error: errPerfil } = await admin.from('perfiles').delete().eq('id', id)
-  if (errPerfil) {
-    console.error('[admin/clientes DELETE] perfil:', errPerfil)
-    return NextResponse.json({ error: errPerfil.message }, { status: 500 })
-  }
-
-  // Eliminar de auth.users (Supabase Auth) — service role tiene permiso
+  // Estrategia: borrar auth.users PRIMERO. Las FKs están configuradas con
+  // ON DELETE CASCADE (perfiles, notificaciones, conversaciones_whatsapp) o
+  // ON DELETE SET NULL (paquetes, consolidaciones, fotos, eventos, cajas).
+  // Si auth.users falla, no se borra nada — el endpoint reporta el error real.
   const { error: errAuth } = await admin.auth.admin.deleteUser(id)
   if (errAuth) {
-    // Si falla, no es bloqueante: el perfil ya se borró. Lo logueamos.
     console.error('[admin/clientes DELETE] auth.users:', errAuth.message)
+    return NextResponse.json({
+      error: `No se pudo eliminar la cuenta de auth: ${errAuth.message}`,
+    }, { status: 500 })
+  }
+
+  // Verificar que el perfil se haya borrado por CASCADE. Si por alguna razón
+  // no se borró, hacer un delete explícito como respaldo.
+  const { data: perfilSobrevivió } = await admin
+    .from('perfiles')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (perfilSobrevivió) {
+    const { error: errPerfil } = await admin.from('perfiles').delete().eq('id', id)
+    if (errPerfil) {
+      console.error('[admin/clientes DELETE] perfil residual:', errPerfil)
+      // Auth ya está borrado; reportar el huérfano pero como ok parcial
+      return NextResponse.json({
+        ok: true,
+        warning: `Cuenta de auth eliminada pero el perfil quedó: ${errPerfil.message}`,
+      })
+    }
   }
 
   return NextResponse.json({
