@@ -1,0 +1,185 @@
+// src/lib/ocr/paquete.ts
+// Wrapper sobre Claude Vision para extraer datos de etiqueta y contenido
+// de un paquete recibido en bodega USA. Devuelve JSON estructurado y validado.
+//
+// Modelo: Haiku 4.5 — barato (~$0.005 por par de fotos), rápido (~2-4 s),
+// suficiente para etiquetas de envío y descripción visual.
+
+import Anthropic from '@anthropic-ai/sdk'
+import { z } from 'zod'
+
+// ─── Esquemas de salida ──────────────────────────────────────────────────────
+const EtiquetaSchema = z.object({
+  tracking_origen: z.string().nullable(),
+  numero_casilla: z.string().nullable(),
+  nombre_destinatario: z.string().nullable(),
+  tienda: z.string().nullable(),
+  confianza: z.enum(['alta', 'media', 'baja']),
+  notas: z.string().nullable(),
+})
+
+const ContenidoSchema = z.object({
+  descripcion: z.string(),
+  categoria: z.enum([
+    'celular', 'computador', 'ipad_tablet', 'calzado',
+    'ropa_accesorios', 'electrodomestico', 'juguetes',
+    'cosmeticos', 'suplementos', 'libros', 'tarifa_especial', 'otro',
+  ]),
+  condicion: z.enum(['nuevo', 'usado']).nullable(),
+  cantidad: z.number().int().min(1).max(50),
+  confianza: z.enum(['alta', 'media', 'baja']),
+})
+
+export type EtiquetaOCR = z.infer<typeof EtiquetaSchema>
+export type ContenidoOCR = z.infer<typeof ContenidoSchema>
+
+// ─── Prompts ─────────────────────────────────────────────────────────────────
+const PROMPT_ETIQUETA = `Eres un asistente de bodega de CeladaShopper (servicio de casillero USA → Colombia).
+Te paso la foto de la etiqueta de un paquete recibido en USA. Extrae los datos clave.
+
+CAMPOS A IDENTIFICAR:
+- tracking_origen: número de tracking del courier (Amazon, USPS, UPS, FedEx, DHL). Suele tener prefijos como TBA..., 1Z..., 9XXXX..., o ser un código de barras grande. NO confundir con direcciones o teléfonos.
+- numero_casilla: identificador del cliente CeladaShopper. Formato: "CS-NNNN" o "CS NNNN" o solo "NNNN" precedido por "Casillero" o "Suite" o "Apt". Está en la línea de dirección.
+- nombre_destinatario: nombre completo de la persona en la etiqueta (línea "TO:" o "Ship To:" o similar).
+- tienda: si la etiqueta menciona la tienda de origen (Amazon, Nike, Walmart, etc.). Si no aparece claro, devuelve null.
+
+REGLAS:
+- Si NO ves un dato con seguridad, devuelve null. NUNCA inventes valores.
+- "confianza" reflejará qué tan claro fue lo que viste:
+  - "alta": la etiqueta es legible y los campos están claros
+  - "media": algunos campos son legibles, otros dudosos
+  - "baja": la etiqueta es difícil de leer, hay reflejos, está borrosa o cortada
+- En "notas" pon cualquier observación útil (ej: "etiqueta parcialmente cubierta", "casilla podría ser 0042 u 0048").
+
+DEVUELVE ÚNICAMENTE JSON VÁLIDO, sin markdown, con esta forma exacta:
+{
+  "tracking_origen": string | null,
+  "numero_casilla": string | null,
+  "nombre_destinatario": string | null,
+  "tienda": string | null,
+  "confianza": "alta" | "media" | "baja",
+  "notas": string | null
+}`
+
+const PROMPT_CONTENIDO = `Eres un asistente de bodega de CeladaShopper. Te paso la foto del contenido de un paquete abierto. Describe lo que ves para registrar el envío.
+
+CAMPOS:
+- descripcion: descripción CORTA y concreta del producto en español (máx 100 caracteres). Ej: "Tenis Nike Air Max blancos talla 42, 1 par".
+- categoria: una de estas categorías exactas:
+  - "celular" → smartphones
+  - "computador" → laptops, PCs
+  - "ipad_tablet" → tablets, iPads
+  - "calzado" → zapatos, tenis, sandalias, botas
+  - "ropa_accesorios" → camisas, pantalones, gorras, bolsos, relojes baratos, gafas
+  - "electrodomestico" → licuadoras, planchas, freidoras, etc.
+  - "juguetes" → juguetes, peluches, juegos
+  - "cosmeticos" → maquillaje, cremas, perfumes, productos de belleza
+  - "suplementos" → vitaminas, proteínas, productos GNC, batidos
+  - "libros" → libros físicos
+  - "otro" → si no encaja en ninguna anterior
+  - "tarifa_especial" → SOLO si se ve que es algo de alto valor o muy poco común que requiere análisis manual del admin
+- condicion: "nuevo" si está sellado en caja original o se ve sin uso; "usado" si se ve usado, sin caja, o claramente de segunda mano. null si no se puede determinar.
+- cantidad: número de unidades visibles del MISMO producto (ej: 3 pares de tenis = 3, 5 perfumes iguales = 5). Si hay variedad mixta, cuenta el ítem principal.
+- confianza: "alta" si la foto es clara y se ve todo; "media" si parcialmente; "baja" si está borrosa, mal iluminada o no se distingue.
+
+DEVUELVE ÚNICAMENTE JSON VÁLIDO, sin markdown, con esta forma exacta:
+{
+  "descripcion": string,
+  "categoria": "celular" | "computador" | "ipad_tablet" | "calzado" | "ropa_accesorios" | "electrodomestico" | "juguetes" | "cosmeticos" | "suplementos" | "libros" | "tarifa_especial" | "otro",
+  "condicion": "nuevo" | "usado" | null,
+  "cantidad": number,
+  "confianza": "alta" | "media" | "baja"
+}`
+
+// ─── Cliente Anthropic compartido ────────────────────────────────────────────
+function getClient(): Anthropic {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY no configurada')
+  return new Anthropic({ apiKey })
+}
+
+// ─── Helper: descarga imagen y la convierte a base64 ─────────────────────────
+async function imagenABase64(url: string): Promise<{ data: string; mediaType: string }> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`No se pudo descargar la imagen (${res.status})`)
+  const arrayBuffer = await res.arrayBuffer()
+  const base64 = Buffer.from(arrayBuffer).toString('base64')
+  const mediaType = res.headers.get('content-type') ?? 'image/jpeg'
+  return { data: base64, mediaType }
+}
+
+// ─── Parser de respuesta JSON con limpieza de markdown ───────────────────────
+function parsearJSON(raw: string): unknown {
+  const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
+  return JSON.parse(cleaned)
+}
+
+// ─── Análisis de etiqueta ────────────────────────────────────────────────────
+export async function analizarEtiqueta(fotoUrl: string): Promise<EtiquetaOCR> {
+  const client = getClient()
+  const { data, mediaType } = await imagenABase64(fotoUrl)
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+            data,
+          },
+        },
+        { type: 'text', text: PROMPT_ETIQUETA },
+      ],
+    }],
+  })
+
+  const texto = message.content[0].type === 'text' ? message.content[0].text : ''
+  const parsed = parsearJSON(texto)
+  return EtiquetaSchema.parse(parsed)
+}
+
+// ─── Análisis de contenido ───────────────────────────────────────────────────
+export async function analizarContenido(fotoUrl: string): Promise<ContenidoOCR> {
+  const client = getClient()
+  const { data, mediaType } = await imagenABase64(fotoUrl)
+
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 512,
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif',
+            data,
+          },
+        },
+        { type: 'text', text: PROMPT_CONTENIDO },
+      ],
+    }],
+  })
+
+  const texto = message.content[0].type === 'text' ? message.content[0].text : ''
+  const parsed = parsearJSON(texto)
+  return ContenidoSchema.parse(parsed)
+}
+
+// ─── Análisis combinado en paralelo ──────────────────────────────────────────
+export async function analizarPaquete(
+  fotoEmpaqueUrl: string,
+  fotoContenidoUrl: string,
+): Promise<{ etiqueta: EtiquetaOCR; contenido: ContenidoOCR }> {
+  const [etiqueta, contenido] = await Promise.all([
+    analizarEtiqueta(fotoEmpaqueUrl),
+    analizarContenido(fotoContenidoUrl),
+  ])
+  return { etiqueta, contenido }
+}

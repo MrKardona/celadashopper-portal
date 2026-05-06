@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import {
   ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
   Scale, Loader2, X, ClipboardList, Camera, ImageIcon, Video, VideoOff,
-  PackageOpen,
+  PackageOpen, Sparkles,
 } from 'lucide-react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
@@ -127,6 +127,16 @@ export default function RecibirForm() {
   const [clienteManual, setClienteManual] = useState<ClienteSugerido | null>(null)
   // Sugerencias de clientes cuando lo ingresado no es un tracking sino un casillero/nombre
   const [clientesSugeridos, setClientesSugeridos] = useState<ClienteSugerido[]>([])
+
+  // --- OCR con Claude Vision (modo manual) ---
+  const [analizandoOCR, setAnalizandoOCR] = useState(false)
+  const [ocrError, setOcrError] = useState('')
+  const [ocrResultado, setOcrResultado] = useState<{
+    confianza_etiqueta: 'alta' | 'media' | 'baja'
+    confianza_contenido: 'alta' | 'media' | 'baja'
+    match_tipo: 'tracking' | 'casillero' | 'nombre' | null
+    notas: string | null
+  } | null>(null)
 
   // --- Historial de sesión ---
   const [ultimoRecibido, setUltimoRecibido] = useState<PaqueteRecibido | null>(null)
@@ -349,6 +359,8 @@ export default function RecibirForm() {
     setFoto2({ preview: null, url: null, subiendo: false })
     setFotoManual1({ preview: null, url: null, subiendo: false })
     setFotoManual2({ preview: null, url: null, subiendo: false })
+    setOcrResultado(null)
+    setOcrError('')
     detenerCamaraFoto()
     setTimeout(() => inputRef.current?.focus(), 50)
   }
@@ -393,6 +405,75 @@ export default function RecibirForm() {
       limpiar()
     } finally {
       setGuardando(false)
+    }
+  }
+
+  // ── Analizar fotos con IA (Claude Vision) ────────────────────────────────
+  async function analizarConIA() {
+    if (!fotoManual1.url || !fotoManual2.url) return
+    setOcrError('')
+    setAnalizandoOCR(true)
+    try {
+      const res = await fetch('/api/admin/recibir/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fotoEmpaqueUrl: fotoManual1.url,
+          fotoContenidoUrl: fotoManual2.url,
+        }),
+      })
+      const data = await res.json() as {
+        ok?: boolean
+        error?: string
+        etiqueta?: {
+          tracking_origen: string | null
+          numero_casilla: string | null
+          nombre_destinatario: string | null
+          tienda: string | null
+          confianza: 'alta' | 'media' | 'baja'
+          notas: string | null
+        }
+        contenido?: {
+          descripcion: string
+          categoria: CategoriaProducto
+          condicion: 'nuevo' | 'usado' | null
+          cantidad: number
+          confianza: 'alta' | 'media' | 'baja'
+        }
+        match?: {
+          tipo: 'tracking' | 'casillero' | 'nombre' | null
+          cliente: ClienteSugerido | null
+        }
+      }
+      if (!res.ok || !data.ok || !data.etiqueta || !data.contenido) {
+        setOcrError(data.error ?? 'No se pudo analizar las fotos')
+        return
+      }
+
+      // Pre-llenar formulario manual con lo extraído (el agente puede editar)
+      setFormManual(prev => ({
+        ...prev,
+        descripcion: data.contenido!.descripcion || prev.descripcion,
+        categoria: data.contenido!.categoria || prev.categoria,
+        tienda: data.etiqueta!.tienda ?? prev.tienda,
+        tracking_courier: data.etiqueta!.tracking_origen ?? prev.tracking_courier,
+      }))
+
+      // Pre-asignar cliente si hubo match
+      if (data.match?.cliente) {
+        setClienteManual(data.match.cliente)
+      }
+
+      setOcrResultado({
+        confianza_etiqueta: data.etiqueta.confianza,
+        confianza_contenido: data.contenido.confianza,
+        match_tipo: data.match?.tipo ?? null,
+        notas: data.etiqueta.notas,
+      })
+    } catch (err) {
+      setOcrError(err instanceof Error ? err.message : 'Error de red')
+    } finally {
+      setAnalizandoOCR(false)
     }
   }
 
@@ -1060,6 +1141,68 @@ export default function RecibirForm() {
                 <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
                   <SlotFoto slot={2} context="manual" accent="amber" />
                 </div>
+              </div>
+            )}
+
+            {/* ── Botón Analizar con IA (Claude Vision) ── */}
+            {fotoManual1.url && fotoManual2.url && !camaraSlot && (
+              <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                <button
+                  type="button"
+                  onClick={analizarConIA}
+                  disabled={analizandoOCR}
+                  className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm transition-colors"
+                >
+                  {analizandoOCR
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Analizando con IA...</>
+                    : <><Sparkles className="h-4 w-4" />Analizar fotos con IA</>}
+                </button>
+                <p className="text-[11px] text-violet-700 text-center">
+                  Extrae tracking, casillero, descripción y categoría automáticamente. Revisa siempre antes de guardar.
+                </p>
+
+                {ocrError && (
+                  <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                    <span>{ocrError}</span>
+                  </div>
+                )}
+
+                {ocrResultado && !ocrError && (
+                  <div className="text-xs bg-white rounded-lg border border-violet-200 px-3 py-2 space-y-1">
+                    <div className="flex items-center gap-2 font-medium text-violet-900">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-violet-600" />
+                      Análisis completo — revisa los campos
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 text-gray-600">
+                      <span>Etiqueta: <span className={
+                        ocrResultado.confianza_etiqueta === 'alta' ? 'text-green-700 font-medium' :
+                        ocrResultado.confianza_etiqueta === 'media' ? 'text-amber-700 font-medium' :
+                        'text-red-700 font-medium'
+                      }>{ocrResultado.confianza_etiqueta}</span></span>
+                      <span>Contenido: <span className={
+                        ocrResultado.confianza_contenido === 'alta' ? 'text-green-700 font-medium' :
+                        ocrResultado.confianza_contenido === 'media' ? 'text-amber-700 font-medium' :
+                        'text-red-700 font-medium'
+                      }>{ocrResultado.confianza_contenido}</span></span>
+                    </div>
+                    {ocrResultado.match_tipo && (
+                      <p className="text-green-700 font-medium">
+                        ✓ Cliente identificado por {ocrResultado.match_tipo === 'tracking' ? 'tracking del courier'
+                          : ocrResultado.match_tipo === 'casillero' ? 'número de casilla'
+                          : 'nombre'}
+                      </p>
+                    )}
+                    {ocrResultado.match_tipo === null && (
+                      <p className="text-amber-700">
+                        ⚠ No se identificó cliente — el paquete quedará sin asignar
+                      </p>
+                    )}
+                    {ocrResultado.notas && (
+                      <p className="text-gray-500 italic">Nota IA: {ocrResultado.notas}</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
