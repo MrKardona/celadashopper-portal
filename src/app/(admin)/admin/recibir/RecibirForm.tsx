@@ -1088,6 +1088,7 @@ export default function RecibirForm() {
               valor={clienteManual}
               onSelect={setClienteManual}
               placeholder="CS-1234, nombre, email o teléfono..."
+              defaultQuery={nombreEtiqueta ?? undefined}
             />
           </div>
 

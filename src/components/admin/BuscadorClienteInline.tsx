@@ -29,6 +29,8 @@ interface Props {
   placeholder?: string
   /** clase opcional para el contenedor externo */
   className?: string
+  /** Valor con el que pre-llenar el input cuando no hay cliente seleccionado (ej: nombre extraído por OCR de la etiqueta) */
+  defaultQuery?: string
 }
 
 export default function BuscadorClienteInline({
@@ -36,13 +38,24 @@ export default function BuscadorClienteInline({
   onSelect,
   placeholder = 'Buscar por casillero, nombre, email o teléfono...',
   className = '',
+  defaultQuery,
 }: Props) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(defaultQuery ?? '')
   const [sugerencias, setSugerencias] = useState<ClienteSugerido[]>([])
   const [cargando, setCargando] = useState(false)
   const [abierto, setAbierto] = useState(false)
   const [resaltado, setResaltado] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Sincronizar query cuando defaultQuery cambia desde afuera (ej: OCR extrajo un nombre).
+  // Solo si no hay cliente seleccionado y el agente no ha empezado a escribir algo distinto.
+  useEffect(() => {
+    if (!valor && defaultQuery && !query) {
+      setQuery(defaultQuery)
+      setAbierto(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultQuery, valor])
 
   // Cerrar al click fuera
   useEffect(() => {
