@@ -1322,11 +1322,22 @@ export default function RecibirForm() {
             <button
               type="submit"
               disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoCualquiera}
-              className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
+              className={`flex-1 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base ${
+                clienteManual
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-amber-600 hover:bg-amber-700'
+              }`}
             >
-              {guardandoManual
-                ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</>
-                : <><CheckCircle2 className="h-5 w-5" />Guardar sin asignar</>}
+              {guardandoManual ? (
+                <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</>
+              ) : clienteManual ? (
+                <>
+                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                  <span className="truncate">Guardar y asignar a {clienteManual.nombre_completo}</span>
+                </>
+              ) : (
+                <><CheckCircle2 className="h-5 w-5" />Guardar sin asignar</>
+              )}
             </button>
             <button type="button" onClick={limpiar} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
               Cancelar
