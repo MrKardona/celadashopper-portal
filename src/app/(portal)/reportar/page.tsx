@@ -55,6 +55,8 @@ export default function ReportarPage() {
     total: number
     metodo: string
     detalle: string
+    requiere_peso?: boolean
+    peso_minimo?: number
   } | null>(null)
 
   useEffect(() => {
