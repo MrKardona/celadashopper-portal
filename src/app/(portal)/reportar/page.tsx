@@ -63,9 +63,10 @@ export default function ReportarPage() {
 
   useEffect(() => {
     if (!form.categoria) { setCotizacion(null); return }
-    // Para celular y computador necesitamos condición
+    // Celular y computador tienen tarifas muy distintas según condición — requieren selección
     const requiereCondicion = form.categoria === 'celular' || form.categoria === 'computador'
     if (requiereCondicion && !form.condicion) { setCotizacion(null); return }
+    // Otras categorías pueden cotizar sin condición (la API usa 'nuevo' como default)
 
     const ctrl = new AbortController()
     const t = setTimeout(async () => {
@@ -258,8 +259,9 @@ export default function ReportarPage() {
                       tienda: '', tracking_origen: '', descripcion: '',
                       categoria: '', condicion: '', cantidad: '1',
                       valor_declarado: '', fecha_compra: '',
-                      fecha_estimada_llegada: '', bodega_destino: 'medellin', notas_cliente: '',
-                      requiere_consolidacion: false, notas_consolidacion: '',
+                      fecha_estimada_llegada: '', bodega_destino: 'medellin',
+                      notas_cliente: '', requiere_consolidacion: false,
+                      notas_consolidacion: '',
                     })
                   }}
                 >
@@ -319,7 +321,7 @@ export default function ReportarPage() {
                 <Label>Tipo de producto *</Label>
                 <Select
                   value={form.categoria}
-                  onValueChange={val => setForm(prev => ({ ...prev, categoria: val as CategoriaProducto }))}
+                  onValueChange={val => setForm(prev => ({ ...prev, categoria: val as CategoriaProducto, condicion: '' }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona el tipo..." />
@@ -354,24 +356,28 @@ export default function ReportarPage() {
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Condición solo para celular y computador */}
-                  {(form.categoria === 'celular' || form.categoria === 'computador') && (
-                    <div className="space-y-2 col-span-2 sm:col-span-1">
-                      <Label>Condición *</Label>
-                      <Select
-                        value={form.condicion}
-                        onValueChange={val => setForm(prev => ({ ...prev, condicion: val as 'nuevo' | 'usado' }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Nuevo o usado..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="nuevo">Nuevo (en caja)</SelectItem>
-                          <SelectItem value="usado">Usado (sin caja)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                  {/* Condición: para todas las categorías con tarifa.
+                      Requerida (*) solo donde cambia el precio según nuevo/usado. */}
+                  <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label>
+                      Condición{' '}
+                      {(form.categoria === 'celular' || form.categoria === 'computador')
+                        ? <span className="text-red-500">*</span>
+                        : <span className="text-gray-400 font-normal text-xs">(opcional)</span>}
+                    </Label>
+                    <Select
+                      value={form.condicion}
+                      onValueChange={val => setForm(prev => ({ ...prev, condicion: val as 'nuevo' | 'usado' }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="¿Es nuevo o usado?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nuevo">✨ Nuevo (en caja / sin usar)</SelectItem>
+                        <SelectItem value="usado">🔄 Usado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   <div className="space-y-2 col-span-2 sm:col-span-1">
                     <Label htmlFor="cantidad">
@@ -389,33 +395,53 @@ export default function ReportarPage() {
                   </div>
                 </div>
 
-                {/* Pista contextual por categoría */}
+                {/* Pistas contextuales por categoría + condición */}
                 {form.categoria === 'celular' && form.condicion === 'usado' && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
-                    💡 Tarifas por cantidad: 1-4 uds = $55/u · 5-9 uds = $45/u · +10 uds = $40/u
+                    💡 Celular usado: 1-4 uds = $55/u · 5-9 uds = $45/u · 10+ uds = $40/u
                   </p>
                 )}
                 {form.categoria === 'celular' && form.condicion === 'nuevo' && (
-                  <p className="text-[11px] text-orange-800 leading-relaxed">💡 Celular nuevo: $75 por unidad</p>
-                )}
-                {form.categoria === 'computador' && form.condicion && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
-                    💡 {form.condicion === 'usado' ? '$55' : '$75'} por unidad + 4% del valor declarado
+                    💡 Celular nuevo: $75 por unidad
+                  </p>
+                )}
+                {form.categoria === 'celular' && !form.condicion && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Selecciona la condición para ver la tarifa exacta (nuevo $75/u · usado desde $40/u)
+                  </p>
+                )}
+                {form.categoria === 'computador' && form.condicion === 'nuevo' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Computador nuevo: $75/u + 4% del valor declarado
+                  </p>
+                )}
+                {form.categoria === 'computador' && form.condicion === 'usado' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Computador usado: $55/u + 4% del valor declarado
+                  </p>
+                )}
+                {form.categoria === 'computador' && !form.condicion && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Selecciona la condición para ver la tarifa (nuevo $75/u · usado $55/u, ambos + 4% seguro)
                   </p>
                 )}
                 {form.categoria === 'ipad_tablet' && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
-                    💡 Si valor &gt; $200 → $45/u + 4% seguro · Si vale ≤ $200 → $18 fijo + $2.20/lb
+                    💡 Valor &gt; $200 → $45/u + 4% seguro · Valor ≤ $200 → $18 fijo + $2.20/lb
+                    {form.condicion === 'usado' ? ' · (usado aplica misma tarifa)' : ''}
                   </p>
                 )}
                 {form.categoria === 'calzado' && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
                     💡 1 par = $20 · 2 o más pares = $17.50 cada par
+                    {form.condicion === 'usado' ? ' · (nuevo y usado misma tarifa)' : ''}
                   </p>
                 )}
                 {['ropa_accesorios', 'cosmeticos', 'suplementos', 'libros', 'electrodomestico'].includes(form.categoria) && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
                     💡 Hasta 6 uds y valor ≤ $200: $18 fijo + $2.20/lb · 7+ uds o valor &gt; $200: $6.50/lb (mín 5 lb)
+                    {form.condicion === 'usado' ? ' · (nuevo y usado misma tarifa)' : ''}
                   </p>
                 )}
 
