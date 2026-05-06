@@ -54,6 +54,12 @@ const BODEGAS = [
   { value: 'barranquilla', label: 'Barranquilla' },
 ]
 
+const PER_UNIT_CATEGORIAS = new Set<CategoriaProducto>(['celular', 'computador', 'ipad_tablet', 'calzado'])
+
+function unidadLabel(cat: CategoriaProducto | ''): string {
+  return cat === 'calzado' ? 'pares' : 'unidades'
+}
+
 // ── Tipos para los 2 slots de foto ────────────────────────────────────────────
 type FotoSlot = 1 | 2
 
@@ -96,6 +102,7 @@ export default function RecibirForm() {
   const [peso, setPeso] = useState('')
   const [notas, setNotas] = useState('')
   const [valorDeclarado, setValorDeclarado] = useState('')
+  const [cantidad, setCantidad] = useState(1)
   const [guardando, setGuardando] = useState(false)
 
   // --- Fotos: 2 slots independientes ---
@@ -123,6 +130,7 @@ export default function RecibirForm() {
     bodega_destino: 'medellin',
     notas: '',
     valor_declarado: '',
+    cantidad: 1,
   })
   const [guardandoManual, setGuardandoManual] = useState(false)
   // Cliente identificado manualmente por el agente (opcional en modo manual)
@@ -359,9 +367,10 @@ export default function RecibirForm() {
     setErrorBusqueda('')
     setPeso('')
     setNotas('')
+    setCantidad(1)
     setUltimoRecibido(null)
     setModoManual(false)
-    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '', valor_declarado: '' })
+    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '', valor_declarado: '', cantidad: 1 })
     setValorDeclarado('')
     setClienteManual(null)
     setClientesSugeridos([])
@@ -393,6 +402,7 @@ export default function RecibirForm() {
           foto2_url: foto2.url || undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
           valor_declarado: valorDeclarado.trim() ? parseFloat(valorDeclarado) : undefined,
+          cantidad: PER_UNIT_CATEGORIAS.has(paquete.categoria) ? cantidad : 1,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -469,12 +479,14 @@ export default function RecibirForm() {
       }
 
       // Pre-llenar formulario manual con lo extraído (el agente puede editar)
+      const catOCR = data.contenido!.categoria
       setFormManual(prev => ({
         ...prev,
         descripcion: data.contenido!.descripcion || prev.descripcion,
-        categoria: data.contenido!.categoria || prev.categoria,
+        categoria: catOCR || prev.categoria,
         tienda: data.etiqueta!.tienda ?? prev.tienda,
         tracking_courier: data.etiqueta!.tracking_origen ?? prev.tracking_courier,
+        cantidad: PER_UNIT_CATEGORIAS.has(catOCR) ? Math.max(1, data.contenido!.cantidad || 1) : 1,
       }))
 
       // Pre-asignar cliente si hubo match
@@ -539,6 +551,7 @@ export default function RecibirForm() {
           cliente_id: clienteManual?.id ?? undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
           valor_declarado: formManual.valor_declarado.trim() ? parseFloat(formManual.valor_declarado) : undefined,
+          cantidad: PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) ? formManual.cantidad : 1,
         }),
       })
       const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; mensaje?: string; asignado?: boolean }
@@ -1034,6 +1047,32 @@ export default function RecibirForm() {
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">USD</span>
               </div>
             </div>
+            {PER_UNIT_CATEGORIAS.has(paquete.categoria) && (
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Cantidad en {unidadLabel(paquete.categoria)} <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCantidad(c => Math.max(1, c - 1))}
+                    className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center justify-center text-lg font-bold"
+                  >−</button>
+                  <input
+                    type="number" min="1" max="50"
+                    value={cantidad}
+                    onChange={e => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-16 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCantidad(c => Math.min(50, c + 1))}
+                    className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center justify-center text-lg font-bold"
+                  >+</button>
+                  <span className="text-sm text-gray-500">{unidadLabel(paquete.categoria)}</span>
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input
@@ -1143,7 +1182,7 @@ export default function RecibirForm() {
               <label className="text-sm font-medium text-gray-700">Categoría <span className="text-red-500">*</span></label>
               <select
                 value={formManual.categoria}
-                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto }))}
+                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1 }))}
                 required
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
@@ -1153,6 +1192,32 @@ export default function RecibirForm() {
                 ))}
               </select>
             </div>
+            {PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <label className="text-sm font-medium text-gray-700">
+                  Cantidad en {unidadLabel(formManual.categoria)} <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormManual(p => ({ ...p, cantidad: Math.max(1, p.cantidad - 1) }))}
+                    className="w-9 h-9 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 flex items-center justify-center text-lg font-bold"
+                  >−</button>
+                  <input
+                    type="number" min="1" max="50"
+                    value={formManual.cantidad}
+                    onChange={e => setFormManual(p => ({ ...p, cantidad: Math.max(1, parseInt(e.target.value) || 1) }))}
+                    className="w-16 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormManual(p => ({ ...p, cantidad: Math.min(50, p.cantidad + 1) }))}
+                    className="w-9 h-9 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 flex items-center justify-center text-lg font-bold"
+                  >+</button>
+                  <span className="text-sm text-amber-700">{unidadLabel(formManual.categoria)}</span>
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Descripción física <span className="text-red-500">*</span></label>
               <input
