@@ -42,6 +42,8 @@ export default function ReportarPage() {
     fecha_estimada_llegada: '',
     bodega_destino: 'medellin' as BodegaDestino,
     notas_cliente: '',
+    requiere_consolidacion: false,
+    notas_consolidacion: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -177,6 +179,8 @@ export default function ReportarPage() {
         fecha_estimada_llegada: form.fecha_estimada_llegada || null,
         bodega_destino: form.bodega_destino,
         notas_cliente: form.notas_cliente || null,
+        requiere_consolidacion: form.requiere_consolidacion,
+        notas_consolidacion: form.notas_consolidacion || null,
         ...direccionPayload,
       }),
     })
@@ -255,6 +259,7 @@ export default function ReportarPage() {
                       categoria: '', condicion: '', cantidad: '1',
                       valor_declarado: '', fecha_compra: '',
                       fecha_estimada_llegada: '', bodega_destino: 'medellin', notas_cliente: '',
+                      requiere_consolidacion: false, notas_consolidacion: '',
                     })
                   }}
                 >
@@ -681,6 +686,37 @@ export default function ReportarPage() {
                     Esta dirección se usará solo para este paquete. Tu dirección del perfil no cambia.
                   </p>
                 </div>
+              )}
+            </div>
+
+            {/* Consolidación */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.requiere_consolidacion}
+                  onChange={e => setForm(p => ({ ...p, requiere_consolidacion: e.target.checked }))}
+                  className="h-4 w-4 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">
+                    📦 Necesito consolidar este paquete con otros
+                  </p>
+                  <p className="text-[11px] text-blue-700 mt-0.5 leading-relaxed">
+                    Marca esta opción si vas a enviar más paquetes y quieres que esperemos a tener
+                    todos antes de despacharlos juntos a Colombia. Si no, lo despachamos en cuanto llegue.
+                  </p>
+                </div>
+              </label>
+              {form.requiere_consolidacion && (
+                <Textarea
+                  name="notas_consolidacion"
+                  placeholder="Opcional: dinos cuántos paquetes esperas, por cuánto tiempo, etc."
+                  value={form.notas_consolidacion}
+                  onChange={handleChange}
+                  rows={2}
+                  className="text-xs"
+                />
               )}
             </div>
 

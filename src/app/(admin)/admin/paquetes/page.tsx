@@ -15,12 +15,12 @@ const BODEGA_LABELS: Record<string, string> = {
 }
 
 interface Props {
-  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string }>
+  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string; consolidacion?: string }>
 }
 
 export default async function AdminPaquetesPage({ searchParams }: Props) {
   const params = await searchParams
-  const { estado, bodega, q, asignacion } = params
+  const { estado, bodega, q, asignacion, consolidacion } = params
 
   // Usamos service role con la opción db.schema para evitar problemas de RLS
   const supabase = createClient(
@@ -32,7 +32,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   // Query 1: paquetes (sin join — service role directo)
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, factura_pagada, created_at, updated_at')
+    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, factura_pagada, requiere_consolidacion, notas_consolidacion, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -41,6 +41,8 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   // Filtro por asignación de cliente
   if (asignacion === 'sin_asignar') q1 = q1.is('cliente_id', null)
   else if (asignacion === 'asignados') q1 = q1.not('cliente_id', 'is', null)
+  if (consolidacion === 'requiere') q1 = q1.eq('requiere_consolidacion', true)
+  else if (consolidacion === 'despachable') q1 = q1.eq('requiere_consolidacion', false)
 
   const { data: paquetes, error: errPaq } = await q1
   const lista = paquetes ?? []
@@ -125,13 +127,22 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
           <option value="sin_asignar">⏳ Solo sin asignar</option>
           <option value="asignados">✓ Solo asignados</option>
         </select>
+        <select
+          name="consolidacion"
+          defaultValue={consolidacion ?? ''}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="">Consolidación: cualquiera</option>
+          <option value="requiere">📦 Requiere consolidar</option>
+          <option value="despachable">🚀 Listo para despachar</option>
+        </select>
         <button
           type="submit"
           className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
         >
           Filtrar
         </button>
-        {(estado || bodega || q || asignacion) && (
+        {(estado || bodega || q || asignacion || consolidacion) && (
           <Link
             href="/admin/paquetes"
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -188,9 +199,19 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                               <Camera className="h-4 w-4 text-gray-300" />
                             </div>
                           )}
-                          <Link href={`/admin/paquetes/${p.id}`} className="font-mono text-xs text-orange-700 font-semibold hover:underline">
-                            {p.tracking_casilla ?? '—'}
-                          </Link>
+                          <div className="min-w-0">
+                            <Link href={`/admin/paquetes/${p.id}`} className="font-mono text-xs text-orange-700 font-semibold hover:underline">
+                              {p.tracking_casilla ?? '—'}
+                            </Link>
+                            {p.requiere_consolidacion && (
+                              <span
+                                className="block text-[10px] text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded mt-0.5 w-fit"
+                                title={p.notas_consolidacion ?? 'Cliente solicitó consolidar con otros paquetes'}
+                              >
+                                📦 Consolidar
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3">

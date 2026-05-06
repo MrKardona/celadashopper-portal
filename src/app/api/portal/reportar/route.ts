@@ -93,6 +93,8 @@ export async function POST(req: NextRequest) {
     direccion_entrega?: string | null
     barrio_entrega?: string | null
     referencia_entrega?: string | null
+    requiere_consolidacion?: boolean
+    notas_consolidacion?: string | null
   }
 
   const admin = getSupabaseAdmin()
@@ -288,6 +290,8 @@ export async function POST(req: NextRequest) {
       direccion_entrega: body.direccion_entrega?.trim() || null,
       barrio_entrega: body.barrio_entrega?.trim() || null,
       referencia_entrega: body.referencia_entrega?.trim() || null,
+      requiere_consolidacion: body.requiere_consolidacion ?? false,
+      notas_consolidacion: body.notas_consolidacion?.trim() || null,
     })
     .select('id, tracking_casilla')
     .single()
