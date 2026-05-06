@@ -38,7 +38,7 @@ const PROMPT_ETIQUETA = `Eres un asistente de bodega de CeladaShopper (servicio 
 Te paso la foto de la etiqueta de un paquete recibido en USA. Extrae los datos clave.
 
 CAMPOS A IDENTIFICAR:
-- tracking_origen: número de tracking del courier (Amazon, USPS, UPS, FedEx, DHL). Suele tener prefijos como TBA..., 1Z..., 9XXXX..., o ser un código de barras grande. NO confundir con direcciones o teléfonos.
+- tracking_origen: número de tracking del courier (Amazon, USPS, UPS, FedEx, DHL). Suele tener prefijos como TBA..., 1Z..., 9XXXX..., o ser un código de barras grande. NO confundir con direcciones o teléfonos. **DEVUELVE EL TRACKING SIEMPRE CONCATENADO, SIN ESPACIOS** — si en la etiqueta aparece como "9400 1118 9942 0334" debes devolver "9400111899420334".
 - numero_casilla: identificador del cliente CeladaShopper. Formato: "CS-NNNN" o "CS NNNN" o solo "NNNN" precedido por "Casillero" o "Suite" o "Apt". Está en la línea de dirección.
 - nombre_destinatario: nombre completo de la persona en la etiqueta (línea "TO:" o "Ship To:" o similar).
 - tienda: si la etiqueta menciona la tienda de origen (Amazon, Nike, Walmart, etc.). Si no aparece claro, devuelve null.

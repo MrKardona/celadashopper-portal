@@ -70,6 +70,16 @@ function normalizarCasilla(raw: string | null | undefined): string | null {
   return `CS-${num.padStart(4, '0')}`
 }
 
+// Normaliza un tracking de courier eliminando espacios. Mantiene letras,
+// números y guiones (algunos couriers los usan, ej: 1Z-9999...). El cliente
+// reporta el tracking sin espacios al pegarlo del email del courier, así
+// que normalizamos para que el match exacto en BD funcione.
+function normalizarTracking(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const limpio = raw.toString().replace(/\s+/g, '').trim()
+  return limpio.length > 0 ? limpio : null
+}
+
 async function buscarMatch(
   admin: SupabaseClient,
   etiqueta: EtiquetaOCR,
@@ -207,12 +217,22 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Normalizar tracking eliminando espacios. Los clientes reportan el tracking
+  // sin espacios (lo pegan del email del courier), así que el match en BD
+  // solo funciona si lo normalizamos al extraerlo de la etiqueta también.
+  const trackingNormalizado = normalizarTracking(etiqueta.tracking_origen)
+  const etiquetaNormalizada: EtiquetaOCR = {
+    ...etiqueta,
+    tracking_origen: trackingNormalizado,
+    numero_casilla: normalizarCasilla(etiqueta.numero_casilla) ?? etiqueta.numero_casilla,
+  }
+
   const admin = getSupabaseAdmin()
-  const match = await buscarMatch(admin, etiqueta)
+  const match = await buscarMatch(admin, etiquetaNormalizada)
 
   return NextResponse.json({
     ok: true,
-    etiqueta: { ...etiqueta, numero_casilla: normalizarCasilla(etiqueta.numero_casilla) ?? etiqueta.numero_casilla },
+    etiqueta: etiquetaNormalizada,
     contenido,
     match,
   })
