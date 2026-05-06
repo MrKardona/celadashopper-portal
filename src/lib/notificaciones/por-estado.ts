@@ -570,7 +570,7 @@ export async function notificarTrackingActualizado(paqueteId: string): Promise<v
     if (!ctx.vars.tracking_usaco) return // sin valor no notificamos
 
     const puedeWa = !!ctx.plantilla && !!ctx.phone
-    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : `Tracking USACO asignado: ${ctx.vars.tracking_usaco}`
+    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : `Seguimiento asignado a tu paquete: ${ctx.vars.tracking}`
 
     // WhatsApp (solo si hay plantilla y teléfono)
     const wa = puedeWa

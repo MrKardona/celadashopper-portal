@@ -370,7 +370,6 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
         ${vars.bodega ? bloqueDatos('📍 Ciudad destino', vars.bodega) : ''}
-        ${vars.tracking_usaco ? bloqueDatos('🚚 Tracking USACO', vars.tracking_usaco) : ''}
         ${bloqueDatos('🔖 Tracking CeladaShopper', vars.tracking)}
       </table>
     </div>
@@ -514,16 +513,15 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
 }
 
 export function plantillaTrackingActualizado(vars: VariablesPlantilla): { subject: string; html: string; text: string } {
-  const subject = `🔖 Tracking asignado para tu paquete: ${vars.descripcion}`
+  const subject = `🔖 Actualización de seguimiento: ${vars.descripcion}`
   const contenido = `
-    <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">Tracking asignado</h2>
+    <h2 style="color:#1c1917;font-size:24px;margin:0 0 12px 0;">Seguimiento asignado</h2>
     <p style="color:#44403c;font-size:15px;line-height:1.6;margin:0 0 20px 0;">
-      ¡Hola ${vars.nombre}! Asignamos un número de tracking interno para tu paquete <strong>${vars.descripcion}</strong>.
+      ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya tiene número de seguimiento asignado.
     </p>
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
-        ${vars.tracking_usaco ? bloqueDatos('🚚 Tracking USACO', vars.tracking_usaco) : ''}
         ${bloqueDatos('🔖 Tracking CeladaShopper', vars.tracking)}
       </table>
     </div>
@@ -535,7 +533,7 @@ export function plantillaTrackingActualizado(vars: VariablesPlantilla): { subjec
   return {
     subject,
     html: layout(subject, contenido, vars),
-    text: `Hola ${vars.nombre}, asignamos tracking a tu paquete "${vars.descripcion}". Tracking USACO: ${vars.tracking_usaco ?? '—'}. Detalle en ${vars.link}`,
+    text: `Hola ${vars.nombre}, asignamos tracking interno a tu paquete "${vars.descripcion}". Tracking: ${vars.tracking}. Detalle en ${vars.link}`,
   }
 }
 
