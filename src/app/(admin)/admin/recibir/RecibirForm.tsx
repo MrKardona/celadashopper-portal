@@ -136,7 +136,10 @@ export default function RecibirForm() {
     confianza_contenido: 'alta' | 'media' | 'baja'
     match_tipo: 'tracking' | 'casillero' | 'nombre' | null
     notas: string | null
+    auto_busqueda?: 'encontrado' | 'no_encontrado' | null
   } | null>(null)
+  // Nombre del destinatario tal como aparece en la etiqueta — se persiste con el paquete
+  const [nombreEtiqueta, setNombreEtiqueta] = useState<string | null>(null)
 
   // --- Historial de sesión ---
   const [ultimoRecibido, setUltimoRecibido] = useState<PaqueteRecibido | null>(null)
@@ -291,9 +294,9 @@ export default function RecibirForm() {
     e.target.value = ''
   }
 
-  const buscarPaquete = useCallback(async (valor: string) => {
+  const buscarPaquete = useCallback(async (valor: string): Promise<boolean> => {
     const q = valor.trim()
-    if (!q) return
+    if (!q) return false
     setBuscando(true)
     setErrorBusqueda('')
     setPaquete(null)
@@ -308,14 +311,17 @@ export default function RecibirForm() {
       }
       if (data.paquete) {
         setPaquete(data.paquete)
+        return true
       } else if (data.clientes && data.clientes.length > 0) {
-        // No hay paquete pero hay clientes que coinciden con lo escrito
         setClientesSugeridos(data.clientes)
+        return false
       } else {
         setErrorBusqueda(data.error ?? 'Paquete no encontrado')
+        return false
       }
     } catch {
       setErrorBusqueda('Error de conexión')
+      return false
     } finally {
       setBuscando(false)
     }
@@ -361,6 +367,7 @@ export default function RecibirForm() {
     setFotoManual2({ preview: null, url: null, subiendo: false })
     setOcrResultado(null)
     setOcrError('')
+    setNombreEtiqueta(null)
     detenerCamaraFoto()
     setTimeout(() => inputRef.current?.focus(), 50)
   }
@@ -380,6 +387,7 @@ export default function RecibirForm() {
           notas_internas: notas || undefined,
           foto_url: foto1.url || undefined,
           foto2_url: foto2.url || undefined,
+          nombre_etiqueta: nombreEtiqueta || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -450,6 +458,11 @@ export default function RecibirForm() {
         return
       }
 
+      // Guardar nombre de la etiqueta (se persiste con el paquete)
+      if (data.etiqueta.nombre_destinatario) {
+        setNombreEtiqueta(data.etiqueta.nombre_destinatario)
+      }
+
       // Pre-llenar formulario manual con lo extraído (el agente puede editar)
       setFormManual(prev => ({
         ...prev,
@@ -464,11 +477,32 @@ export default function RecibirForm() {
         setClienteManual(data.match.cliente)
       }
 
+      // ── Auto-búsqueda por tracking ────────────────────────────────────────
+      // Si Claude detectó un tracking, intentamos encontrar el paquete reportado
+      // por el cliente. Si lo encontramos: salimos de modo manual al flujo normal
+      // (peso/notas) y movemos las fotos al slot regular.
+      let autoBusqueda: 'encontrado' | 'no_encontrado' | null = null
+      const trackingExtraido = data.etiqueta.tracking_origen?.trim()
+      if (trackingExtraido) {
+        setTracking(trackingExtraido)
+        const encontrado = await buscarPaquete(trackingExtraido)
+        autoBusqueda = encontrado ? 'encontrado' : 'no_encontrado'
+        if (encontrado) {
+          // Transferir fotos del modo manual al modo normal para que se guarden
+          // con el paquete cuando el agente confirme.
+          setFoto1({ ...fotoManual1 })
+          setFoto2({ ...fotoManual2 })
+          setFotoManual1({ preview: null, url: null, subiendo: false })
+          setFotoManual2({ preview: null, url: null, subiendo: false })
+        }
+      }
+
       setOcrResultado({
         confianza_etiqueta: data.etiqueta.confianza,
         confianza_contenido: data.contenido.confianza,
         match_tipo: data.match?.tipo ?? null,
         notas: data.etiqueta.notas,
+        auto_busqueda: autoBusqueda,
       })
     } catch (err) {
       setOcrError(err instanceof Error ? err.message : 'Error de red')
@@ -498,6 +532,7 @@ export default function RecibirForm() {
           foto_url: fotoManual1.url || undefined,
           foto2_url: fotoManual2.url || undefined,
           cliente_id: clienteManual?.id ?? undefined,
+          nombre_etiqueta: nombreEtiqueta || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; mensaje?: string; asignado?: boolean }
@@ -695,6 +730,29 @@ export default function RecibirForm() {
           </div>
           <button onClick={() => setUltimoRecibido(null)} className="text-gray-400 hover:text-gray-600">
             <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Atajo: Recibir por foto (OCR) */}
+      {!paquete && !modoManual && clientesSugeridos.length === 0 && (
+        <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-200 rounded-xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Sparkles className="h-5 w-5 text-violet-600 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-violet-900 text-sm">¿No tienes el tracking a la mano?</p>
+              <p className="text-xs text-violet-700 truncate">
+                Toma o adjunta 2 fotos del paquete y la IA extrae tracking, casillero y descripción.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setModoManual(true)}
+            className="flex-shrink-0 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-colors"
+          >
+            <Camera className="h-4 w-4" />
+            Recibir por foto
           </button>
         </div>
       )}
@@ -1186,14 +1244,24 @@ export default function RecibirForm() {
                         'text-red-700 font-medium'
                       }>{ocrResultado.confianza_contenido}</span></span>
                     </div>
-                    {ocrResultado.match_tipo && (
+                    {ocrResultado.auto_busqueda === 'encontrado' && (
+                      <p className="text-green-700 font-medium">
+                        ✓ Paquete encontrado por tracking — pasamos al flujo normal
+                      </p>
+                    )}
+                    {ocrResultado.auto_busqueda === 'no_encontrado' && (
+                      <p className="text-amber-700">
+                        ⚠ Tracking no coincide con un paquete reportado — se guarda como nuevo
+                      </p>
+                    )}
+                    {ocrResultado.match_tipo && ocrResultado.auto_busqueda !== 'encontrado' && (
                       <p className="text-green-700 font-medium">
                         ✓ Cliente identificado por {ocrResultado.match_tipo === 'tracking' ? 'tracking del courier'
                           : ocrResultado.match_tipo === 'casillero' ? 'número de casilla'
                           : 'nombre'}
                       </p>
                     )}
-                    {ocrResultado.match_tipo === null && (
+                    {ocrResultado.match_tipo === null && ocrResultado.auto_busqueda !== 'encontrado' && (
                       <p className="text-amber-700">
                         ⚠ No se identificó cliente — el paquete quedará sin asignar
                       </p>

@@ -147,6 +147,8 @@ export async function POST(req: NextRequest) {
     // Ambos modos
     foto_url?: string
     foto2_url?: string
+    // Nombre tal como aparece en la etiqueta (extraído por OCR o ingresado a mano)
+    nombre_etiqueta?: string | null
   }
 
   const admin = getSupabaseAdmin()
@@ -160,6 +162,7 @@ export async function POST(req: NextRequest) {
     const peso_libras = body.peso_libras
     const trackingOrigenLimpio = tracking_origen?.trim() || null
     const clienteIdManual = body.cliente_id?.trim() || null
+    const nombreEtiquetaLimpio = body.nombre_etiqueta?.trim() || null
 
     if (!descripcion || !peso_libras || peso_libras <= 0 || !categoria) {
       return NextResponse.json({ error: 'descripcion, peso y categoria son requeridos' }, { status: 400 })
@@ -217,6 +220,8 @@ export async function POST(req: NextRequest) {
         if (bodega_destino) updates.bodega_destino = bodega_destino
         // Si el agente identificó al cliente y el paquete no tenía cliente_id, asignarlo
         if (clienteIdManual && !existente.cliente_id) updates.cliente_id = clienteIdManual
+        // Nombre de la etiqueta (OCR o manual): siempre se guarda si se proporciona
+        if (nombreEtiquetaLimpio) updates.nombre_etiqueta = nombreEtiquetaLimpio
 
         const { error: updErr } = await admin
           .from('paquetes')
@@ -271,6 +276,7 @@ export async function POST(req: NextRequest) {
         estado: 'recibido_usa',
         fecha_recepcion_usa: new Date().toISOString(),
         factura_pagada: false,
+        nombre_etiqueta: nombreEtiquetaLimpio,
       })
       .select('id, tracking_casilla')
       .single()
@@ -349,6 +355,7 @@ export async function POST(req: NextRequest) {
   }
 
   const estadoAnterior = paquete.estado
+  const nombreEtiquetaA = body.nombre_etiqueta?.trim() || null
   const updates: Record<string, unknown> = {
     estado: 'recibido_usa',
     peso_libras,
@@ -356,6 +363,7 @@ export async function POST(req: NextRequest) {
     updated_at: new Date().toISOString(),
   }
   if (tracking_usaco) updates.tracking_usaco = tracking_usaco
+  if (nombreEtiquetaA) updates.nombre_etiqueta = nombreEtiquetaA
 
   const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })

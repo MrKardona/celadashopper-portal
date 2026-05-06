@@ -32,7 +32,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   // Query 1: paquetes (sin join — service role directo)
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, factura_pagada, requiere_consolidacion, notas_consolidacion, created_at, updated_at')
+    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -69,11 +69,11 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
   }
 
-  // Filtro de búsqueda por texto
+  // Filtro de búsqueda por texto (incluye nombre tal como aparece en la etiqueta del courier)
   const filtrados = q
     ? lista.filter(p => {
         const perfil = p.cliente_id ? perfilesMap[p.cliente_id] : null
-        const txt = `${p.tracking_casilla} ${p.descripcion} ${p.tienda} ${perfil?.nombre_completo ?? ''} ${perfil?.numero_casilla ?? ''}`.toLowerCase()
+        const txt = `${p.tracking_casilla} ${p.descripcion} ${p.tienda} ${p.nombre_etiqueta ?? ''} ${perfil?.nombre_completo ?? ''} ${perfil?.numero_casilla ?? ''}`.toLowerCase()
         return txt.includes(q.toLowerCase())
       })
     : lista
@@ -94,7 +94,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
           <input
             name="q"
             defaultValue={q}
-            placeholder="Buscar tracking, cliente, producto..."
+            placeholder="Buscar tracking, cliente, producto o nombre en etiqueta..."
             className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-72"
           />
         </div>
