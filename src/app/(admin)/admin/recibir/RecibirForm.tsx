@@ -95,6 +95,7 @@ export default function RecibirForm() {
   // --- Estado: recepción normal ---
   const [peso, setPeso] = useState('')
   const [notas, setNotas] = useState('')
+  const [valorDeclarado, setValorDeclarado] = useState('')
   const [guardando, setGuardando] = useState(false)
 
   // --- Fotos: 2 slots independientes ---
@@ -121,6 +122,7 @@ export default function RecibirForm() {
     categoria: '' as CategoriaProducto | '',
     bodega_destino: 'medellin',
     notas: '',
+    valor_declarado: '',
   })
   const [guardandoManual, setGuardandoManual] = useState(false)
   // Cliente identificado manualmente por el agente (opcional en modo manual)
@@ -153,6 +155,7 @@ export default function RecibirForm() {
     if (paquete) {
       pesoRef.current?.focus()
       if (paquete.peso_libras) setPeso(String(paquete.peso_libras))
+      if (paquete.valor_declarado != null) setValorDeclarado(String(paquete.valor_declarado))
     }
   }, [paquete])
 
@@ -358,7 +361,8 @@ export default function RecibirForm() {
     setNotas('')
     setUltimoRecibido(null)
     setModoManual(false)
-    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '' })
+    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '', valor_declarado: '' })
+    setValorDeclarado('')
     setClienteManual(null)
     setClientesSugeridos([])
     setFoto1({ preview: null, url: null, subiendo: false })
@@ -388,6 +392,7 @@ export default function RecibirForm() {
           foto_url: foto1.url || undefined,
           foto2_url: foto2.url || undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
+          valor_declarado: valorDeclarado.trim() ? parseFloat(valorDeclarado) : undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -533,6 +538,7 @@ export default function RecibirForm() {
           foto2_url: fotoManual2.url || undefined,
           cliente_id: clienteManual?.id ?? undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
+          valor_declarado: formManual.valor_declarado.trim() ? parseFloat(formManual.valor_declarado) : undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; mensaje?: string; asignado?: boolean }
@@ -1008,6 +1014,22 @@ export default function RecibirForm() {
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">lb</span>
               </div>
             </div>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">
+                Valor declarado <span className="text-gray-400 font-normal">(USD, opcional — para factura)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
+                <input
+                  type="number" step="0.01" min="0" max="99999"
+                  value={valorDeclarado}
+                  onChange={e => setValorDeclarado(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-7 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">USD</span>
+              </div>
+            </div>
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input
@@ -1168,6 +1190,22 @@ export default function RecibirForm() {
               >
                 {BODEGAS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
               </select>
+            </div>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">
+                Valor declarado <span className="text-gray-400 font-normal">(USD, opcional — para factura)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
+                <input
+                  type="number" step="0.01" min="0" max="99999"
+                  value={formManual.valor_declarado}
+                  onChange={e => setFormManual(p => ({ ...p, valor_declarado: e.target.value }))}
+                  placeholder="0.00"
+                  className="w-full pl-7 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">USD</span>
+              </div>
             </div>
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>

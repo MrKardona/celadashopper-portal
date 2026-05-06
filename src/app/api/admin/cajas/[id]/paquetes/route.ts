@@ -36,8 +36,9 @@ export async function POST(req: NextRequest, { params }: Props) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { id: cajaId } = await params
-  const body = await req.json() as { tracking?: string; ignorar_bodega?: boolean }
+  const body = await req.json() as { tracking?: string; ignorar_bodega?: boolean; mover?: boolean }
   const tracking = body.tracking?.trim()
+  const moverDesdeOtraCaja = body.mover === true
   if (!tracking) return NextResponse.json({ error: 'tracking requerido' }, { status: 400 })
 
   const admin = getSupabaseAdmin()
@@ -74,11 +75,33 @@ export async function POST(req: NextRequest, { params }: Props) {
   if (paquete.caja_id === cajaId) {
     return NextResponse.json({ error: 'Este paquete ya está en esta caja', codigo: 'duplicado' }, { status: 409 })
   }
+  // Si está en otra caja: solo permitimos moverlo si:
+  //   - el cliente envió mover=true (confirmación explícita)
+  //   - la caja origen está "abierta" (no movemos paquetes de cajas cerradas/despachadas)
+  let cajaOrigenInfo: { id: string; codigo_interno: string; estado: string } | null = null
   if (paquete.caja_id) {
-    return NextResponse.json({
-      error: 'Este paquete ya está en otra caja. Quítalo de allí primero.',
-      codigo: 'en_otra_caja',
-    }, { status: 409 })
+    const { data: cajaOrigen } = await admin
+      .from('cajas_consolidacion')
+      .select('id, codigo_interno, estado')
+      .eq('id', paquete.caja_id)
+      .maybeSingle()
+    cajaOrigenInfo = cajaOrigen ?? null
+
+    if (!moverDesdeOtraCaja) {
+      return NextResponse.json({
+        error: cajaOrigen
+          ? `Este paquete ya está en la caja ${cajaOrigen.codigo_interno}. Confirma el traslado para moverlo.`
+          : 'Este paquete ya está en otra caja. Quítalo de allí primero.',
+        codigo: 'en_otra_caja',
+        caja_origen: cajaOrigen,
+      }, { status: 409 })
+    }
+    if (cajaOrigen && cajaOrigen.estado !== 'abierta') {
+      return NextResponse.json({
+        error: `No se puede mover: la caja origen ${cajaOrigen.codigo_interno} está en estado "${cajaOrigen.estado}".`,
+        codigo: 'caja_origen_no_abierta',
+      }, { status: 400 })
+    }
   }
   // Estados elegibles: recibido_usa, listo_envio o en_consolidacion (huérfano)
   const estadosElegibles = ['recibido_usa', 'listo_envio', 'en_consolidacion']
@@ -112,17 +135,24 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 })
 
-  // 6. Registrar evento (usa el estado real anterior)
+  // 6. Registrar evento (usa el estado real anterior). Si fue un traslado, lo
+  // documentamos con códigos de caja origen y destino.
+  const descripcionEvento = cajaOrigenInfo
+    ? `Trasladado de caja ${cajaOrigenInfo.codigo_interno} a caja consolidada para ${caja.bodega_destino}`
+    : `Agregado a caja consolidada para ${caja.bodega_destino}`
+
   await admin.from('eventos_paquete').insert({
     paquete_id: paquete.id,
     estado_anterior: paquete.estado,
     estado_nuevo: 'en_consolidacion',
-    descripcion: `Agregado a caja consolidada para ${caja.bodega_destino}`,
+    descripcion: descripcionEvento,
     ubicacion: 'Miami, USA',
   }).then(() => {/* ok */}, (e) => console.error('[caja+paquete] evento:', e))
 
   return NextResponse.json({
     ok: true,
+    movido: !!cajaOrigenInfo,
+    caja_origen: cajaOrigenInfo,
     paquete: {
       id: paquete.id,
       tracking_casilla: paquete.tracking_casilla,

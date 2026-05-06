@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ScanBarcode, Package, MapPin, X, Loader2, CheckCircle2, AlertCircle,
-  Lock, Truck, Trash2, Camera, Plus, RefreshCw, Globe, Pencil, Save,
+  Lock, Truck, Trash2, Camera, Plus, RefreshCw, Globe, Pencil, Save, Box,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CATEGORIA_LABELS, ESTADO_LABELS, ESTADO_COLORES, type CategoriaProducto, type EstadoPaquete } from '@/types'
@@ -94,7 +94,7 @@ export default function CajaDetalleForm({
   }
 
   // ─── Agregar paquete ───────────────────────────────────────────────────────
-  async function agregar(t: string, ignorarBodega = false) {
+  async function agregar(t: string, ignorarBodega = false, mover = false) {
     const term = t.trim()
     if (!term) return
     setAgregando(true)
@@ -103,9 +103,9 @@ export default function CajaDetalleForm({
       const res = await fetch(`/api/admin/cajas/${caja.id}/paquetes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tracking: term, ignorar_bodega: ignorarBodega }),
+        body: JSON.stringify({ tracking: term, ignorar_bodega: ignorarBodega, mover }),
       })
-      const data = await res.json() as { ok?: boolean; error?: string; codigo?: string; paquete?: { tracking_casilla: string } }
+      const data = await res.json() as { ok?: boolean; error?: string; codigo?: string; movido?: boolean; paquete?: { tracking_casilla: string }; caja_origen?: { codigo_interno: string } | null }
 
       if (!res.ok || !data.ok) {
         if (data.codigo === 'bodega_distinta') {
@@ -120,7 +120,10 @@ export default function CajaDetalleForm({
         return
       }
 
-      setMensaje({ tipo: 'ok', texto: `✓ Agregado: ${data.paquete?.tracking_casilla}` })
+      const textoOk = data.movido && data.caja_origen
+        ? `✓ Movido desde ${data.caja_origen.codigo_interno}: ${data.paquete?.tracking_casilla}`
+        : `✓ Agregado: ${data.paquete?.tracking_casilla}`
+      setMensaje({ tipo: 'ok', texto: textoOk })
       setTracking('')
       await refrescar()
       inputRef.current?.focus()
@@ -349,11 +352,17 @@ export default function CajaDetalleForm({
       {editable && (
         <PaquetesDisponibles
           bodegaCaja={caja.bodega_destino}
+          cajaIdActual={caja.id}
           onAgregar={async (tracking) => {
             await agregar(tracking)
           }}
           onAgregarConBodegaDistinta={async (tracking) => {
             await agregar(tracking, true)
+          }}
+          onMover={async (tracking, codigoOrigen) => {
+            const ok = window.confirm(`Este paquete está en la caja ${codigoOrigen}. ¿Moverlo a esta caja?`)
+            if (!ok) return
+            await agregar(tracking, false, true)
           }}
         />
       )}
@@ -840,6 +849,7 @@ interface PaqueteDisponible {
   fecha_recepcion_usa: string | null
   estado: string
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
+  caja_actual: { id: string; codigo_interno: string } | null
 }
 
 type FiltroEstado = 'todos' | 'recibido_usa' | 'listo_envio' | 'en_consolidacion'
@@ -852,12 +862,16 @@ const ESTADO_PAQUETE_BADGE: Record<string, { bg: string; text: string; label: st
 
 function PaquetesDisponibles({
   bodegaCaja,
+  cajaIdActual,
   onAgregar,
   onAgregarConBodegaDistinta,
+  onMover,
 }: {
   bodegaCaja: string
+  cajaIdActual: string
   onAgregar: (tracking: string) => Promise<void>
   onAgregarConBodegaDistinta: (tracking: string) => Promise<void>
+  onMover: (tracking: string, codigoOrigen: string) => Promise<void>
 }) {
   const [paquetes, setPaquetes] = useState<PaqueteDisponible[]>([])
   const [stats, setStats] = useState<{
@@ -867,6 +881,7 @@ function PaquetesDisponibles({
   const [cargando, setCargando] = useState(false)
   const [query, setQuery] = useState('')
   const [todasBodegas, setTodasBodegas] = useState(false)
+  const [incluirOtras, setIncluirOtras] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
   const [agregandoId, setAgregandoId] = useState<string | null>(null)
 
@@ -875,6 +890,10 @@ function PaquetesDisponibles({
     const params = new URLSearchParams()
     params.set('bodega', bodegaCaja)
     if (todasBodegas) params.set('todas', '1')
+    if (incluirOtras) {
+      params.set('incluir_otras', '1')
+      params.set('excluir_caja', cajaIdActual)
+    }
     if (query.trim()) params.set('q', query.trim())
     if (filtroEstado === 'todos') params.set('estados', 'recibido_usa,listo_envio,en_consolidacion')
     else params.set('estados', filtroEstado)
@@ -903,15 +922,20 @@ function PaquetesDisponibles({
     const t = setTimeout(cargar, 200)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, todasBodegas, filtroEstado])
+  }, [query, todasBodegas, filtroEstado, incluirOtras])
 
   async function handleAgregar(p: PaqueteDisponible) {
     if (!p.tracking_casilla) return
     setAgregandoId(p.id)
     try {
-      const fn = (p.bodega_destino !== bodegaCaja) ? onAgregarConBodegaDistinta : onAgregar
-      await fn(p.tracking_casilla)
-      // Recargar lista (el agregado ya no debe aparecer)
+      if (p.caja_actual) {
+        // Está en otra caja abierta → mover (con confirmación dentro de onMover)
+        await onMover(p.tracking_casilla, p.caja_actual.codigo_interno)
+      } else if (p.bodega_destino !== bodegaCaja) {
+        await onAgregarConBodegaDistinta(p.tracking_casilla)
+      } else {
+        await onAgregar(p.tracking_casilla)
+      }
       await cargar()
     } finally {
       setAgregandoId(null)
@@ -925,7 +949,7 @@ function PaquetesDisponibles({
           <Package className="h-4 w-4 text-orange-600" />
           <span className="text-sm font-semibold text-gray-700">Paquetes disponibles para agregar</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
           <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
             <input
               type="checkbox"
@@ -934,6 +958,15 @@ function PaquetesDisponibles({
               className="h-3.5 w-3.5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
             />
             <Globe className="h-3 w-3" /> Todas las bodegas
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={incluirOtras}
+              onChange={e => setIncluirOtras(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+            />
+            <Box className="h-3 w-3 text-amber-600" /> Incluir paquetes en otras cajas abiertas
           </label>
           <button
             onClick={cargar}
@@ -1069,6 +1102,16 @@ function PaquetesDisponibles({
                     Sin cliente
                   </span>
                 )}
+                {/* Badge si está en otra caja abierta — sirve para indicar traslado */}
+                {p.caja_actual && (
+                  <span
+                    className="text-[11px] text-orange-700 bg-orange-50 border border-orange-300 px-1.5 py-0.5 rounded whitespace-nowrap inline-flex items-center gap-0.5 font-medium"
+                    title={`Actualmente en caja ${p.caja_actual.codigo_interno}`}
+                  >
+                    <Box className="h-2.5 w-2.5" />
+                    {p.caja_actual.codigo_interno}
+                  </span>
+                )}
                 {/* Badge del estado del paquete */}
                 <span className={`text-[11px] px-2 py-0.5 rounded-full border whitespace-nowrap ${estadoStyle.bg} ${estadoStyle.text}`}>
                   {estadoStyle.label}
@@ -1095,11 +1138,17 @@ function PaquetesDisponibles({
                   size="sm"
                   onClick={() => handleAgregar(p)}
                   disabled={agregandoId !== null}
-                  className="bg-orange-600 hover:bg-orange-700 text-white gap-1 text-xs h-7 px-2"
+                  className={`text-white gap-1 text-xs h-7 px-2 ${
+                    p.caja_actual
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
                 >
                   {agregandoId === p.id
                     ? <Loader2 className="h-3 w-3 animate-spin" />
-                    : <><Plus className="h-3 w-3" /> Agregar</>}
+                    : p.caja_actual
+                      ? <><Truck className="h-3 w-3" /> Mover</>
+                      : <><Plus className="h-3 w-3" /> Agregar</>}
                 </Button>
               </div>
             )

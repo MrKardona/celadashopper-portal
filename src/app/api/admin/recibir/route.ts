@@ -149,7 +149,17 @@ export async function POST(req: NextRequest) {
     foto2_url?: string
     // Nombre tal como aparece en la etiqueta (extraído por OCR o ingresado a mano)
     nombre_etiqueta?: string | null
+    // Valor declarado del producto en USD (lo ingresa el agente al recibir)
+    valor_declarado?: number | string | null
   }
+
+  // Helper: parsea valor_declarado a number > 0 o null. Aceptamos "12.34" y 12.34.
+  function parseValorDeclarado(v: unknown): number | null {
+    if (v === null || v === undefined || v === '') return null
+    const n = typeof v === 'string' ? parseFloat(v) : (typeof v === 'number' ? v : NaN)
+    return Number.isFinite(n) && n >= 0 ? n : null
+  }
+  const valorDeclarado = parseValorDeclarado(body.valor_declarado)
 
   const admin = getSupabaseAdmin()
 
@@ -222,6 +232,8 @@ export async function POST(req: NextRequest) {
         if (clienteIdManual && !existente.cliente_id) updates.cliente_id = clienteIdManual
         // Nombre de la etiqueta (OCR o manual): siempre se guarda si se proporciona
         if (nombreEtiquetaLimpio) updates.nombre_etiqueta = nombreEtiquetaLimpio
+        // Valor declarado: el agente puede sobrescribir el del cliente con lo que vio
+        if (valorDeclarado !== null) updates.valor_declarado = valorDeclarado
 
         const { error: updErr } = await admin
           .from('paquetes')
@@ -277,6 +289,7 @@ export async function POST(req: NextRequest) {
         fecha_recepcion_usa: new Date().toISOString(),
         factura_pagada: false,
         nombre_etiqueta: nombreEtiquetaLimpio,
+        valor_declarado: valorDeclarado,
       })
       .select('id, tracking_casilla')
       .single()
@@ -364,6 +377,7 @@ export async function POST(req: NextRequest) {
   }
   if (tracking_usaco) updates.tracking_usaco = tracking_usaco
   if (nombreEtiquetaA) updates.nombre_etiqueta = nombreEtiquetaA
+  if (valorDeclarado !== null) updates.valor_declarado = valorDeclarado
 
   const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
