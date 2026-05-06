@@ -15,12 +15,12 @@ const BODEGA_LABELS: Record<string, string> = {
 }
 
 interface Props {
-  searchParams: Promise<{ estado?: string; bodega?: string; q?: string }>
+  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string }>
 }
 
 export default async function AdminPaquetesPage({ searchParams }: Props) {
   const params = await searchParams
-  const { estado, bodega, q } = params
+  const { estado, bodega, q, asignacion } = params
 
   // Usamos service role con la opción db.schema para evitar problemas de RLS
   const supabase = createClient(
@@ -38,6 +38,9 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   if (estado) q1 = q1.eq('estado', estado)
   if (bodega) q1 = q1.eq('bodega_destino', bodega)
+  // Filtro por asignación de cliente
+  if (asignacion === 'sin_asignar') q1 = q1.is('cliente_id', null)
+  else if (asignacion === 'asignados') q1 = q1.not('cliente_id', 'is', null)
 
   const { data: paquetes, error: errPaq } = await q1
   const lista = paquetes ?? []
@@ -113,13 +116,22 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
             <option key={b} value={b}>{BODEGA_LABELS[b]}</option>
           ))}
         </select>
+        <select
+          name="asignacion"
+          defaultValue={asignacion ?? ''}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+        >
+          <option value="">Asignados y sin asignar</option>
+          <option value="sin_asignar">⏳ Solo sin asignar</option>
+          <option value="asignados">✓ Solo asignados</option>
+        </select>
         <button
           type="submit"
           className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
         >
           Filtrar
         </button>
-        {(estado || bodega || q) && (
+        {(estado || bodega || q || asignacion) && (
           <Link
             href="/admin/paquetes"
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
