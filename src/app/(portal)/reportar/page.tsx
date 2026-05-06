@@ -326,30 +326,37 @@ export default function ReportarPage() {
               </div>
             </div>
 
-            {/* Condición y cantidad — solo cuando la categoría tiene tarifas escalonadas */}
-            {(form.categoria === 'celular' || form.categoria === 'computador') && (
+            {/* Condición, cantidad y cotización */}
+            {form.categoria && form.categoria !== 'juguetes' && form.categoria !== 'otro' && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-3">
                 <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">
                   Datos para calcular tarifa
                 </p>
+
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Condición *</Label>
-                    <Select
-                      value={form.condicion}
-                      onValueChange={val => setForm(prev => ({ ...prev, condicion: val as 'nuevo' | 'usado' }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Nuevo o usado..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="nuevo">Nuevo (en caja)</SelectItem>
-                        <SelectItem value="usado">Usado (sin caja)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cantidad">Cantidad de unidades *</Label>
+                  {/* Condición solo para celular y computador */}
+                  {(form.categoria === 'celular' || form.categoria === 'computador') && (
+                    <div className="space-y-2 col-span-2 sm:col-span-1">
+                      <Label>Condición *</Label>
+                      <Select
+                        value={form.condicion}
+                        onValueChange={val => setForm(prev => ({ ...prev, condicion: val as 'nuevo' | 'usado' }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Nuevo o usado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="nuevo">Nuevo (en caja)</SelectItem>
+                          <SelectItem value="usado">Usado (sin caja)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label htmlFor="cantidad">
+                      {form.categoria === 'calzado' ? 'Pares' : 'Cantidad de unidades'} *
+                    </Label>
                     <Input
                       id="cantidad"
                       name="cantidad"
@@ -361,41 +368,61 @@ export default function ReportarPage() {
                     />
                   </div>
                 </div>
+
+                {/* Pista contextual por categoría */}
                 {form.categoria === 'celular' && form.condicion === 'usado' && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
                     💡 Tarifas por cantidad: 1-4 uds = $55/u · 5-9 uds = $45/u · +10 uds = $40/u
                   </p>
                 )}
                 {form.categoria === 'celular' && form.condicion === 'nuevo' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">💡 Celular nuevo: $75 por unidad</p>
+                )}
+                {form.categoria === 'computador' && form.condicion && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
-                    💡 Celular nuevo: $75 por unidad
+                    💡 {form.condicion === 'usado' ? '$55' : '$75'} por unidad + 4% del valor declarado
                   </p>
                 )}
-                {form.categoria === 'computador' && (
+                {form.categoria === 'ipad_tablet' && (
                   <p className="text-[11px] text-orange-800 leading-relaxed">
-                    💡 {form.condicion === 'usado' ? '$55' : '$75'} por unidad + 4% del valor declarado (seguro)
+                    💡 Si valor &gt; $200 → $45/u + 4% seguro · Si vale ≤ $200 → $18 fijo + $2.20/lb
+                  </p>
+                )}
+                {form.categoria === 'calzado' && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 1 par = $20 · 2 o más pares = $17.50 cada par
+                  </p>
+                )}
+                {['ropa_accesorios', 'cosmeticos', 'suplementos', 'libros', 'electrodomestico'].includes(form.categoria) && (
+                  <p className="text-[11px] text-orange-800 leading-relaxed">
+                    💡 Hasta 6 uds y valor ≤ $200: $18 fijo + $2.20/lb · 7+ uds o valor &gt; $200: $6.50/lb (mín 5 lb)
                   </p>
                 )}
 
-                {/* Cotización estimada */}
-                {cotizacion && cotizacion.metodo !== 'sin_tarifa' && cotizacion.total > 0 && (
+                {/* Cotización */}
+                {cotizacion && cotizacion.metodo !== 'sin_tarifa' && (
                   <div className="bg-white border-2 border-orange-300 rounded-lg p-3 mt-2">
                     <div className="flex items-center justify-between gap-2">
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-[10px] text-orange-700 uppercase font-bold tracking-wide">
-                          Costo estimado
+                          {cotizacion.requiere_peso ? 'Costo estimado mínimo' : 'Costo estimado'}
                         </p>
                         <p className="text-2xl font-bold text-orange-700">
-                          ${cotizacion.total.toFixed(2)} <span className="text-xs font-normal text-gray-500">USD</span>
+                          {cotizacion.requiere_peso ? 'desde ' : ''}
+                          ${cotizacion.total.toFixed(2)}{' '}
+                          <span className="text-xs font-normal text-gray-500">USD</span>
                         </p>
                       </div>
-                      <div className="text-right text-[11px] text-gray-600">
-                        <p>Envío: ${cotizacion.subtotal_envio.toFixed(2)}</p>
-                        {cotizacion.seguro > 0 && <p>Seguro: ${cotizacion.seguro.toFixed(2)}</p>}
-                      </div>
+                      {!cotizacion.requiere_peso && (
+                        <div className="text-right text-[11px] text-gray-600">
+                          <p>Envío: ${cotizacion.subtotal_envio.toFixed(2)}</p>
+                          {cotizacion.seguro > 0 && <p>Seguro: ${cotizacion.seguro.toFixed(2)}</p>}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      {cotizacion.detalle}. Costo final lo confirma el agente al recibir.
+                    <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                      {cotizacion.detalle}
+                      {!cotizacion.requiere_peso && '. Costo final lo confirma el agente al recibir.'}
                     </p>
                   </div>
                 )}

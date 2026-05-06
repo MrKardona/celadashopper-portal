@@ -15,6 +15,7 @@ export type CategoriaProducto =
   | 'celular'
   | 'computador'
   | 'ipad_tablet'
+  | 'calzado'
   | 'ropa_accesorios'
   | 'electrodomestico'
   | 'juguetes'
@@ -143,6 +144,7 @@ export const CATEGORIA_LABELS: Record<CategoriaProducto, string> = {
   celular: 'Celular',
   computador: 'Computador',
   ipad_tablet: 'iPad / Tablet',
+  calzado: 'Calzado / Zapatos',
   ropa_accesorios: 'Ropa y Accesorios',
   electrodomestico: 'Electrodoméstico',
   juguetes: 'Juguetes',
