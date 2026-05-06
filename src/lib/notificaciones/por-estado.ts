@@ -9,6 +9,7 @@ import {
   enviarEmailCostoCalculado,
   enviarEmailTrackingActualizado,
 } from '@/lib/email/notificaciones'
+import { calcularTarifa } from '@/lib/tarifas/calcular'
 import type { ResultadoEmail } from '@/lib/email/transporter'
 import sharp from 'sharp'
 
@@ -486,6 +487,24 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         }
       }
 
+      // Cuando un paquete recién llega a USA, calculamos la tarifa estimada
+      // con los datos disponibles (categoría, condición, cantidad, peso, valor)
+      // para incluirla en el email del cliente.
+      let tarifaCalculada: Awaited<ReturnType<typeof calcularTarifa>> = null
+      if (estadoNuevo === 'recibido_usa') {
+        try {
+          tarifaCalculada = await calcularTarifa({
+            categoria: ctx.paquete.categoria,
+            condicion: ctx.paquete.condicion ?? null,
+            cantidad: ctx.paquete.cantidad ?? 1,
+            peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras ?? null,
+            valor_declarado: ctx.paquete.valor_declarado ?? null,
+          })
+        } catch (err) {
+          console.error('[notificarCambioEstado] calcularTarifa falló:', err)
+        }
+      }
+
       emailRes = await enviarEmailPorEstado(estadoNuevo, {
         emailDestino: ctx.perfil.email,
         nombre: ctx.vars.nombre,
@@ -499,6 +518,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         bodega_destino: ctx.paquete.bodega_destino,
         tienda: ctx.paquete.tienda,
         fotoUrlContenido,
+        tarifaCalculada,
       })
       console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailRes.ok} msg_id=${emailRes.messageId ?? '?'}`)
     } else {

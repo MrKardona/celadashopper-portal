@@ -21,6 +21,15 @@ const BODEGA_LABELS: Record<string, string> = {
   barranquilla: 'Barranquilla',
 }
 
+interface TarifaCalculadaDatos {
+  subtotal_envio: number
+  seguro: number
+  total: number
+  metodo: string
+  detalle: string
+  requiere_peso?: boolean
+}
+
 interface DatosEmail {
   emailDestino: string
   nombre: string
@@ -42,6 +51,8 @@ interface DatosEmail {
   fecha_estimada_llegada?: string | null
   notas_cliente?: string | null
   estadoActual?: string | null
+  // Tarifa calculada al recibir en USA (incluye desglose)
+  tarifaCalculada?: TarifaCalculadaDatos | null
 }
 
 function buildVars(d: DatosEmail) {
@@ -70,6 +81,7 @@ function buildVars(d: DatosEmail) {
     fecha_estimada_llegada: d.fecha_estimada_llegada ?? undefined,
     notas_cliente: d.notas_cliente ?? undefined,
     estadoActual: d.estadoActual ?? undefined,
+    tarifaCalculada: d.tarifaCalculada ?? undefined,
   }
 }
 

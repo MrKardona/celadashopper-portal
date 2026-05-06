@@ -1,6 +1,15 @@
 // src/lib/email/plantillas.ts
 // Plantillas HTML de emails transaccionales para CeladaShopper.
 
+interface TarifaCalculada {
+  subtotal_envio: number
+  seguro: number
+  total: number
+  metodo: string
+  detalle: string
+  requiere_peso?: boolean
+}
+
 interface VariablesPlantilla {
   nombre: string
   descripcion: string
@@ -20,6 +29,7 @@ interface VariablesPlantilla {
   fecha_estimada_llegada?: string
   notas_cliente?: string
   estadoActual?: string
+  tarifaCalculada?: TarifaCalculada
 }
 
 const SITE_URL = 'https://portal.celadashopper.com'
@@ -277,15 +287,56 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
         ${bloqueDatos('🔖 Tracking', vars.tracking)}
       </table>
     </div>
+
+    ${vars.tarifaCalculada && vars.tarifaCalculada.metodo !== 'sin_tarifa' && vars.tarifaCalculada.total > 0 ? `
+      <!-- Tarifa estimada -->
+      <div style="background:#fff7ed;border:2px solid ${COLOR_NARANJA};border-radius:10px;padding:20px;margin:20px 0;">
+        <p style="color:${COLOR_NARANJA};font-size:11px;margin:0 0 6px 0;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;">
+          ${vars.tarifaCalculada.requiere_peso ? 'Costo aproximado mínimo' : 'Costo aproximado del envío'}
+        </p>
+        <p style="color:${COLOR_NARANJA};font-size:32px;margin:0;font-weight:bold;font-family:Arial,sans-serif;">
+          ${vars.tarifaCalculada.requiere_peso ? 'desde ' : ''}$${vars.tarifaCalculada.total.toFixed(2)}
+          <span style="font-size:14px;font-weight:normal;color:#78716c;">USD</span>
+        </p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:12px;border-top:1px solid #fed7aa;padding-top:8px;">
+          <tr>
+            <td style="color:#78716c;font-size:12px;padding:2px 0;">Envío:</td>
+            <td style="color:#1c1917;font-size:13px;text-align:right;font-weight:bold;padding:2px 0;">$${vars.tarifaCalculada.subtotal_envio.toFixed(2)} USD</td>
+          </tr>
+          ${vars.tarifaCalculada.seguro > 0 ? `
+          <tr>
+            <td style="color:#78716c;font-size:12px;padding:2px 0;">Seguro:</td>
+            <td style="color:#1c1917;font-size:13px;text-align:right;font-weight:bold;padding:2px 0;">$${vars.tarifaCalculada.seguro.toFixed(2)} USD</td>
+          </tr>
+          ` : ''}
+        </table>
+        <p style="color:#78716c;font-size:11px;margin:10px 0 0 0;line-height:1.5;">
+          ${vars.tarifaCalculada.detalle}
+        </p>
+        <p style="color:#9a3412;font-size:11px;margin:6px 0 0 0;line-height:1.5;font-style:italic;">
+          ⚠️ Costo aproximado. Lo confirmaremos definitivamente al despachar.
+        </p>
+      </div>
+    ` : vars.tarifaCalculada && vars.tarifaCalculada.metodo === 'sin_tarifa' ? `
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:20px 0;">
+        <p style="color:#1e40af;font-size:13px;margin:0;line-height:1.5;">
+          📋 <strong>Tarifa especial</strong> — el costo de este envío se calcula al hacer la consolidación completa del paquete. Te confirmaremos el costo final próximamente.
+        </p>
+      </div>
+    ` : ''}
+
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
       Pronto lo despacharemos a Colombia ✈️. Te avisaremos cuando esté en tránsito y cuando llegue a la bodega local.
     </p>
     ${botonVerSeguimiento(vars.link)}
   `
+  const textoCosto = vars.tarifaCalculada && vars.tarifaCalculada.total > 0
+    ? ` Costo aproximado: $${vars.tarifaCalculada.total.toFixed(2)} USD.`
+    : ''
   return {
     subject,
     html: layout(subject, contenido, vars),
-    text: `Hola ${vars.nombre}, tu paquete "${vars.descripcion}" llegó a la bodega de Miami. Peso: ${vars.peso}. Sigue su tracking en ${vars.link}`,
+    text: `Hola ${vars.nombre}, tu paquete "${vars.descripcion}" llegó a la bodega de Miami. Peso: ${vars.peso}.${textoCosto} Sigue su tracking en ${vars.link}`,
   }
 }
 
