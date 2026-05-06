@@ -39,6 +39,7 @@ interface CajaSugerida {
   bodega: string
   paquetes: PaqueteSugerencia[]
   total_valor: number
+  tipo: 'normal' | 'alto_valor'
 }
 
 interface Sugerencias {
@@ -208,7 +209,7 @@ export default function SugerirArmadoButton() {
             <div className="px-6 py-3 bg-violet-50 border-b border-violet-100 flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
               <div className="flex items-center gap-2 text-sm text-violet-900">
                 <DollarSign className="h-4 w-4" />
-                <span className="font-medium">Valor máximo por caja:</span>
+                <span className="font-medium">Umbral alto valor:</span>
                 <input
                   type="number"
                   min="1" max="10000" step="10"
@@ -250,14 +251,29 @@ export default function SugerirArmadoButton() {
                 <div className="space-y-6">
                   {Object.entries(sugerencias).map(([bodega, info]) => (
                     <div key={bodega}>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
                         <MapPin className="h-4 w-4 text-orange-600" />
                         <h3 className="font-bold text-gray-900">
                           Bodega {BODEGA_LABELS[bodega] ?? bodega}
                         </h3>
-                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                          {info.cajas.length} caja{info.cajas.length !== 1 ? 's' : ''} sugerida{info.cajas.length !== 1 ? 's' : ''}
-                        </span>
+                        {(() => {
+                          const normales = info.cajas.filter(c => c.tipo === 'normal').length
+                          const altas = info.cajas.filter(c => c.tipo === 'alto_valor').length
+                          return (
+                            <>
+                              {normales > 0 && (
+                                <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                                  {normales} bajo ${maxValor}
+                                </span>
+                              )}
+                              {altas > 0 && (
+                                <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                                  {altas} alto valor
+                                </span>
+                              )}
+                            </>
+                          )
+                        })()}
                       </div>
 
                       {info.cajas.length === 0 ? (
@@ -268,24 +284,26 @@ export default function SugerirArmadoButton() {
                         <div className="space-y-2 ml-2">
                           {info.cajas.map((caja, idx) => {
                             const key = `${bodega}:${idx}`
-                            const excede = caja.total_valor > maxValor
                             const seleccionada = !!seleccion[key]
+                            const esAltoValor = caja.tipo === 'alto_valor'
                             return (
                               <div
                                 key={key}
                                 className={`border-2 rounded-lg overflow-hidden transition-colors ${
-                                  seleccionada ? 'border-violet-300 bg-violet-50/50' : 'border-gray-200 bg-white'
-                                } ${excede ? 'border-red-300' : ''}`}
+                                  esAltoValor
+                                    ? seleccionada ? 'border-orange-300 bg-orange-50/40' : 'border-orange-200 bg-white'
+                                    : seleccionada ? 'border-violet-300 bg-violet-50/50' : 'border-gray-200 bg-white'
+                                }`}
                               >
-                                <div className="px-4 py-2.5 flex items-center justify-between gap-2 border-b border-gray-100">
+                                <div className={`px-4 py-2.5 flex items-center justify-between gap-2 border-b ${esAltoValor ? 'border-orange-100' : 'border-gray-100'}`}>
                                   <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
                                     <input
                                       type="checkbox"
                                       checked={seleccionada}
                                       onChange={() => toggle(key)}
-                                      className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                      className={`h-4 w-4 rounded border-gray-300 focus:ring-violet-500 ${esAltoValor ? 'text-orange-600' : 'text-violet-600'}`}
                                     />
-                                    <Box className={`h-4 w-4 flex-shrink-0 ${excede ? 'text-red-500' : 'text-violet-600'}`} />
+                                    <Box className={`h-4 w-4 flex-shrink-0 ${esAltoValor ? 'text-orange-500' : 'text-violet-600'}`} />
                                     <span className="text-sm font-semibold text-gray-900">
                                       Caja {String.fromCharCode(65 + idx)}
                                     </span>
@@ -296,9 +314,9 @@ export default function SugerirArmadoButton() {
                                     <span className="text-xs text-gray-400">
                                       ({caja.paquetes.length} paquete{caja.paquetes.length !== 1 ? 's' : ''})
                                     </span>
-                                    {excede && (
-                                      <span className="text-[11px] text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded ml-auto">
-                                        ⚠ Excede límite
+                                    {esAltoValor && (
+                                      <span className="text-[11px] text-orange-700 bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                        Alto valor &gt;${maxValor}
                                       </span>
                                     )}
                                   </label>
@@ -307,7 +325,7 @@ export default function SugerirArmadoButton() {
                                     variant="outline"
                                     onClick={() => handleCrearUna(bodega, idx, caja)}
                                     disabled={!!creando}
-                                    className="h-7 text-xs gap-1 border-violet-300 text-violet-700 hover:bg-violet-50"
+                                    className={`h-7 text-xs gap-1 ${esAltoValor ? 'border-orange-300 text-orange-700 hover:bg-orange-50' : 'border-violet-300 text-violet-700 hover:bg-violet-50'}`}
                                   >
                                     {creando === key
                                       ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -328,7 +346,7 @@ export default function SugerirArmadoButton() {
                                         <User className="h-3 w-3 flex-shrink-0" />
                                         {p.cliente_nombre ?? <span className="italic text-amber-600">Sin cliente</span>}
                                       </span>
-                                      <span className="font-bold text-gray-900 whitespace-nowrap">
+                                      <span className={`font-bold whitespace-nowrap ${p.valor_declarado > maxValor ? 'text-orange-600' : 'text-gray-900'}`}>
                                         ${p.valor_declarado.toFixed(2)}
                                       </span>
                                     </li>

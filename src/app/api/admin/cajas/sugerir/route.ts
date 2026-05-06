@@ -51,29 +51,38 @@ interface CajaSugerida {
   bodega: string
   paquetes: PaqueteSugerencia[]
   total_valor: number
+  // 'normal'    → total caja ≤ maxValor (bin-packing FFD)
+  // 'alto_valor' → paquetes individuales > maxValor, agrupados máx 6 por caja
+  tipo: 'normal' | 'alto_valor'
 }
 
-// ─── First-Fit Decreasing ────────────────────────────────────────────────────
-// Ordena los items por valor desc, luego para cada uno busca la primera caja
-// donde quepa sin pasar el cap. Si no cabe, abre caja nueva. No es óptimo en
-// teoría (NP-hard), pero a este volumen el resultado es muy bueno.
+const MAX_PAQUETES_ALTO_VALOR = 6
+
+// ─── Armado de cajas ─────────────────────────────────────────────────────────
+// Dos regímenes según el valor declarado individual de cada paquete:
+//
+//  • bajo  (valor ≤ maxValor): se agrupan con First-Fit Decreasing para
+//    que el total de la caja no supere maxValor.
+//
+//  • alto  (valor > maxValor): se agrupan entre sí en bloques de hasta
+//    MAX_PAQUETES_ALTO_VALOR (6) sin restricción de valor total.
+//
 function armarCajas(
   paquetes: PaqueteSugerencia[],
   maxValor: number,
   bodega: string,
 ): CajaSugerida[] {
-  const ordenados = [...paquetes].sort((a, b) => b.valor_declarado - a.valor_declarado)
+  const bajos = paquetes.filter(p => p.valor_declarado <= maxValor)
+  const altos = paquetes.filter(p => p.valor_declarado > maxValor)
+
   const cajas: CajaSugerida[] = []
 
-  for (const p of ordenados) {
-    if (p.valor_declarado > maxValor) {
-      // Paquete individual excede el cap → caja propia (advertencia)
-      cajas.push({ bodega, paquetes: [p], total_valor: p.valor_declarado })
-      continue
-    }
+  // ── FFD para paquetes bajo el umbral ──────────────────────────────────────
+  const ordenadosBajos = [...bajos].sort((a, b) => b.valor_declarado - a.valor_declarado)
+  for (const p of ordenadosBajos) {
     let colocado = false
     for (const caja of cajas) {
-      if (caja.total_valor + p.valor_declarado <= maxValor) {
+      if (caja.tipo === 'normal' && caja.total_valor + p.valor_declarado <= maxValor) {
         caja.paquetes.push(p)
         caja.total_valor = +(caja.total_valor + p.valor_declarado).toFixed(2)
         colocado = true
@@ -81,9 +90,18 @@ function armarCajas(
       }
     }
     if (!colocado) {
-      cajas.push({ bodega, paquetes: [p], total_valor: p.valor_declarado })
+      cajas.push({ bodega, paquetes: [p], total_valor: p.valor_declarado, tipo: 'normal' })
     }
   }
+
+  // ── Bloques de hasta 6 para paquetes alto valor ───────────────────────────
+  const ordenadosAltos = [...altos].sort((a, b) => b.valor_declarado - a.valor_declarado)
+  for (let i = 0; i < ordenadosAltos.length; i += MAX_PAQUETES_ALTO_VALOR) {
+    const chunk = ordenadosAltos.slice(i, i + MAX_PAQUETES_ALTO_VALOR)
+    const total = +chunk.reduce((sum, p) => sum + p.valor_declarado, 0).toFixed(2)
+    cajas.push({ bodega, paquetes: chunk, total_valor: total, tipo: 'alto_valor' })
+  }
+
   return cajas
 }
 
