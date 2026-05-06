@@ -616,8 +616,9 @@ export default function RecibirForm() {
           </div>
         </div>
 
-        {/* Canvas oculto para captura (shared, se renderiza aquí solo en slot 1 para no duplicar) */}
-        {slot === 1 && <canvas ref={canvasFotoRef} className="hidden" />}
+        {/* Nota: el <canvas> usado para captura está montado a nivel del form
+            (siempre en DOM aunque la cámara esté activa). Antes vivía aquí y
+            quedaba desmontado al abrir la cámara, rompiendo el botón Capturar. */}
 
         {/* Vista previa de foto */}
         {!isActiveCam && fotoState.preview && (
@@ -717,6 +718,9 @@ export default function RecibirForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* Canvas oculto compartido para captura de cámara — siempre en el DOM
+          para que capturarFoto() funcione aun con la vista de cámara activa. */}
+      <canvas ref={canvasFotoRef} className="hidden" />
 
       {/* Notificación de éxito */}
       {ultimoRecibido && (
