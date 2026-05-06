@@ -86,6 +86,8 @@ export default function RecibirForm() {
   // Camera scanner refs
   const videoScanRef = useRef<HTMLVideoElement>(null)
   const scanControlsRef = useRef<IScannerControls | null>(null)
+  // ID de la última búsqueda activa — descarta respuestas de búsquedas anteriores
+  const busquedaIdRef = useRef(0)
 
   // Camera photo refs (shared for both slots)
   const videoFotoRef = useRef<HTMLVideoElement>(null)
@@ -191,11 +193,15 @@ export default function RecibirForm() {
     await new Promise(r => setTimeout(r, 100))
     try {
       const reader = new BrowserMultiFormatReader()
+      // Guard para que el callback solo dispare UNA VEZ aunque ZXing lo llame varias veces
+      // antes de que controls.stop() surta efecto completamente.
+      let yaEscaneado = false
       const controls = await reader.decodeFromConstraints(
         { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
         videoScanRef.current!,
         (result) => {
-          if (result) {
+          if (result && !yaEscaneado) {
+            yaEscaneado = true
             const texto = result.getText()
             controls.stop()
             setCamaraScanner(false)
@@ -308,9 +314,17 @@ export default function RecibirForm() {
   const buscarPaquete = useCallback(async (valor: string): Promise<boolean> => {
     const q = valor.trim()
     if (!q) return false
+
+    // Cada búsqueda recibe un ID único. Si cuando llega la respuesta ya se lanzó
+    // una búsqueda más nueva, descartamos el resultado obsoleto y no tocamos el estado.
+    const miId = ++busquedaIdRef.current
+
     setBuscando(true)
     setErrorBusqueda('')
     setPaquete(null)
+    setPeso('')
+    setValorDeclarado('')
+    setCantidad(1)
     setModoManual(false)
     setClientesSugeridos([])
     try {
@@ -320,6 +334,10 @@ export default function RecibirForm() {
         clientes?: ClienteSugerido[]
         error?: string
       }
+
+      // Si ya se lanzó una búsqueda más reciente, ignorar esta respuesta
+      if (miId !== busquedaIdRef.current) return false
+
       if (data.paquete) {
         setPaquete(data.paquete)
         return true
@@ -331,10 +349,12 @@ export default function RecibirForm() {
         return false
       }
     } catch {
+      if (miId !== busquedaIdRef.current) return false
       setErrorBusqueda('Error de conexión')
       return false
     } finally {
-      setBuscando(false)
+      // Solo limpiamos el spinner si seguimos siendo la búsqueda activa
+      if (miId === busquedaIdRef.current) setBuscando(false)
     }
   }, [])
 
@@ -362,6 +382,8 @@ export default function RecibirForm() {
   }
 
   function limpiar() {
+    // Cancelar cualquier búsqueda en vuelo incrementando el ID activo
+    busquedaIdRef.current++
     setTracking('')
     setPaquete(null)
     setErrorBusqueda('')
@@ -795,8 +817,14 @@ export default function RecibirForm() {
             onChange={e => {
               setTracking(e.target.value)
               setErrorBusqueda('')
-              if (paquete) { setPaquete(null); setPeso('') }
+              if (paquete) {
+                setPaquete(null)
+                setPeso('')
+                setValorDeclarado('')
+                setCantidad(1)
+              }
               if (modoManual) setModoManual(false)
+              setClientesSugeridos([])
             }}
             onKeyDown={handleTrackingKeyDown}
             placeholder="Escanear código de barras o escribir tracking..."
