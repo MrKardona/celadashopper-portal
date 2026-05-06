@@ -326,8 +326,21 @@ export default function ReportarPage() {
               </div>
             </div>
 
-            {/* Condición, cantidad y cotización */}
-            {form.categoria && form.categoria !== 'juguetes' && form.categoria !== 'otro' && (
+            {/* Aviso especial: tarifa se calcula al consolidar */}
+            {form.categoria === 'tarifa_especial' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
+                  Tarifa especial
+                </p>
+                <p className="text-sm text-blue-800 mt-1 leading-relaxed">
+                  El costo de este envío <strong>se calcula al hacer la consolidación completa</strong>.
+                  Un agente revisará el paquete y te confirmará el costo final.
+                </p>
+              </div>
+            )}
+
+            {/* Condición, cantidad y cotización (no aplica para tarifa especial, juguetes ni otro) */}
+            {form.categoria && form.categoria !== 'juguetes' && form.categoria !== 'otro' && form.categoria !== 'tarifa_especial' && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-3">
                 <p className="text-xs font-semibold text-orange-900 uppercase tracking-wide">
                   Datos para calcular tarifa

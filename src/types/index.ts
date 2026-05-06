@@ -22,6 +22,7 @@ export type CategoriaProducto =
   | 'cosmeticos'
   | 'suplementos'
   | 'libros'
+  | 'tarifa_especial'
   | 'otro'
 
 export type BodegaDestino = 'medellin' | 'bogota' | 'barranquilla'
@@ -151,6 +152,7 @@ export const CATEGORIA_LABELS: Record<CategoriaProducto, string> = {
   cosmeticos: 'Cosméticos',
   suplementos: 'Suplementos',
   libros: 'Libros',
+  tarifa_especial: 'Tarifa especial (se calcula cuando se haga consolidación completa)',
   otro: 'Otro',
 }
 
