@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import NuevaCajaButton from '@/components/admin/NuevaCajaButton'
 import EliminarCajaIconButton from '@/components/admin/EliminarCajaIconButton'
+import SugerirArmadoButton from '@/components/admin/SugerirArmadoButton'
 
 const ESTADO_LABELS: Record<string, string> = {
   abierta: 'Abierta',
@@ -73,7 +74,10 @@ export default async function CajasPage({ searchParams }: Props) {
             Arma cajas en USA con varios paquetes y despáchalas con USACO. {lista.length} caja{lista.length !== 1 ? 's' : ''}.
           </p>
         </div>
-        <NuevaCajaButton />
+        <div className="flex gap-2 flex-wrap">
+          <SugerirArmadoButton />
+          <NuevaCajaButton />
+        </div>
       </div>
 
       {/* Filtros por estado */}
