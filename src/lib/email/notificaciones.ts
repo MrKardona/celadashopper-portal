@@ -44,6 +44,7 @@ interface DatosEmail {
   tienda?: string | null
   fotoUrl?: string | null
   fotoUrlContenido?: string | null
+  fotoUrlEmpaque?: string | null
   // Datos extra del pedido (al reportar)
   categoria?: string | null
   valor_declarado?: number | string | null
@@ -75,6 +76,7 @@ function buildVars(d: DatosEmail) {
     link,
     fotoUrl: d.fotoUrl,
     fotoUrlContenido: d.fotoUrlContenido,
+    fotoUrlEmpaque: d.fotoUrlEmpaque,
     categoria: d.categoria ?? undefined,
     valor,
     fecha_compra: d.fecha_compra ?? undefined,

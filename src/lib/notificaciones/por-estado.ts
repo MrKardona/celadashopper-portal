@@ -460,16 +460,17 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
     // ── Enviar también por EMAIL (canal principal: siempre llega) ──
     let emailRes: ResultadoEmail = { ok: false }
     if (ctx.perfil.email) {
-      // Foto a incluir en el email según el estado:
-      // - recibido_usa → foto del contenido del paquete
+      // Fotos a incluir en el email según el estado:
+      // - recibido_usa → foto del empaque (con guía) + foto del contenido
       // - entregado    → foto de la entrega al cliente
       let fotoUrlContenido: string | null = null
+      let fotoUrlEmpaque: string | null = null
       if (estadoNuevo === 'recibido_usa' || estadoNuevo === 'entregado') {
         const { data: fotos } = await supabase
           .from('fotos_paquetes')
           .select('url, descripcion, created_at')
           .eq('paquete_id', paqueteId)
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: true })
           .limit(10)
 
         if (estadoNuevo === 'entregado') {
@@ -479,11 +480,22 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
           )
           fotoUrlContenido = fotoEntrega?.url ?? null
         } else {
-          // recibido_usa: foto del contenido
+          // recibido_usa: 2 fotos — empaque (con guía) y contenido
+          const fotoEmpaque = fotos?.find(f =>
+            (f.descripcion ?? '').toLowerCase().includes('empaque') ||
+            (f.descripcion ?? '').toLowerCase().includes('guía') ||
+            (f.descripcion ?? '').toLowerCase().includes('guia')
+          )
           const fotoContenido = fotos?.find(f =>
             (f.descripcion ?? '').toLowerCase().includes('contenido')
-          ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
+          )
+          fotoUrlEmpaque = fotoEmpaque?.url ?? null
           fotoUrlContenido = fotoContenido?.url ?? null
+          // Fallback: si no hay matches por descripción, usar las primeras 2 fotos
+          if (!fotoUrlEmpaque && !fotoUrlContenido && fotos && fotos.length > 0) {
+            fotoUrlEmpaque = fotos[0].url
+            fotoUrlContenido = fotos[1]?.url ?? null
+          }
         }
       }
 
@@ -518,6 +530,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         bodega_destino: ctx.paquete.bodega_destino,
         tienda: ctx.paquete.tienda,
         fotoUrlContenido,
+        fotoUrlEmpaque,
         tarifaCalculada,
       })
       console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailRes.ok} msg_id=${emailRes.messageId ?? '?'}`)

@@ -22,6 +22,7 @@ interface VariablesPlantilla {
   link: string
   fotoUrl?: string | null
   fotoUrlContenido?: string | null
+  fotoUrlEmpaque?: string | null
   tienda?: string
   categoria?: string
   valor?: string
@@ -274,10 +275,27 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya está en nuestra bodega de Miami.
     </p>
     ${trackerProgreso('recibido_usa')}
-    ${vars.fotoUrlContenido ? `
-      <div style="margin:20px 0;text-align:center;">
-        <img src="${vars.fotoUrlContenido}" alt="Foto del paquete" style="max-width:100%;border-radius:8px;border:1px solid #fed7aa;" />
-        <p style="color:#78716c;font-size:11px;margin:6px 0 0 0;">Foto del contenido</p>
+    ${(vars.fotoUrlEmpaque || vars.fotoUrlContenido) ? `
+      <div style="margin:20px 0;">
+        <p style="color:#78716c;font-size:11px;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:0.5px;font-weight:bold;text-align:center;">
+          Fotos de tu paquete
+        </p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <tr>
+            ${vars.fotoUrlEmpaque ? `
+              <td style="width:50%;padding-right:6px;vertical-align:top;text-align:center;">
+                <img src="${vars.fotoUrlEmpaque}" alt="Foto del empaque" style="width:100%;max-width:280px;border-radius:8px;border:1px solid #fed7aa;display:block;margin:0 auto;" />
+                <p style="color:#78716c;font-size:11px;margin:6px 0 0 0;">📦 Empaque (con guía)</p>
+              </td>
+            ` : ''}
+            ${vars.fotoUrlContenido ? `
+              <td style="width:50%;padding-left:6px;vertical-align:top;text-align:center;">
+                <img src="${vars.fotoUrlContenido}" alt="Foto del contenido" style="width:100%;max-width:280px;border-radius:8px;border:1px solid #fed7aa;display:block;margin:0 auto;" />
+                <p style="color:#78716c;font-size:11px;margin:6px 0 0 0;">🔍 Contenido revisado</p>
+              </td>
+            ` : ''}
+          </tr>
+        </table>
       </div>
     ` : ''}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
