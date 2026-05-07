@@ -49,7 +49,7 @@ async function obtenerContactoZoho(
 ): Promise<string> {
   // 1. Buscar por email
   const buscarRes = await fetch(
-    `https://inventory.zoho.com/api/v1/contacts?organization_id=${orgId}&email=${encodeURIComponent(email)}`,
+    `https://www.zohoapis.com/inventory/v1/contacts?organization_id=${orgId}&email=${encodeURIComponent(email)}`,
     { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
   )
   const buscarData = await buscarRes.json() as { contacts?: { contact_id: string }[] }
@@ -59,7 +59,7 @@ async function obtenerContactoZoho(
 
   // 2. No existe → crear
   const crearRes = await fetch(
-    `https://inventory.zoho.com/api/v1/contacts?organization_id=${orgId}`,
+    `https://www.zohoapis.com/inventory/v1/contacts?organization_id=${orgId}`,
     {
       method: 'POST',
       headers: {
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest) {
     }
 
     const facturaRes = await fetch(
-      `https://inventory.zoho.com/api/v1/invoices?organization_id=${orgId}`,
+      `https://www.zohoapis.com/inventory/v1/invoices?organization_id=${orgId}`,
       {
         method: 'POST',
         headers: {
