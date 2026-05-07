@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { CheckCircle2, Package, MapPin, User, Phone } from 'lucide-react'
+import { CheckCircle2, Package, MapPin, User, Phone, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
@@ -96,7 +97,15 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
               <div key={p.id} className="glass-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>{p.tracking_casilla}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>{p.tracking_casilla}</p>
+                      <Link href={`/admin/paquetes/${p.id}`}
+                        className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium transition-all hover:opacity-80"
+                        style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <ExternalLink className="h-2.5 w-2.5" />
+                        Ver / Editar
+                      </Link>
+                    </div>
                     <p className="text-sm mt-0.5 truncate text-white">{p.descripcion}</p>
                     <div className="mt-1.5">
                       <FacturaBadge
