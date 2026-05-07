@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, descripcion, categoria, peso_libras, cliente_id, bodega_destino, fecha_recepcion_usa, estado, caja_id')
+    .select('id, tracking_casilla, tracking_origen, descripcion, categoria, peso_libras, valor_declarado, cliente_id, bodega_destino, fecha_recepcion_usa, estado, caja_id')
     .in('estado', estadosElegibles)
     .order('fecha_recepcion_usa', { ascending: true })
     .limit(120)

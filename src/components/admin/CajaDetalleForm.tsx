@@ -428,6 +428,11 @@ export default function CajaDetalleForm({
                 <span className="text-xs text-gray-500 whitespace-nowrap">
                   {p.peso_libras ? `${p.peso_libras} lb` : '—'}
                 </span>
+                {Number(p.valor_declarado) > 0 && (
+                  <span className="text-xs font-semibold text-green-700 whitespace-nowrap">
+                    ${Number(p.valor_declarado).toFixed(2)}
+                  </span>
+                )}
                 <span className={`text-[11px] px-2 py-0.5 rounded-full ${ESTADO_COLORES[p.estado as EstadoPaquete] ?? 'bg-gray-100'}`}>
                   {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
                 </span>
@@ -871,6 +876,7 @@ interface PaqueteDisponible {
   descripcion: string
   categoria: string
   peso_libras: number | string | null
+  valor_declarado: number | string | null
   bodega_destino: string
   fecha_recepcion_usa: string | null
   estado: string
@@ -1160,6 +1166,11 @@ function PaquetesDisponibles({
                 <span className="text-xs text-gray-500 whitespace-nowrap">
                   {p.peso_libras ? `${p.peso_libras} lb` : '—'}
                 </span>
+                {Number(p.valor_declarado) > 0 && (
+                  <span className="text-xs font-semibold text-green-700 whitespace-nowrap">
+                    ${Number(p.valor_declarado).toFixed(2)}
+                  </span>
+                )}
                 <Button
                   size="sm"
                   onClick={() => handleAgregar(p)}
