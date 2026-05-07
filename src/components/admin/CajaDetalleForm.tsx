@@ -1111,12 +1111,12 @@ function PaquetesDisponibles({
                 : p.estado === 'recibido_usa' ? 'border-l-blue-500'
                   : p.estado === 'en_consolidacion' ? 'border-l-amber-500'
                     : 'border-l-gray-300'
+            const diasEnBodega = p.fecha_recepcion_usa
+              ? Math.floor((Date.now() - new Date(p.fecha_recepcion_usa).getTime()) / 86_400_000)
+              : null
             return (
               <div key={p.id} className={`flex items-center gap-3 px-5 py-2.5 text-sm hover:bg-gray-50 group border-l-4 ${borderColor}`}>
                 <Package className={`h-4 w-4 flex-shrink-0 ${bodegaDistinta ? 'text-amber-500' : 'text-gray-400'}`} />
-                <span className="font-mono text-xs font-semibold text-orange-700 w-32 truncate">
-                  {p.tracking_casilla}
-                </span>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm truncate ${p.cliente ? 'text-gray-900 font-medium' : 'text-amber-700 italic font-medium'}`}>
                     {p.cliente?.nombre_completo ?? '⏳ Sin cliente asignado'}
@@ -1166,6 +1166,20 @@ function PaquetesDisponibles({
                 <span className="text-xs text-gray-500 whitespace-nowrap">
                   {p.peso_libras ? `${p.peso_libras} lb` : '—'}
                 </span>
+                {diasEnBodega !== null && (
+                  <span
+                    className={`text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap ${
+                      diasEnBodega > 14
+                        ? 'text-red-700 bg-red-50 border-red-200'
+                        : diasEnBodega > 7
+                          ? 'text-amber-700 bg-amber-50 border-amber-200'
+                          : 'text-gray-500 bg-gray-50 border-gray-200'
+                    }`}
+                    title={`Recibido hace ${diasEnBodega} días en bodega USA`}
+                  >
+                    {diasEnBodega === 0 ? 'Hoy' : `${diasEnBodega}d`}
+                  </span>
+                )}
                 {Number(p.valor_declarado) > 0 && (
                   <span className="text-xs font-semibold text-green-700 whitespace-nowrap">
                     ${Number(p.valor_declarado).toFixed(2)}
