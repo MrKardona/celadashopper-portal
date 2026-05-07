@@ -420,16 +420,16 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 paqueteId={id}
                 estado={p.estado}
                 bodega={p.bodega_destino}
+                categoria={p.categoria}
                 pesoLibras={p.peso_libras}
+                pesoFacturable={p.peso_facturable}
                 costoServicio={p.costo_servicio}
                 tarifaAplicada={p.tarifa_aplicada}
                 trackingUsaco={p.tracking_usaco}
                 notasCliente={p.notas_cliente}
-                tarifaPorLibra={tarifa?.tarifa_por_libra ?? 0}
-                precioFijo={tarifa?.precio_fijo ?? null}
-                tarifaTipo={tarifa?.tarifa_tipo ?? 'por_libra'}
-                seguroPorcentaje={tarifa?.seguro_porcentaje ?? 0}
                 valorDeclarado={p.valor_declarado}
+                condicion={p.condicion ?? null}
+                cantidad={p.cantidad ?? 1}
               />
             </CardContent>
           </Card>

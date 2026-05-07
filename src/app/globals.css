@@ -270,6 +270,44 @@
   text-shadow: 0 0 20px rgba(245,184,0,0.4);
 }
 
+/* ── Secondary button ──────────────────────────────────────────────── */
+.btn-ghost {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.18);
+}
+.btn-ghost:disabled { opacity: 0.4; }
+
+/* ── Native select dark theme ───────────────────────────────────────── */
+select.glass-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+select.glass-input option {
+  background: #0c0c1e;
+  color: #fff;
+}
+
+/* ── Glass section (info/alert) ─────────────────────────────────────── */
+.glass-section-gold  { background: rgba(245,184,0,0.06); border: 1px solid rgba(245,184,0,0.18); border-radius: 12px; }
+.glass-section-blue  { background: rgba(99,130,255,0.07); border: 1px solid rgba(99,130,255,0.2); border-radius: 12px; }
+.glass-section-green { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; }
+.glass-section-red   { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; }
+.glass-section-amber { background: rgba(245,160,0,0.07); border: 1px solid rgba(245,160,0,0.22); border-radius: 12px; }
+
 /* ── Orb animations ────────────────────────────────────────────────── */
 @keyframes orb-float-gold {
   0%, 100% { transform: translate(0, 0) scale(1); }
