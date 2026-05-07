@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Package, Search, Camera } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
+import FacturaBadge from '@/components/admin/FacturaBadge'
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
   reportado:          { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' },
@@ -46,7 +47,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at')
+    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -146,6 +147,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Categoría</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Estado</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Bodega</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Factura</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden md:table-cell" style={{ color: `${tw}0.35)` }}>Peso / Valor / Costo</th>
               </tr>
             </thead>
@@ -245,6 +247,14 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell capitalize" style={{ color: `${tw}0.45)` }}>
                         {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <FacturaBadge
+                          facturaId={p.factura_id ?? null}
+                          facturaPagada={p.factura_pagada ?? null}
+                          costoServicio={p.costo_servicio ?? null}
+                          size="xs"
+                        />
                       </td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
                         <div className="space-y-0.5">

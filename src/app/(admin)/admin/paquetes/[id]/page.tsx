@@ -11,6 +11,7 @@ import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
 import ClienteEditInline from '@/components/admin/ClienteEditInline'
+import FacturaBadge from '@/components/admin/FacturaBadge'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 
 function getSupabaseAdmin() {
@@ -120,6 +121,11 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
               </span>
             )})()}
+            <FacturaBadge
+              facturaId={p.factura_id ?? null}
+              facturaPagada={p.factura_pagada ?? null}
+              costoServicio={p.costo_servicio ?? null}
+            />
           </div>
           <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>{p.descripcion} · {p.tienda}</p>
         </div>

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { CheckCircle2, Package, MapPin, User, Phone } from 'lucide-react'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
+import FacturaBadge from '@/components/admin/FacturaBadge'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
@@ -21,7 +22,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
 
   let q = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, peso_libras, costo_servicio, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega')
+    .select('id, tracking_casilla, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega')
     .eq('estado', 'en_bodega_local')
     .order('fecha_llegada_colombia', { ascending: true })
 
@@ -97,6 +98,14 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>{p.tracking_casilla}</p>
                     <p className="text-sm mt-0.5 truncate text-white">{p.descripcion}</p>
+                    <div className="mt-1.5">
+                      <FacturaBadge
+                        facturaId={p.factura_id ?? null}
+                        facturaPagada={p.factura_pagada ?? null}
+                        costoServicio={p.costo_servicio ?? null}
+                        size="xs"
+                      />
+                    </div>
                   </div>
                   <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
                     style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
