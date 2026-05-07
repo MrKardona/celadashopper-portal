@@ -32,7 +32,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   // Query 1: paquetes (sin join — service role directo)
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, created_at, updated_at')
+    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -158,13 +158,13 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tracking</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tiempo</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Producto</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Categoría</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Bodega</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Peso / Costo</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Peso / Valor / Costo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -180,6 +180,9 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                   const perfil = p.cliente_id ? perfilesMap[p.cliente_id] : null
                   const peso = p.peso_facturable ?? p.peso_libras
                   const fotoUrl = fotosMap[p.id]
+                  const diasEnBodega = p.fecha_recepcion_usa
+                    ? Math.floor((Date.now() - new Date(p.fecha_recepcion_usa).getTime()) / 86_400_000)
+                    : null
                   return (
                     <tr key={p.id} className={`hover:bg-orange-50/40 transition-colors cursor-pointer ${!perfil ? 'bg-amber-50/60' : ''}`}>
                       <td className="px-4 py-3">
@@ -199,19 +202,29 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                               <Camera className="h-4 w-4 text-gray-300" />
                             </div>
                           )}
-                          <div className="min-w-0">
-                            <Link href={`/admin/paquetes/${p.id}`} className="font-mono text-xs text-orange-700 font-semibold hover:underline">
-                              {p.tracking_casilla ?? '—'}
-                            </Link>
+                          <Link href={`/admin/paquetes/${p.id}`} className="min-w-0 block">
+                            {diasEnBodega !== null ? (
+                              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border ${
+                                diasEnBodega > 14
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : diasEnBodega > 7
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-gray-50 text-gray-600 border-gray-200'
+                              }`}>
+                                {diasEnBodega === 0 ? '🕐 Hoy' : `⏱ ${diasEnBodega}d`}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-300 italic">Sin fecha</span>
+                            )}
                             {p.requiere_consolidacion && (
                               <span
-                                className="block text-[10px] text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded mt-0.5 w-fit"
+                                className="block text-[10px] text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.5 rounded mt-1 w-fit"
                                 title={p.notas_consolidacion ?? 'Cliente solicitó consolidar con otros paquetes'}
                               >
                                 📦 Consolidar
                               </span>
                             )}
-                          </div>
+                          </Link>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -246,18 +259,23 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                         {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
                       </td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
-                        {peso ? (
-                          <div>
+                        <div className="space-y-0.5">
+                          {peso ? (
                             <p className="text-gray-700 font-medium">{peso} lb</p>
-                            {p.costo_servicio ? (
-                              <p className={`text-xs font-semibold ${p.factura_pagada ? 'text-green-600' : 'text-red-500'}`}>
-                                ${p.costo_servicio} {p.factura_pagada ? '✓' : 'pendiente'}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300 text-xs">Sin pesar</span>
-                        )}
+                          ) : (
+                            <p className="text-gray-300 text-xs">Sin pesar</p>
+                          )}
+                          {p.valor_declarado ? (
+                            <p className="text-xs font-semibold text-green-700">
+                              ${Number(p.valor_declarado).toFixed(2)} USD
+                            </p>
+                          ) : null}
+                          {p.costo_servicio ? (
+                            <p className={`text-xs font-semibold ${p.factura_pagada ? 'text-green-600' : 'text-red-500'}`}>
+                              ${p.costo_servicio} {p.factura_pagada ? '✓' : 'pendiente'}
+                            </p>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   )
