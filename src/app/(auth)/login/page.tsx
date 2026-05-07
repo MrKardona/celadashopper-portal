@@ -1,11 +1,11 @@
 'use client'
 
 import { Suspense, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useSearchParams } from 'next/navigation'
 import { MailCheck, Send } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import { enviarMagicLink } from './actions'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
@@ -22,13 +22,9 @@ const fadeDown = (delay = 0) => ({
 })
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [enviado, setEnviado] = useState(false)
-  const [codigo, setCodigo] = useState('')
-  const [errorCodigo, setErrorCodigo] = useState('')
-  const [loadingCodigo, setLoadingCodigo] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const submitting = useRef(false)
@@ -40,17 +36,12 @@ function LoginForm() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/auth/confirmar`,
-      },
-    })
+    // Usamos Server Action para que el code_verifier de PKCE se guarde
+    // como cookie HTTP server-side — más confiable en apps de email móvil.
+    const { error } = await enviarMagicLink(email)
 
     if (error) {
-      setError('Ocurrió un error al enviar el código. Intenta de nuevo.')
+      setError(error)
       setLoading(false)
       submitting.current = false
       return
@@ -61,103 +52,36 @@ function LoginForm() {
     submitting.current = false
   }
 
-  async function handleVerificarCodigo(e: React.FormEvent) {
-    e.preventDefault()
-    if (!codigo.trim() || loadingCodigo) return
-    setLoadingCodigo(true)
-    setErrorCodigo('')
-
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: codigo.trim(),
-      type: 'email',
-    })
-
-    if (error || !data.user) {
-      setErrorCodigo('Código inválido o expirado. Solicita uno nuevo.')
-      setLoadingCodigo(false)
-      return
-    }
-
-    // Redirigir según el rol
-    const { data: perfil } = await supabase
-      .from('perfiles')
-      .select('rol')
-      .eq('id', data.user.id)
-      .single()
-
-    const rol = perfil?.rol ?? 'cliente'
-    if (rol === 'admin') router.replace('/admin/paquetes')
-    else if (rol === 'agente_usa') router.replace('/agente')
-    else router.replace('/dashboard')
-  }
-
   const tw = 'rgba(255,255,255,'
   const authError = searchParams.get('error')
 
   if (enviado) {
     return (
-      <motion.div {...fadeUp(0)} className="space-y-5 py-2">
-        {/* Icono éxito */}
-        <div className="text-center">
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.1 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mx-auto"
-            style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.25)' }}
-          >
-            <MailCheck className="h-8 w-8" style={{ color: '#34d399' }} />
-          </motion.div>
-          <p className="text-xl font-bold text-white mt-3">¡Revisa tu correo!</p>
-          <p className="text-sm mt-1 leading-relaxed" style={{ color: `${tw}0.55)` }}>
-            Enviamos un código a <strong className="text-white">{email}</strong>
+      <motion.div
+        {...fadeUp(0)}
+        className="text-center space-y-5 py-4"
+      >
+        <motion.div
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.1 }}
+          className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mx-auto"
+          style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.25)' }}
+        >
+          <MailCheck className="h-8 w-8" style={{ color: '#34d399' }} />
+        </motion.div>
+        <div>
+          <p className="text-xl font-bold text-white">¡Revisa tu correo!</p>
+          <p className="text-sm mt-2 leading-relaxed" style={{ color: `${tw}0.55)` }}>
+            Enviamos un link de acceso a{' '}
+            <strong className="text-white">{email}</strong>.
+            <br />Haz clic en el link para entrar al portal.
           </p>
         </div>
-
-        {/* Ingreso del código OTP */}
-        <form onSubmit={handleVerificarCodigo} className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
-              Ingresa el código de 6 dígitos
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              placeholder="123456"
-              value={codigo}
-              onChange={e => { setCodigo(e.target.value.replace(/\D/g, '')); setErrorCodigo('') }}
-              className="glass-input w-full px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] outline-none"
-              autoFocus
-              autoComplete="one-time-code"
-            />
-          </div>
-
-          {errorCodigo && (
-            <p className="text-sm text-center" style={{ color: '#f87171' }}>{errorCodigo}</p>
-          )}
-
-          <motion.button
-            type="submit"
-            disabled={loadingCodigo || codigo.length < 6}
-            whileHover={{ scale: 1.02, boxShadow: '0 0 28px rgba(245,184,0,0.4)' }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="btn-gold w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold disabled:opacity-50"
-          >
-            {loadingCodigo ? (
-              <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> Verificando...</>
-            ) : 'Entrar al portal'}
-          </motion.button>
-        </form>
-
-        <p className="text-xs text-center" style={{ color: `${tw}0.35)` }}>
-          ¿No recibiste nada? Revisa spam o{' '}
+        <p className="text-xs" style={{ color: `${tw}0.35)` }}>
+          ¿No lo ves? Revisa la carpeta de spam o{' '}
           <button
-            onClick={() => { setEnviado(false); setCodigo(''); setErrorCodigo('') }}
+            onClick={() => { setEnviado(false); submitting.current = false }}
             className="font-semibold hover:underline"
             style={{ color: '#F5B800' }}
           >
@@ -173,7 +97,7 @@ function LoginForm() {
       {authError && (
         <motion.div {...fadeUp(0)} className="px-4 py-3 rounded-xl text-sm"
           style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
-          Sesión expirada. Solicita un nuevo código.
+          El link expiró o no es válido. Solicita uno nuevo.
         </motion.div>
       )}
 
@@ -213,13 +137,13 @@ function LoginForm() {
         ) : (
           <>
             <Send className="h-4 w-4" />
-            Enviar código de acceso
+            Enviar link de acceso
           </>
         )}
       </motion.button>
 
       <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
-        Te enviaremos un código al correo · Sin contraseña
+        Te enviaremos un link al correo · Sin contraseña
       </p>
     </form>
   )

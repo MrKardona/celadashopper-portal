@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
   const errorParam = searchParams.get('error') ?? searchParams.get('error_code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  // Default: /auth/confirmar para que el PKCE se resuelva ahí si es necesario.
+  // El emailRedirectTo ya no incluye ?next= para evitar problemas de URL encoding en emails móviles.
+  const next = searchParams.get('next') ?? '/auth/confirmar'
 
   // ── Caso A: error explícito de Supabase (token expirado, etc.) ────────────
   if (errorParam) {
