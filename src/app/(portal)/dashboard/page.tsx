@@ -7,7 +7,7 @@ import {
   MessageCircle, MapPin, ChevronRight,
 } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, type EstadoPaquete } from '@/types'
-import { FadeUp, FadeUpScroll, StaggerGrid, StaggerGridScroll, StaggerItem } from '@/components/portal/AnimateIn'
+import { FadeUp, FadeUpScroll, StaggerGrid, StaggerGridScroll, StaggerItem, StaggerItemMount } from '@/components/portal/AnimateIn'
 
 /* ── Badge de estado ── */
 function EstadoBadge({ estado }: { estado: EstadoPaquete }) {
@@ -130,8 +130,8 @@ export default async function DashboardPage() {
           { label: 'En proceso',  value: stats.activos,     icon: Clock,       iconClass: 'stat-icon-blue',  iconColor: '#8899ff'   },
           { label: 'En tránsito', value: stats.en_transito, icon: Truck,       iconClass: 'stat-icon-gold',  iconColor: '#F5B800'   },
           { label: 'Entregados',  value: stats.entregados,  icon: CheckCircle, iconClass: 'stat-icon-green', iconColor: '#34d399'   },
-        ].map(({ label, value, icon: Icon, iconClass, iconColor }) => (
-          <StaggerItem key={label}>
+        ].map(({ label, value, icon: Icon, iconClass, iconColor }, i) => (
+          <StaggerItemMount key={label} index={i}>
             <div className="glass-card p-4 flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconClass}`}>
                 <Icon className="h-5 w-5" style={{ color: iconColor }} />
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
                 <p className="text-xs" style={{ color: `${tw}0.45)` }}>{label}</p>
               </div>
             </div>
-          </StaggerItem>
+          </StaggerItemMount>
         ))}
       </StaggerGrid>
 
@@ -163,7 +163,7 @@ export default async function DashboardPage() {
           ) : (
             <StaggerGridScroll>
               {paquetes.map((paquete, i) => (
-                <StaggerItem key={paquete.id}>
+                <StaggerItem key={paquete.id} index={i}>
                   <Link
                     href={`/paquetes/${paquete.id}`}
                     className="flex items-center justify-between px-5 py-3.5 transition-all group"

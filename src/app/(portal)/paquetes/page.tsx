@@ -102,13 +102,13 @@ export default async function PaquetesPage() {
                   En proceso ({activos.length})
                 </h2>
               </FadeUp>
-              <StaggerGridScroll className="space-y-3">
-                {activos.map(p => (
-                  <StaggerItem key={p.id}>
+              <div className="space-y-3">
+                {activos.map((p, i) => (
+                  <StaggerItem key={p.id} index={i}>
                     <PaqueteCard paquete={p} />
                   </StaggerItem>
                 ))}
-              </StaggerGridScroll>
+              </div>
             </section>
           )}
 
@@ -119,13 +119,13 @@ export default async function PaquetesPage() {
                   Historial ({completados.length})
                 </h2>
               </FadeUpScroll>
-              <StaggerGridScroll className="space-y-3">
-                {completados.map(p => (
-                  <StaggerItem key={p.id}>
+              <div className="space-y-3">
+                {completados.map((p, i) => (
+                  <StaggerItem key={p.id} index={i}>
                     <PaqueteCard paquete={p} />
                   </StaggerItem>
                 ))}
-              </StaggerGridScroll>
+              </div>
             </section>
           )}
         </>

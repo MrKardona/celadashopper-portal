@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
+/** Animates on mount — for above-the-fold content */
 export function FadeUp({
   children,
   delay = 0,
@@ -25,6 +26,7 @@ export function FadeUp({
   )
 }
 
+/** Animates when entering the viewport — for below-the-fold content */
 export function FadeUpScroll({
   children,
   delay = 0,
@@ -38,7 +40,7 @@ export function FadeUpScroll({
     <motion.div
       initial={{ opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
+      viewport={{ once: true, amount: 0 }}
       transition={{ duration: 0.55, delay, ease }}
       className={className}
     >
@@ -47,20 +49,58 @@ export function FadeUpScroll({
   )
 }
 
-const staggerContainer = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.09 } },
+/**
+ * Stagger item that animates into view.
+ * Pass index for cascading delay effect.
+ */
+export function StaggerItem({
+  children,
+  className,
+  index = 0,
+}: {
+  children: React.ReactNode
+  className?: string
+  index?: number
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0 }}
+      transition={{ duration: 0.45, delay: index * 0.09, ease }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
 }
 
-const staggerItem = {
-  hidden: { opacity: 0, y: 18 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.45, ease },
-  },
+/**
+ * Stagger item that animates on mount (above-the-fold).
+ * Pass index for cascading delay effect.
+ */
+export function StaggerItemMount({
+  children,
+  className,
+  index = 0,
+}: {
+  children: React.ReactNode
+  className?: string
+  index?: number
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: 0.15 + index * 0.09, ease }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  )
 }
 
+// Layout-only wrappers — children carry their own animations
 export function StaggerGrid({
   children,
   className,
@@ -68,16 +108,7 @@ export function StaggerGrid({
   children: React.ReactNode
   className?: string
 }) {
-  return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
+  return <div className={className}>{children}</div>
 }
 
 export function StaggerGridScroll({
@@ -87,29 +118,5 @@ export function StaggerGridScroll({
   children: React.ReactNode
   className?: string
 }) {
-  return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: '-40px' }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-export function StaggerItem({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <motion.div variants={staggerItem} className={className}>
-      {children}
-    </motion.div>
-  )
+  return <div className={className}>{children}</div>
 }
