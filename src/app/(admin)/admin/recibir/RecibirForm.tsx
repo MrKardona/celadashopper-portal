@@ -561,7 +561,7 @@ export default function RecibirForm() {
   // ── Guardar manual ────────────────────────────────────────────────────────
   async function handleGuardarManual(e: React.FormEvent) {
     e.preventDefault()
-    if (!formManual.descripcion || !formManual.peso || !formManual.categoria) return
+    if (!formManual.descripcion || !formManual.categoria || (!SIN_PESO_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && !formManual.peso)) return
     setGuardandoManual(true)
     try {
       const res = await fetch('/api/admin/recibir', {
@@ -1457,7 +1457,7 @@ export default function RecibirForm() {
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoCualquiera}
+              disabled={(!SIN_PESO_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (!formManual.peso || parseFloat(formManual.peso) <= 0)) || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoCualquiera}
               className="btn-gold flex-1 py-3 rounded-xl disabled:opacity-40 flex items-center justify-center gap-2 text-base font-semibold"
             >
               {guardandoManual ? (
