@@ -34,6 +34,7 @@ export interface PaqueteCaja {
   descripcion: string
   categoria: string
   peso_libras: number | string | null
+  valor_declarado: number | string | null
   estado: string
   bodega_destino: string
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
@@ -82,6 +83,7 @@ export default function CajaDetalleForm({
 
   const editable = caja.estado === 'abierta'
   const pesoTotal = paquetes.reduce((s, p) => s + Number(p.peso_libras ?? 0), 0)
+  const valorTotal = paquetes.reduce((s, p) => s + Number(p.valor_declarado ?? 0), 0)
 
   useEffect(() => { if (editable) inputRef.current?.focus() }, [editable])
 
@@ -206,6 +208,12 @@ export default function CajaDetalleForm({
             <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
               <p className="text-xs text-orange-600">Peso USACO</p>
               <p className="font-bold text-orange-900">{Number(caja.peso_real).toFixed(1)} lb</p>
+            </div>
+          )}
+          {valorTotal > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-green-600">Valor declarado</p>
+              <p className="font-bold text-green-900">${valorTotal.toFixed(2)} USD</p>
             </div>
           )}
         </div>
@@ -440,10 +448,10 @@ export default function CajaDetalleForm({
 
       {/* Modales */}
       {modalCerrar && (
-        <ModalCerrarCaja cajaId={caja.id} pesoSugerido={pesoTotal} onClose={() => setModalCerrar(false)} onDone={() => { setModalCerrar(false); router.refresh(); refrescar() }} />
+        <ModalCerrarCaja cajaId={caja.id} pesoSugerido={pesoTotal} valorDeclaradoSugerido={valorTotal} onClose={() => setModalCerrar(false)} onDone={() => { setModalCerrar(false); router.refresh(); refrescar() }} />
       )}
       {modalDespachar && (
-        <ModalDespacharCaja cajaId={caja.id} pesoSugerido={Number(caja.peso_estimado ?? pesoTotal)} onClose={() => setModalDespachar(false)} onDone={() => { setModalDespachar(false); router.refresh(); refrescar() }} />
+        <ModalDespacharCaja cajaId={caja.id} pesoSugerido={Number(caja.peso_estimado ?? pesoTotal)} valorDeclaradoSugerido={valorTotal} onClose={() => setModalDespachar(false)} onDone={() => { setModalDespachar(false); router.refresh(); refrescar() }} />
       )}
       {modalEliminar && (
         <ModalEliminarCaja
@@ -466,8 +474,9 @@ export default function CajaDetalleForm({
 }
 
 // ─── Modales ────────────────────────────────────────────────────────────────
-function ModalCerrarCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId: string; pesoSugerido: number; onClose: () => void; onDone: () => void }) {
+function ModalCerrarCaja({ cajaId, pesoSugerido, valorDeclaradoSugerido, onClose, onDone }: { cajaId: string; pesoSugerido: number; valorDeclaradoSugerido: number; onClose: () => void; onDone: () => void }) {
   const [peso, setPeso] = useState(pesoSugerido.toFixed(1))
+  const [valorDeclarado, setValorDeclarado] = useState(valorDeclaradoSugerido > 0 ? valorDeclaradoSugerido.toFixed(2) : '')
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
 
@@ -477,7 +486,10 @@ function ModalCerrarCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId: st
     const res = await fetch(`/api/admin/cajas/${cajaId}/cerrar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ peso_estimado: parseFloat(peso) }),
+      body: JSON.stringify({
+        peso_estimado: parseFloat(peso),
+        valor_declarado: valorDeclarado ? parseFloat(valorDeclarado) : undefined,
+      }),
     })
     const data = await res.json() as { ok?: boolean; error?: string }
     setCargando(false)
@@ -498,6 +510,12 @@ function ModalCerrarCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId: st
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           <p className="text-[11px] text-gray-400 mt-1">Suma actual de los paquetes: {pesoSugerido.toFixed(1)} lb</p>
         </div>
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Valor declarado (USD)</label>
+          <input type="number" step="0.01" min="0" value={valorDeclarado} onChange={e => setValorDeclarado(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <p className="text-[11px] text-gray-400 mt-1">Suma de los valores declarados de los paquetes: ${valorDeclaradoSugerido.toFixed(2)} USD</p>
+        </div>
         {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{error}</p>}
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={cargando}>Cancelar</Button>
@@ -510,10 +528,11 @@ function ModalCerrarCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId: st
   )
 }
 
-function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId: string; pesoSugerido: number; onClose: () => void; onDone: () => void }) {
+function ModalDespacharCaja({ cajaId, pesoSugerido, valorDeclaradoSugerido, onClose, onDone }: { cajaId: string; pesoSugerido: number; valorDeclaradoSugerido: number; onClose: () => void; onDone: () => void }) {
   const [trackingUsaco, setTrackingUsaco] = useState('')
   const [pesoReal, setPesoReal] = useState('')
   const [costo, setCosto] = useState('')
+  const [valorDeclarado, setValorDeclarado] = useState(valorDeclaradoSugerido > 0 ? valorDeclaradoSugerido.toFixed(2) : '')
   const [courier, setCourier] = useState('')
   const [notificar, setNotificar] = useState(true)
   const [cargando, setCargando] = useState(false)
@@ -573,6 +592,7 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId:
         tracking_usaco: trackingUsaco.trim(),
         peso_real: pesoReal ? parseFloat(pesoReal) : undefined,
         costo_total_usaco: costo ? parseFloat(costo) : undefined,
+        valor_declarado: valorDeclarado ? parseFloat(valorDeclarado) : undefined,
         courier: courier.trim() || undefined,
         notificar,
       }),
@@ -626,6 +646,12 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, onClose, onDone }: { cajaId:
               placeholder="0.00"
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Valor declarado (USD)</label>
+          <input type="number" step="0.01" min="0" value={valorDeclarado} onChange={e => setValorDeclarado(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <p className="text-[11px] text-gray-400 mt-1">Suma de los valores declarados de los paquetes: ${valorDeclaradoSugerido.toFixed(2)} USD</p>
         </div>
         <div>
           <label className="text-xs font-medium text-gray-700 block mb-1">Courier (opcional)</label>

@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: Props) {
   // Cargar paquetes en la caja
   const { data: paquetes } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, categoria, peso_libras, estado, cliente_id, bodega_destino')
+    .select('id, tracking_casilla, descripcion, categoria, peso_libras, valor_declarado, estado, cliente_id, bodega_destino')
     .eq('caja_id', id)
     .order('created_at', { ascending: true })
 
