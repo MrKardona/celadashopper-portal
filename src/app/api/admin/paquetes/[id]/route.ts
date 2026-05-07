@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   // Estado actual del paquete antes del update (para detectar cambios reales)
   const { data: paqueteAntes } = await supabaseAdmin
     .from('paquetes')
-    .select('estado, tracking_usaco, costo_servicio, visible_cliente')
+    .select('estado, tracking_usaco, costo_servicio, visible_cliente, paquete_origen_id')
     .eq('id', id)
     .single()
 
@@ -157,6 +157,29 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         notificacionesEnviadas.push('costo')
       } catch (err) {
         console.error('[PATCH] notificarCostoCalculado falló:', err)
+      }
+    }
+  }
+
+  // ── Sub-paquete despachado → propagar estado y notificar via paquete original ──
+  const ESTADOS_DESPACHO = ['listo_envio', 'en_transito', 'en_colombia', 'en_bodega_local', 'entregado']
+  const esSubPaquete = paqueteAntes?.visible_cliente === false && paqueteAntes?.paquete_origen_id
+  if (!debeNotificar && esSubPaquete && huboCambioDeEstado && ESTADOS_DESPACHO.includes(estado)) {
+    const origenId = paqueteAntes!.paquete_origen_id as string
+    const { data: origen } = await supabaseAdmin
+      .from('paquetes')
+      .select('id, estado')
+      .eq('id', origenId)
+      .single()
+    if (origen && origen.estado !== estado) {
+      await supabaseAdmin.from('paquetes')
+        .update({ estado, updated_at: new Date().toISOString() })
+        .eq('id', origenId)
+      try {
+        await notificarCambioEstado(origenId, estado)
+        notificacionesEnviadas.push('estado_via_origen')
+      } catch (err) {
+        console.error('[PATCH] notificar origen desde sub-paquete falló:', err)
       }
     }
   }
