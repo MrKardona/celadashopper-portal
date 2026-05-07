@@ -1,9 +1,11 @@
 // POST /api/admin/paquetes/[id]/asignar
-// Admin asigna manualmente un paquete a un cliente y notifica por WhatsApp.
+// Admin asigna manualmente un paquete a un cliente.
+// Notifica por WhatsApp (mensaje personalizado) + Email (plantilla recibido_usa).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { enviarEmailPorEstado } from '@/lib/email/notificaciones'
 
 function getSupabaseAdmin() {
   return createClient(
@@ -75,7 +77,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   // Validar que el cliente existe
   const { data: cliente } = await admin
     .from('perfiles')
-    .select('id, nombre_completo, whatsapp, telefono, numero_casilla, rol')
+    .select('id, nombre_completo, email, whatsapp, telefono, numero_casilla, rol')
     .eq('id', clienteId)
     .maybeSingle()
 
@@ -83,10 +85,10 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
   }
 
-  // Cargar paquete actual
+  // Cargar paquete actual (campos completos para el email)
   const { data: paquete } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, cliente_id, estado')
+    .select('id, tracking_casilla, descripcion, cliente_id, estado, tienda, peso_libras, costo_servicio, bodega_destino, tracking_usaco, valor_declarado')
     .eq('id', id)
     .maybeSingle()
 
@@ -150,14 +152,43 @@ export async function POST(req: NextRequest, { params }: Props) {
     }).then(() => {/* ok */}, () => {/* swallow */})
   }
 
+  // ── Email al cliente ────────────────────────────────────────────────────────
+  let emailEnviado = false
+  let emailError: string | undefined
+  if (debeNotificar && cliente.email) {
+    try {
+      const resultado = await enviarEmailPorEstado(paquete.estado ?? 'recibido_usa', {
+        emailDestino: cliente.email,
+        nombre: cliente.nombre_completo ?? 'Cliente',
+        paqueteId: id,
+        tracking: paquete.tracking_casilla ?? id,
+        descripcion: paquete.descripcion ?? '—',
+        tienda: paquete.tienda,
+        peso_libras: paquete.peso_libras,
+        costo_servicio: paquete.costo_servicio,
+        bodega_destino: paquete.bodega_destino,
+        tracking_usaco: paquete.tracking_usaco,
+        valor_declarado: paquete.valor_declarado,
+      })
+      emailEnviado = resultado.ok ?? false
+      if (!emailEnviado) emailError = resultado.error ?? 'Error desconocido'
+    } catch (err) {
+      emailError = err instanceof Error ? err.message : 'Error al enviar email'
+      console.error('[asignar] email:', emailError)
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     cliente: { nombre: cliente.nombre_completo, casilla: cliente.numero_casilla },
     notificacion: {
-      intentada: debeNotificar && !!phoneCliente,
+      intentada: debeNotificar && (!!phoneCliente || !!cliente.email),
       enviada: envioOk,
       error: envioError,
       sin_telefono: debeNotificar && !phoneCliente,
+      email_enviado: emailEnviado,
+      email_error: emailError,
+      sin_email: debeNotificar && !cliente.email,
     },
   })
 }

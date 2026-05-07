@@ -133,19 +133,26 @@ function ModalAsignar({
       ok?: boolean
       error?: string
       cliente?: { nombre: string }
-      notificacion?: { intentada: boolean; enviada: boolean; error?: string; sin_telefono?: boolean }
+      notificacion?: {
+        intentada: boolean; enviada: boolean; error?: string; sin_telefono?: boolean
+        email_enviado?: boolean; email_error?: string; sin_email?: boolean
+      }
     }
     if (!res.ok || !data.ok) {
       setAsignando(false)
       setResultado({ tipo: 'error', texto: data.error ?? 'No se pudo asignar' })
       return
     }
-    let texto = `✅ Asignado a ${data.cliente?.nombre}.`
-    if (data.notificacion?.intentada) {
-      if (data.notificacion.enviada) texto += ' WhatsApp enviado.'
-      else if (data.notificacion.sin_telefono) texto += ' Cliente sin teléfono — sin WhatsApp.'
-      else texto += ` WhatsApp falló: ${data.notificacion.error ?? 'error desconocido'}`
+    const partes: string[] = [`✅ Asignado a ${data.cliente?.nombre}.`]
+    const n = data.notificacion
+    if (n) {
+      if (n.enviada) partes.push('WhatsApp ✓')
+      else if (n.sin_telefono) partes.push('Sin teléfono')
+      if (n.email_enviado) partes.push('Email ✓')
+      else if (n.sin_email) partes.push('Sin email')
+      else if (n.email_error) partes.push(`Email falló: ${n.email_error}`)
     }
+    const texto = partes.join(' · ')
     setResultado({ tipo: 'ok', texto })
     setTimeout(() => { window.location.reload() }, 1200)
   }
@@ -324,7 +331,7 @@ function ModalAsignar({
               style={{ accentColor: '#34d399' }}
             />
             <MessageCircle className="h-4 w-4" style={{ color: '#34d399' }} />
-            <span style={{ color: `${tw}0.7)` }}>Avisar al cliente por WhatsApp que ya tiene su paquete</span>
+            <span style={{ color: `${tw}0.7)` }}>Notificar al cliente por WhatsApp y email</span>
           </label>
         )}
 
