@@ -58,10 +58,27 @@ export async function POST(req: NextRequest) {
       `https://www.zohoapis.com/inventory/v1/invoices/${paquete.factura_id}?organization_id=${orgId}`,
       { headers: { Authorization: `Zoho-oauthtoken ${token}` } }
     )
-    const data = await res.json() as { invoice?: { status: string; balance: number; total: number } }
-    if (!data.invoice) throw new Error('Respuesta inesperada de Zoho')
+    const rawText = await res.text()
+    console.log('[sincronizar-pago] Zoho raw response:', rawText.slice(0, 500))
 
-    const zohoStatus = data.invoice.status  // 'draft' | 'sent' | 'viewed' | 'paid' | 'void' | 'overdue'
+    let data: Record<string, unknown>
+    try {
+      data = JSON.parse(rawText) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: `Zoho devolvió respuesta no-JSON (HTTP ${res.status}): ${rawText.slice(0, 200)}` }, { status: 500 })
+    }
+
+    // Zoho puede devolver { invoice: {...} } o { code: N, message: '...' } en error
+    if (data.code !== undefined && data.code !== 0) {
+      return NextResponse.json({ error: `Zoho error ${data.code}: ${data.message ?? rawText.slice(0, 200)}` }, { status: 502 })
+    }
+
+    const invoice = data.invoice as { status?: string; balance?: number; total?: number } | undefined
+    if (!invoice?.status) {
+      return NextResponse.json({ error: `Respuesta inesperada de Zoho: ${rawText.slice(0, 300)}` }, { status: 502 })
+    }
+
+    const zohoStatus = invoice.status  // 'draft' | 'sent' | 'viewed' | 'paid' | 'void' | 'overdue'
     const esPagada = zohoStatus === 'paid'
 
     if (esPagada !== paquete.factura_pagada) {
