@@ -1126,6 +1126,9 @@ function PaquetesDisponibles({
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
+                    {p.tracking_origen && (
+                      <span className="ml-1 font-mono text-orange-600 font-semibold"> · {p.tracking_origen}</span>
+                    )}
                   </p>
                 </div>
                 {/* Badge si no tiene cliente */}
