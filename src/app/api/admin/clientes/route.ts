@@ -112,8 +112,10 @@ export async function POST(req: NextRequest) {
 
   const userId = nuevoUser.user.id
 
-  // 2. Insertar perfil en la BD
-  const { error: errPerfil } = await admin.from('perfiles').insert({
+  // 2. Insertar/actualizar perfil en la BD
+  // Se usa upsert porque Supabase puede tener un trigger que ya creó la fila
+  // en perfiles al momento de crear el usuario en auth.users.
+  const { error: errPerfil } = await admin.from('perfiles').upsert({
     id: userId,
     nombre_completo: body.nombre_completo.trim(),
     email,
@@ -126,7 +128,7 @@ export async function POST(req: NextRequest) {
     numero_casilla: numeroCasilla,
     rol: 'cliente',
     activo: true,
-  })
+  }, { onConflict: 'id' })
 
   if (errPerfil) {
     // Revertir: borrar el usuario de auth si el perfil falló
