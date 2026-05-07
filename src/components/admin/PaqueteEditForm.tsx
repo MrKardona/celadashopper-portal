@@ -81,18 +81,13 @@ export default function PaqueteEditForm({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const peso = parseFloat(form.peso_libras)
-    if (!form.peso_libras || isNaN(peso) || peso <= 0) {
-      setCalculo(null)
-      setErrorCalculo('')
-      return
-    }
-
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       setCalculando(true)
       setErrorCalculo('')
       try {
+        const pesoNum = form.peso_libras ? parseFloat(form.peso_libras) : null
+        const pesoValido = pesoNum !== null && !isNaN(pesoNum) && pesoNum > 0
         const res = await fetch('/api/admin/calcular-costo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -100,7 +95,7 @@ export default function PaqueteEditForm({
             categoria,
             condicion: form.condicion || null,
             cantidad: parseInt(form.cantidad, 10) || 1,
-            peso_libras: peso,
+            peso_libras: pesoValido ? pesoNum : null,
             valor_declarado: valorDeclarado ?? null,
           }),
         })
@@ -110,11 +105,10 @@ export default function PaqueteEditForm({
           setCalculo(null)
         } else {
           setCalculo(data)
-          setForm(prev => ({
-            ...prev,
-            costo_servicio: data.total.toFixed(2),
-            tarifa_aplicada: prev.tarifa_aplicada,
-          }))
+          // Solo auto-rellenar costo si el precio es definitivo (no estimado pendiente de peso)
+          if (!data.requiere_peso) {
+            setForm(prev => ({ ...prev, costo_servicio: data.total.toFixed(2) }))
+          }
         }
       } catch {
         setErrorCalculo('Error de conexión al calcular tarifa')
@@ -315,7 +309,7 @@ export default function PaqueteEditForm({
           style={{ color: '#34d399' }}
         />
         <p className="text-[11px]" style={{ color: `${tw}0.35)` }}>
-          Se calcula automáticamente al ingresar el peso. Puedes ajustarlo manualmente si es necesario.
+          Se calcula automáticamente. Categorías de precio fijo (celular, computador, iPad, calzado) no requieren peso. Ajusta manualmente si es necesario.
         </p>
       </div>
 
