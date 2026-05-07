@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import {
   Package, PlusCircle, Truck, CheckCircle, Clock,
-  MessageCircle, MapPin, ChevronRight, Copy,
+  MessageCircle, MapPin, ChevronRight,
 } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, type EstadoPaquete } from '@/types'
 
@@ -205,7 +205,7 @@ export default async function DashboardPage() {
         )}
 
         <div className="divide-y mx-5 my-4 rounded-xl overflow-hidden"
-          style={{ border: '1px solid rgba(245,184,0,0.15)', divideColor: 'rgba(245,184,0,0.08)' }}>
+          style={{ border: '1px solid rgba(245,184,0,0.15)' }}>
           {[
             { label: '👤 Nombre / Recipient', value: `Diego Celada${perfil?.numero_casilla ? ` ${perfil.numero_casilla}` : ''}`, note: 'Tu nombre + número de casillero' },
             { label: '🏠 Dirección / Address', value: '8164 NW 108th Pl', note: 'Bodega en Miami' },
