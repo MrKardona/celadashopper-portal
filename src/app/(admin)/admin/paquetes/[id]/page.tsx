@@ -8,7 +8,7 @@ function getSupabaseAdmin() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 }
-import { ArrowLeft, Package, MapPin, Scale, DollarSign, Calendar, Camera } from 'lucide-react'
+import { ArrowLeft, Package, MapPin, Scale, DollarSign, Calendar, Camera, FileText } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
@@ -16,6 +16,7 @@ import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
 import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
+import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
 import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS } from '@/types'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -144,7 +145,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs">Factura</p>
+                  <p className="text-gray-400 text-xs">Pago</p>
                   <Badge variant={p.factura_pagada ? 'default' : 'outline'} className={p.factura_pagada ? 'bg-green-100 text-green-700 border-green-200' : ''}>
                     {p.factura_pagada ? 'Pagada' : 'Pendiente'}
                   </Badge>
@@ -355,6 +356,23 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
               )}
             </div>
           )}
+
+          {/* Factura Zoho */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4 text-orange-600" />
+                Factura Zoho Inventory
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CrearFacturaZohoButton
+                paqueteId={id}
+                facturaId={p.factura_id ?? null}
+                costoServicio={p.costo_servicio ?? null}
+              />
+            </CardContent>
+          </Card>
 
           {/* Formulario de edición */}
           <Card>
