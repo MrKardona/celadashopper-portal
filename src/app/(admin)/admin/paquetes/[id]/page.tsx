@@ -10,6 +10,7 @@ import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
 import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
+import ClienteEditInline from '@/components/admin/ClienteEditInline'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 
 function getSupabaseAdmin() {
@@ -279,6 +280,21 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                     <PruebaWhatsappButton telefonoSugerido={perfil.whatsapp ?? perfil.telefono ?? null} />
                     <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'}
                       clienteActual={{ nombre: perfil.nombre_completo, casilla: perfil.numero_casilla }} variante="subtle" />
+                  </div>
+
+                  <div className="pt-3" style={{ borderTop: `1px solid ${tw}0.06)` }}>
+                    <ClienteEditInline perfil={{
+                      id: p.cliente_id!,
+                      nombre_completo: perfil.nombre_completo,
+                      numero_casilla: perfil.numero_casilla,
+                      email: perfil.email,
+                      whatsapp: perfil.whatsapp,
+                      telefono: perfil.telefono,
+                      ciudad: perfil.ciudad,
+                      direccion: perfil.direccion,
+                      barrio: perfil.barrio,
+                      referencia: perfil.referencia,
+                    }} />
                   </div>
                 </>
               )}
