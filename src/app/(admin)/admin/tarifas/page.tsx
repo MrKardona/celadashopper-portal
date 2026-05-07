@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import TarifasForm from '@/components/admin/TarifasForm'
 import TarifasRangosManager, { type TarifaRango } from '@/components/admin/TarifasRangosManager'
+import SincronizarZohoItemsButton from '@/components/admin/SincronizarZohoItemsButton'
 
 function getSupabaseAdmin() {
   return createClient(
@@ -21,13 +22,16 @@ export default async function AdminTarifasPage() {
 
   return (
     <div className="space-y-8 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Tarifas</h1>
-        <p className="text-gray-500 text-sm mt-1">
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Tarifas</h1>
+          <p className="text-gray-500 text-sm mt-1">
           Sistema con dos modelos: <strong>tarifas escalonadas</strong> (con condición, cantidad y rangos
           de valor) y <strong>tarifas legacy</strong> (precio simple por libra o por unidad).
           El cálculo prioriza siempre las escalonadas si existen para la categoría.
-        </p>
+          </p>
+        </div>
+        <SincronizarZohoItemsButton />
       </div>
 
       {/* Tarifas escalonadas — modelo nuevo */}

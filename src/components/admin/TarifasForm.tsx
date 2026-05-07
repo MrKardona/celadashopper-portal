@@ -13,6 +13,9 @@ interface Tarifa {
   seguro_porcentaje: number
   descripcion: string | null
   activo: boolean
+  costo_envio_libra: number | null
+  costo_envio_fijo: number | null
+  zoho_item_id: string | null
 }
 
 export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
@@ -23,6 +26,8 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
     tarifa_tipo: string
     seguro_porcentaje: string
     descripcion: string
+    costo_envio_libra: string
+    costo_envio_fijo: string
   }>>({})
   const [guardando, setGuardando] = useState<string | null>(null)
   const [resultado, setResultado] = useState<{ id: string; ok: boolean; msg: string } | null>(null)
@@ -37,6 +42,8 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
         tarifa_tipo: t.tarifa_tipo,
         seguro_porcentaje: t.seguro_porcentaje.toString(),
         descripcion: t.descripcion ?? '',
+        costo_envio_libra: t.costo_envio_libra?.toString() ?? '',
+        costo_envio_fijo: t.costo_envio_fijo?.toString() ?? '',
       },
     }))
   }
@@ -54,6 +61,8 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
           tarifa_tipo: v.tarifa_tipo,
           seguro_porcentaje: parseFloat(v.seguro_porcentaje) || 0,
           descripcion: v.descripcion || null,
+          costo_envio_libra: v.costo_envio_libra ? parseFloat(v.costo_envio_libra) : null,
+          costo_envio_fijo: v.costo_envio_fijo ? parseFloat(v.costo_envio_fijo) : null,
         }),
       })
       const data = await res.json()
@@ -87,6 +96,8 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarifa/lb</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio fijo</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Seguro</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-red-400 uppercase tracking-wide">Costo/lb</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-red-400 uppercase tracking-wide">Costo fijo</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Descripción</th>
               <th className="px-4 py-3" />
             </tr>
@@ -167,6 +178,38 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
                     ) : (
                       <span className={`text-sm font-medium ${t.seguro_porcentaje > 0 ? 'text-blue-700' : 'text-gray-300'}`}>
                         {t.seguro_porcentaje > 0 ? `${t.seguro_porcentaje}%` : '—'}
+                      </span>
+                    )}
+                  </td>
+                  {/* Costo/lb nuestro */}
+                  <td className="px-4 py-3">
+                    {enEdicion ? (
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={v.costo_envio_libra}
+                        placeholder="—"
+                        onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], costo_envio_libra: e.target.value } }))}
+                        className="border border-red-200 rounded px-2 py-1 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-red-400"
+                      />
+                    ) : (
+                      <span className={`font-mono text-sm font-semibold ${t.costo_envio_libra ? 'text-red-600' : 'text-gray-300'}`}>
+                        {t.costo_envio_libra != null ? `$${t.costo_envio_libra}` : '—'}
+                      </span>
+                    )}
+                  </td>
+                  {/* Costo fijo nuestro */}
+                  <td className="px-4 py-3">
+                    {enEdicion ? (
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={v.costo_envio_fijo}
+                        placeholder="—"
+                        onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], costo_envio_fijo: e.target.value } }))}
+                        className="border border-red-200 rounded px-2 py-1 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-red-400"
+                      />
+                    ) : (
+                      <span className={`font-mono text-sm font-semibold ${t.costo_envio_fijo ? 'text-red-600' : 'text-gray-300'}`}>
+                        {t.costo_envio_fijo != null ? `$${t.costo_envio_fijo}` : '—'}
                       </span>
                     )}
                   </td>

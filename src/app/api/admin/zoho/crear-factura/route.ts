@@ -98,9 +98,17 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin()
 
-  // Cargar paquete
-  const { data: paquete } = await admin.from('paquetes').select('*').eq('id', paquete_id).single()
+  // Cargar paquete + tarifa de su categoría (para zoho_item_id)
+  const [{ data: paquete }, ] = await Promise.all([
+    admin.from('paquetes').select('*').eq('id', paquete_id).single(),
+  ])
   if (!paquete) return NextResponse.json({ error: 'Paquete no encontrado' }, { status: 404 })
+
+  const { data: tarifa } = await admin
+    .from('categorias_tarifas')
+    .select('zoho_item_id, nombre_display')
+    .eq('categoria', paquete.categoria)
+    .single()
 
   if (paquete.factura_id) {
     return NextResponse.json({ error: 'Este paquete ya tiene una factura creada', factura_id: paquete.factura_id }, { status: 409 })
@@ -148,7 +156,7 @@ export async function POST(req: NextRequest) {
       notes: `Envío CeladaShopper · Tracking: ${paquete.tracking_casilla ?? '—'} · Paquete: ${paquete.descripcion}`,
       line_items: [
         {
-          name: 'Servicio de envío',
+          ...(tarifa?.zoho_item_id ? { item_id: tarifa.zoho_item_id } : { name: tarifa?.nombre_display ?? 'Servicio de envío' }),
           description: descripcionItem,
           quantity: 1,
           rate: Number(paquete.costo_servicio),

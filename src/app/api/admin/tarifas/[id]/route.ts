@@ -35,11 +35,11 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 
   const body = await req.json()
-  const { tarifa_por_libra, precio_fijo, tarifa_tipo, seguro_porcentaje, descripcion } = body
+  const { tarifa_por_libra, precio_fijo, tarifa_tipo, seguro_porcentaje, descripcion, costo_envio_libra, costo_envio_fijo } = body
 
   const { error } = await supabaseAdmin
     .from('categorias_tarifas')
-    .update({ tarifa_por_libra, precio_fijo, tarifa_tipo, seguro_porcentaje, descripcion, updated_at: new Date().toISOString() })
+    .update({ tarifa_por_libra, precio_fijo, tarifa_tipo, seguro_porcentaje, descripcion, costo_envio_libra, costo_envio_fijo, updated_at: new Date().toISOString() })
     .eq('id', id)
 
   if (error) {
