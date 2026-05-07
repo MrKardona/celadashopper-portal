@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Rutas publicas (incluye subrutas: /recuperar/codigo, /recuperar/cualquier-cosa)
-  const publicPaths = ['/login', '/register', '/recuperar', '/nueva-contrasena', '/']
+  const publicPaths = ['/login', '/register', '/recuperar', '/nueva-contrasena', '/auth', '/']
   const isPublic = publicPaths.some(p =>
     pathname === p ||
     (p !== '/' && pathname.startsWith(p + '/')),
