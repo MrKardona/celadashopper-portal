@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import ClientesTabla, { type ClienteRow } from '@/components/admin/ClientesTabla'
+import NuevoClienteModal from '@/components/admin/NuevoClienteModal'
 
 interface Props {
   searchParams: Promise<{ q?: string; ciudad?: string; orden?: string; periodo?: string }>
@@ -80,12 +81,15 @@ export default async function AdminClientesPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Clientes</h1>
-        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}
-          {periodo && ` registrados en los últimos ${periodo} días`}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Clientes</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}
+            {periodo && ` registrados en los últimos ${periodo} días`}
+          </p>
+        </div>
+        <NuevoClienteModal />
       </div>
 
       {/* Filtros */}
