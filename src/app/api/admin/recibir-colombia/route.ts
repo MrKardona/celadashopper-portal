@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
   // Cargar paquetes a procesar
   let query = admin
     .from('paquetes')
-    .select('id, estado, cliente_id, bodega_destino, tracking_casilla')
+    .select('id, estado, cliente_id, bodega_destino, tracking_casilla, paquete_origen_id, visible_cliente, peso_libras, peso_facturable')
     .ilike('tracking_usaco', trackingUsaco)
 
   if (body.paquete_ids && body.paquete_ids.length > 0) {
@@ -214,12 +214,63 @@ export async function POST(req: NextRequest) {
     console.error('[recibir-colombia] error actualizando cajas:', err)
   }
 
+  // ─── Reunificar sub-paquetes si todos llegaron a Colombia ────────────────
+  // Cuando un paquete fue dividido en sub-paquetes para logística interna,
+  // al llegar todos a Colombia se vuelven a unir en el paquete original
+  // sumando los pesos de todos los sub-paquetes.
+  const origenesEnProceso = [...new Set(
+    aProcesar
+      .filter(p => p.paquete_origen_id && p.visible_cliente === false)
+      .map(p => p.paquete_origen_id as string)
+  )]
+
+  for (const origenId of origenesEnProceso) {
+    // Cargar TODOS los sub-paquetes de este origen
+    const { data: todosSubPaquetes } = await admin
+      .from('paquetes')
+      .select('id, estado, peso_libras, peso_facturable')
+      .eq('paquete_origen_id', origenId)
+
+    if (!todosSubPaquetes || todosSubPaquetes.length === 0) continue
+
+    const todosEnColombia = todosSubPaquetes.every(sp =>
+      ['en_bodega_local', 'en_camino_cliente', 'entregado'].includes(sp.estado)
+    )
+
+    if (todosEnColombia) {
+      const pesoTotal = todosSubPaquetes.reduce((sum, sp) => sum + Number(sp.peso_libras ?? 0), 0)
+      const pesoFacturableTotal = todosSubPaquetes.reduce((sum, sp) => sum + Number(sp.peso_facturable ?? sp.peso_libras ?? 0), 0)
+
+      await admin
+        .from('paquetes')
+        .update({
+          estado: 'en_bodega_local',
+          peso_libras: Math.round(pesoTotal * 100) / 100,
+          peso_facturable: Math.round(pesoFacturableTotal * 100) / 100,
+          fecha_llegada_colombia: ahora,
+          updated_at: ahora,
+          ...(body.bodega_destino ? { bodega_destino: body.bodega_destino } : {}),
+        })
+        .eq('id', origenId)
+
+      await admin.from('eventos_paquete').insert({
+        paquete_id: origenId,
+        estado_anterior: 'en_transito',
+        estado_nuevo: 'en_bodega_local',
+        descripcion: `Paquete reunificado en bodega Colombia: ${todosSubPaquetes.length} sub-paquetes (${Math.round(pesoTotal * 100) / 100} lb total)`,
+        ubicacion: 'Colombia',
+      }).then(() => {/* ok */}, (e) => console.error('[recibir-colombia] evento reunificar:', e))
+    }
+  }
+
   // Notificar a cada cliente vía WhatsApp (con pequeño delay entre cada uno)
+  // Solo paquetes visibles al cliente (no sub-paquetes internos)
   let notificados = 0
   let fallidos = 0
   if (debeNotificar) {
     for (const p of aProcesar) {
       if (!p.cliente_id) continue
+      if (p.visible_cliente === false) continue   // sub-paquetes: notifica el origen
       try {
         await notificarCambioEstado(p.id, 'en_bodega_local')
         notificados++
@@ -228,6 +279,18 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         fallidos++
         console.error(`[recibir-colombia] notif fallida ${p.id}:`, err)
+      }
+    }
+
+    // Notificar los paquetes origen que fueron reunificados (una sola notificación por origen)
+    for (const origenId of origenesEnProceso) {
+      try {
+        await notificarCambioEstado(origenId, 'en_bodega_local')
+        notificados++
+        await new Promise(r => setTimeout(r, 300))
+      } catch (err) {
+        fallidos++
+        console.error(`[recibir-colombia] notif origen reunificado ${origenId}:`, err)
       }
     }
   }
