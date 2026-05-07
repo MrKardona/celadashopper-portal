@@ -200,6 +200,7 @@ export default function NuevoClienteModal() {
                       <label className={lbl}>Ciudad</label>
                       <select
                         className={inp + ' cursor-pointer'}
+                        style={{ colorScheme: 'dark', background: 'rgba(18,18,30,0.97)' }}
                         value={form.ciudad}
                         onChange={e => setForm(p => ({ ...p, ciudad: e.target.value }))}
                       >
