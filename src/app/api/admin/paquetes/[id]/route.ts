@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const body = await req.json()
   const {
     estado, bodega_destino, categoria, peso_libras, peso_facturable, tarifa_aplicada,
-    costo_servicio, tracking_usaco, notas_cliente, condicion, cantidad,
+    costo_servicio, tracking_usaco, notas_cliente, condicion, cantidad, valor_declarado,
     notificar, estado_anterior,
   } = body
 
@@ -73,6 +73,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   // condicion y cantidad afectan el cálculo de tarifa — ahora son editables
   if (condicion !== undefined) updates.condicion = condicion
   if (cantidad !== undefined) updates.cantidad = cantidad
+  if (valor_declarado !== undefined) updates.valor_declarado = valor_declarado
 
   // Marcar timestamp de la actualización
   updates.updated_at = new Date().toISOString()

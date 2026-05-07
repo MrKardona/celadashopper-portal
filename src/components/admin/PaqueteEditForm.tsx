@@ -68,6 +68,7 @@ export default function PaqueteEditForm({
     cantidad: cantidadInicial?.toString() ?? '1',
     tarifa_aplicada: tarifaAplicada?.toString() ?? '',
     costo_servicio: costoServicio?.toString() ?? '',
+    valor_declarado: valorDeclarado?.toString() ?? '',
     tracking_usaco: trackingUsaco ?? '',
     notas_cliente: notasCliente ?? '',
     notificar: true,
@@ -97,7 +98,7 @@ export default function PaqueteEditForm({
             condicion: form.condicion || null,
             cantidad: parseInt(form.cantidad, 10) || 1,
             peso_libras: pesoValido ? pesoNum : null,
-            valor_declarado: valorDeclarado ?? null,
+            valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
           }),
         })
         const data = await res.json() as Calculo & { error?: string }
@@ -123,7 +124,7 @@ export default function PaqueteEditForm({
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.peso_libras, form.condicion, form.cantidad, form.categoria])
+  }, [form.peso_libras, form.condicion, form.cantidad, form.categoria, form.valor_declarado])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -146,6 +147,7 @@ export default function PaqueteEditForm({
           notas_cliente: form.notas_cliente || null,
           condicion: form.condicion || null,
           cantidad: parseInt(form.cantidad, 10) || 1,
+          valor_declarado: form.valor_declarado ? parseFloat(form.valor_declarado) : null,
           notificar: form.notificar,
           estado_anterior: estado,
         }),
@@ -237,6 +239,21 @@ export default function PaqueteEditForm({
             className={inputClass}
           />
         </div>
+      </div>
+
+      {/* Valor declarado */}
+      <div className="space-y-1.5">
+        <label htmlFor="valor_declarado" className="text-sm font-medium" style={labelStyle}>Valor declarado (USD)</label>
+        <input
+          id="valor_declarado"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          value={form.valor_declarado}
+          onChange={e => setForm(prev => ({ ...prev, valor_declarado: e.target.value }))}
+          className={inputClass}
+        />
       </div>
 
       {/* Peso */}
