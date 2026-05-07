@@ -15,7 +15,7 @@ export default function CrearFacturaZohoButton({ paqueteId, facturaId, costoServ
   const router = useRouter()
   const [cargando, setCargando] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
-  const [resultado, setResultado] = useState<{ invoice_id: string; invoice_number: string; zoho_url: string } | null>(null)
+  const [resultado, setResultado] = useState<{ invoice_id: string; invoice_number: string; zoho_url: string; email_enviado?: boolean; email_destino?: string | null; email_error?: string | null } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
 
@@ -36,11 +36,11 @@ export default function CrearFacturaZohoButton({ paqueteId, facturaId, costoServ
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paquete_id: paqueteId }),
       })
-      const data = await res.json() as { ok?: boolean; invoice_id?: string; invoice_number?: string; zoho_url?: string; error?: string }
+      const data = await res.json() as { ok?: boolean; invoice_id?: string; invoice_number?: string; zoho_url?: string; email_enviado?: boolean; email_destino?: string | null; email_error?: string | null; error?: string }
       if (!res.ok || data.error) {
         setError(data.error ?? 'Error desconocido al crear la factura.')
       } else {
-        setResultado({ invoice_id: data.invoice_id!, invoice_number: data.invoice_number!, zoho_url: data.zoho_url! })
+        setResultado({ invoice_id: data.invoice_id!, invoice_number: data.invoice_number!, zoho_url: data.zoho_url!, email_enviado: data.email_enviado, email_destino: data.email_destino, email_error: data.email_error })
         router.refresh()
       }
     } catch {
@@ -133,6 +133,18 @@ export default function CrearFacturaZohoButton({ paqueteId, facturaId, costoServ
 
           {syncMsg && (
             <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.45)' }}>{syncMsg}</p>
+          )}
+
+          {/* Confirmación de email al crear */}
+          {resultado?.email_enviado && resultado.email_destino && (
+            <p className="text-xs text-center" style={{ color: 'rgba(52,211,153,0.7)' }}>
+              📧 Factura enviada por email a {resultado.email_destino}
+            </p>
+          )}
+          {resultado?.email_error && (
+            <p className="text-xs text-center" style={{ color: '#F5B800' }}>
+              ⚠️ Factura creada pero email no enviado: {resultado.email_error}
+            </p>
           )}
         </div>
 

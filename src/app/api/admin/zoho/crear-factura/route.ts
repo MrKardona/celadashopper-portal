@@ -200,11 +200,48 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', paquete_id)
 
+    // ── Enviar factura por email al cliente ──────────────────────────────────
+    let emailEnviado = false
+    let emailError: string | null = null
+    if (clienteEmail) {
+      try {
+        const emailRes = await fetch(
+          `https://www.zohoapis.com/inventory/v1/invoices/${zohoInvoiceId}/email?organization_id=${orgId}`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Zoho-oauthtoken ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              send_from_org_email_id: true,
+              to_mail_ids: [clienteEmail],
+              subject: `Tu factura de CeladaShopper — ${zohoInvoiceNum}`,
+              body: `Hola ${clienteNombre},\n\nAdjunto encontrarás tu factura por el servicio de envío de tu paquete.\n\nTracking: ${paquete.tracking_casilla ?? '—'}\nProducto: ${paquete.descripcion}\nTotal: $${paquete.costo_servicio} USD\n\nGracias por confiar en CeladaShopper.\n\nEquipo CeladaShopper`,
+            }),
+          }
+        )
+        const emailData = await emailRes.json() as { code?: number; message?: string }
+        if (emailData.code === 0) {
+          emailEnviado = true
+        } else {
+          emailError = emailData.message ?? `Zoho email code ${emailData.code}`
+          console.warn('[Zoho email]', emailError)
+        }
+      } catch (err) {
+        emailError = err instanceof Error ? err.message : 'Error enviando email'
+        console.warn('[Zoho email]', emailError)
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       invoice_id: zohoInvoiceId,
       invoice_number: zohoInvoiceNum,
       zoho_url: `https://inventory.zoho.com/app#/invoices/${zohoInvoiceId}`,
+      email_enviado: emailEnviado,
+      email_destino: emailEnviado ? clienteEmail : null,
+      email_error: emailError,
     })
 
   } catch (err) {
