@@ -93,7 +93,7 @@ export default function PaqueteEditForm({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            categoria,
+            categoria: form.categoria,
             condicion: form.condicion || null,
             cantidad: parseInt(form.cantidad, 10) || 1,
             peso_libras: pesoValido ? pesoNum : null,
@@ -123,7 +123,7 @@ export default function PaqueteEditForm({
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.peso_libras, form.condicion, form.cantidad])
+  }, [form.peso_libras, form.condicion, form.cantidad, form.categoria])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
