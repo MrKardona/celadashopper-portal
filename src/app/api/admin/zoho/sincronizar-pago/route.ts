@@ -70,7 +70,10 @@ export async function POST(req: NextRequest) {
 
     // Zoho puede devolver { invoice: {...} } o { code: N, message: '...' } en error
     if (data.code !== undefined && data.code !== 0) {
-      return NextResponse.json({ error: `Zoho error ${data.code}: ${data.message ?? rawText.slice(0, 200)}` }, { status: 502 })
+      const msg = data.code === 57
+        ? `Sin permisos en Zoho (error 57). El refresh token no tiene scope ZohoInventory.invoices.READ. Regéneralo en api-console.zoho.com con todos los scopes.`
+        : `Zoho error ${data.code}: ${data.message ?? rawText.slice(0, 200)}`
+      return NextResponse.json({ error: msg }, { status: 502 })
     }
 
     const invoice = data.invoice as { status?: string; balance?: number; total?: number } | undefined

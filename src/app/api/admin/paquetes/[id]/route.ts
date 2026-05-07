@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   // Estado actual del paquete antes del update (para detectar cambios reales)
   const { data: paqueteAntes } = await supabaseAdmin
     .from('paquetes')
-    .select('estado, tracking_usaco, costo_servicio')
+    .select('estado, tracking_usaco, costo_servicio, visible_cliente')
     .eq('id', id)
     .single()
 
@@ -114,7 +114,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   // El flag `notificar` solo puede deshabilitarlo explícitamente cuando
   // viene === false. Si viene undefined o true, asumimos que SÍ notificar.
   const notificacionesEnviadas: string[] = []
-  const debeNotificar = notificar !== false
+  // Sub-paquetes (visible_cliente=false) nunca notifican al cliente
+  const debeNotificar = notificar !== false && paqueteAntes?.visible_cliente !== false
 
   console.log('[PATCH paquete]', { id, estado, estado_anterior, paqueteAntesEstado: paqueteAntes?.estado, huboCambioDeEstado, debeNotificar })
 

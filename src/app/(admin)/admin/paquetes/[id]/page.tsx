@@ -12,6 +12,7 @@ import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
 import ClienteEditInline from '@/components/admin/ClienteEditInline'
 import FacturaBadge from '@/components/admin/FacturaBadge'
+import DividirPaqueteModal from '@/components/admin/DividirPaqueteModal'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 
 function getSupabaseAdmin() {
@@ -68,10 +69,11 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
   const { id } = await params
   const supabase = getSupabaseAdmin()
 
-  const [paqueteRes, fotosRes, eventosRes] = await Promise.all([
+  const [paqueteRes, fotosRes, eventosRes, subPaquetesRes] = await Promise.all([
     supabase.from('paquetes').select('*').eq('id', id).single(),
     supabase.from('fotos_paquetes').select('*').eq('paquete_id', id).order('created_at'),
     supabase.from('eventos_paquete').select('*').eq('paquete_id', id).order('created_at', { ascending: false }),
+    supabase.from('paquetes').select('id, descripcion, peso_libras, cantidad, estado, costo_servicio, notas_internas').eq('paquete_origen_id', id).order('created_at'),
   ])
 
   if (paqueteRes.error || !paqueteRes.data) notFound()
@@ -79,6 +81,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
   const p = paqueteRes.data
   const fotos = fotosRes.data ?? []
   const eventos = eventosRes.data ?? []
+  const subPaquetes = subPaquetesRes.data ?? []
 
   let perfil: {
     nombre_completo: string; numero_casilla: string; email: string
@@ -121,13 +124,28 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
               </span>
             )})()}
+            {p.paquete_origen_id && (
+              <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold"
+                style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>
+                ✂️ Sub-paquete
+              </span>
+            )}
             <FacturaBadge
               facturaId={p.factura_id ?? null}
               facturaPagada={p.factura_pagada ?? null}
               costoServicio={p.costo_servicio ?? null}
             />
           </div>
-          <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>{p.descripcion} · {p.tienda}</p>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <p className="text-sm" style={{ color: `${tw}0.45)` }}>{p.descripcion} · {p.tienda}</p>
+            {!p.paquete_origen_id && (
+              <DividirPaqueteModal
+                paqueteId={id}
+                descripcionOrigen={p.descripcion ?? ''}
+                pesoLibrasOrigen={p.peso_libras ?? null}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -214,6 +232,58 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+          {/* Sub-paquetes */}
+          {subPaquetes.length > 0 && (
+            <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(251,191,36,0.2)' }}>
+              <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: `1px solid rgba(251,191,36,0.1)` }}>
+                <span className="text-sm">✂️</span>
+                <h3 className="text-sm font-semibold text-white">Divisiones ({subPaquetes.length})</h3>
+                <span className="text-xs ml-auto" style={{ color: 'rgba(255,255,255,0.3)' }}>Invisibles para el cliente</span>
+              </div>
+              <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                {subPaquetes.map((sp, i) => (
+                  <div key={sp.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate">{sp.descripcion}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        {sp.peso_libras ? `${sp.peso_libras} lb` : 'Sin peso'}
+                        {sp.cantidad ? ` · ${sp.cantidad} ud` : ''}
+                        {sp.costo_servicio ? ` · $${sp.costo_servicio}` : ''}
+                        {sp.notas_internas ? ` · ${sp.notas_internas}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {(() => { const s = ESTADO_DARK[sp.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.1)' }; return (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                          {ESTADO_LABELS[sp.estado as keyof typeof ESTADO_LABELS] ?? sp.estado}
+                        </span>
+                      )})()}
+                      <a href={`/admin/paquetes/${sp.id}`}
+                        className="text-[10px] font-semibold px-2 py-1 rounded-lg"
+                        style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        Ver →
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Vínculo al paquete origen si es sub-paquete */}
+          {p.paquete_origen_id && (
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+              style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                ✂️ Este es un sub-paquete. Paquete origen:
+              </p>
+              <a href={`/admin/paquetes/${p.paquete_origen_id}`}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+                style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}>
+                Ver origen →
+              </a>
             </div>
           )}
         </div>

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   const { data: paquete } = await admin
     .from('paquetes')
-    .select('id, estado, tracking_casilla, cliente_id')
+    .select('id, estado, tracking_casilla, cliente_id, visible_cliente')
     .eq('id', id)
     .maybeSingle()
 
@@ -97,9 +97,9 @@ export async function POST(req: NextRequest, { params }: Props) {
     agente_id: user.id,
   })
 
-  // Notificar (email + WhatsApp). Solo si el paquete tiene cliente y no se
-  // pidió explícitamente no notificar.
-  const debeNotificar = body.notificar !== false
+  // Notificar (email + WhatsApp). Solo si el paquete tiene cliente, no se
+  // pidió explícitamente no notificar, y no es un sub-paquete interno.
+  const debeNotificar = body.notificar !== false && paquete.visible_cliente !== false
   if (debeNotificar && paquete.cliente_id) {
     try {
       await notificarCambioEstado(id, 'entregado')
@@ -110,6 +110,6 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   return NextResponse.json({
     ok: true,
-    notificado: debeNotificar && !!paquete.cliente_id,
+    notificado: debeNotificar && !!paquete.cliente_id && paquete.visible_cliente !== false,
   })
 }

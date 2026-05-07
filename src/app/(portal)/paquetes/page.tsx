@@ -61,6 +61,7 @@ export default async function PaquetesPage() {
     .from('paquetes')
     .select('*, fotos_paquetes(id)')
     .eq('cliente_id', user!.id)
+    .eq('visible_cliente', true)
     .order('created_at', { ascending: false })
 
   const activos     = paquetes?.filter(p => !['entregado', 'devuelto'].includes(p.estado)) ?? []

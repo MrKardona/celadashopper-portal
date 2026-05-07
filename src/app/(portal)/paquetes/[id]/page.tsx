@@ -38,7 +38,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
   const { data: { user } } = await supabase.auth.getUser()
 
   const [paqueteRes, fotosRes, eventosRes] = await Promise.all([
-    supabase.from('paquetes').select('*').eq('id', id).eq('cliente_id', user!.id).maybeSingle(),
+    supabase.from('paquetes').select('*').eq('id', id).eq('cliente_id', user!.id).eq('visible_cliente', true).maybeSingle(),
     supabase.from('fotos_paquetes').select('*').eq('paquete_id', id).order('created_at'),
     supabase.from('eventos_paquete').select('*').eq('paquete_id', id).order('created_at', { ascending: false }),
   ])
