@@ -4,7 +4,25 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserPlus, X, Loader2, CheckCircle, AlertCircle, Send } from 'lucide-react'
 
-const CIUDADES = ['Medellín', 'Bogotá', 'Barranquilla', 'Cali', 'Otra']
+const CIUDADES = [
+  'Medellín',
+  'Bogotá',
+  'Barranquilla',
+  'Cali',
+  'Cartagena',
+  'Bucaramanga',
+  'Pereira',
+  'Manizales',
+  'Santa Marta',
+  'Cúcuta',
+  'Ibagué',
+  'Villavicencio',
+  'Montería',
+  'Pasto',
+  'Armenia',
+  'Neiva',
+  'Otra',
+]
 
 export default function NuevoClienteModal() {
   const router = useRouter()
