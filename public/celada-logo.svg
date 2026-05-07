@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" fill="none">
+  <defs>
+    <linearGradient id="silver" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#e0e0e8"/>
+      <stop offset="70%" stop-color="#a8a8b8"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F5B800"/>
+      <stop offset="50%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#D4A000"/>
+    </linearGradient>
+  </defs>
+  <text x="4" y="42" font-family="Georgia, 'Times New Roman', serif" font-size="46" font-style="italic" font-weight="700" fill="url(#silver)" letter-spacing="-1">Celada</text>
+  <text x="6" y="57" font-family="'Arial', sans-serif" font-size="10" font-weight="700" fill="url(#gold)" letter-spacing="3">PERSONAL SHOPPER</text>
+</svg>

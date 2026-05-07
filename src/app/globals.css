@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -128,3 +129,149 @@
     @apply font-sans;
   }
 }
+
+/* ── Neo Glassmorphism Design System ─────────────────────────────── */
+.portal-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #07070f 0%, #0b0b1d 40%, #080c14 100%);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Orbes de fondo */
+.portal-orb-gold {
+  position: fixed;
+  top: -15%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245,184,0,0.07) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.portal-orb-blue {
+  position: fixed;
+  bottom: -20%;
+  left: -12%;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(80,100,200,0.06) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.portal-orb-mid {
+  position: fixed;
+  top: 50%;
+  left: 40%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245,184,0,0.03) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Cards de vidrio */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+.glass-card-gold {
+  background: rgba(245, 184, 0, 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 184, 0, 0.18);
+  border-radius: 16px;
+}
+.glass-nav {
+  background: rgba(7, 7, 15, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.glass-input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+}
+.glass-input::placeholder {
+  color: rgba(255,255,255,0.3) !important;
+}
+.glass-input:focus {
+  border-color: rgba(245, 184, 0, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.1) !important;
+  outline: none !important;
+}
+
+/* Botón dorado */
+.btn-gold {
+  background: linear-gradient(135deg, #F5B800 0%, #D4A000 100%);
+  color: #000 !important;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  transition: all 0.2s ease;
+}
+.btn-gold:hover {
+  background: linear-gradient(135deg, #FFD000 0%, #F5B800 100%);
+  box-shadow: 0 0 24px rgba(245,184,0,0.35);
+  transform: translateY(-1px);
+}
+.btn-gold:disabled {
+  opacity: 0.5;
+  transform: none;
+}
+
+/* Nav item activo */
+.nav-item-active {
+  background: rgba(245, 184, 0, 0.12);
+  color: #F5B800 !important;
+  border: 1px solid rgba(245, 184, 0, 0.2);
+}
+.nav-item {
+  color: rgba(255,255,255,0.55);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+.nav-item:hover {
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.06);
+}
+
+/* Stat icon glow */
+.stat-icon-gold { background: rgba(245,184,0,0.12); }
+.stat-icon-blue  { background: rgba(99,130,255,0.12); }
+.stat-icon-green { background: rgba(52,211,153,0.12); }
+.stat-icon-white { background: rgba(255,255,255,0.08); }
+
+/* Badge de estado */
+.badge-glass {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.85);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+}
+
+/* Divider */
+.glass-divider { border-color: rgba(255,255,255,0.07); }
+
+/* Glow dorado */
+.glow-gold-text {
+  color: #F5B800;
+  text-shadow: 0 0 20px rgba(245,184,0,0.4);
+}
+
+/* Scrollbar oscuro */
+.portal-bg ::-webkit-scrollbar { width: 6px; }
+.portal-bg ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+.portal-bg ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.portal-bg ::-webkit-scrollbar-thumb:hover { background: rgba(245,184,0,0.3); }

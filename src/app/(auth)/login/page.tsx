@@ -3,11 +3,8 @@
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, MailCheck, Send } from 'lucide-react'
+import { MailCheck, Send, ArrowRight } from 'lucide-react'
+import Image from 'next/image'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -40,22 +37,31 @@ function LoginForm() {
     setLoading(false)
   }
 
+  const tw = 'rgba(255,255,255,'
+  const authError = searchParams.get('error')
+
   if (enviado) {
     return (
-      <div className="text-center py-4 space-y-3">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-100">
-          <MailCheck className="h-7 w-7 text-green-600" />
+      <div className="text-center space-y-5 py-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mx-auto"
+          style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.25)' }}>
+          <MailCheck className="h-8 w-8" style={{ color: '#34d399' }} />
         </div>
         <div>
-          <p className="font-semibold text-gray-900">¡Revisa tu correo!</p>
-          <p className="text-sm text-gray-500 mt-1">
-            Enviamos un link de acceso a <strong>{email}</strong>.<br />
-            Haz clic en el link para entrar al portal.
+          <p className="text-xl font-bold text-white">¡Revisa tu correo!</p>
+          <p className="text-sm mt-2 leading-relaxed" style={{ color: `${tw}0.55)` }}>
+            Enviamos un link de acceso a{' '}
+            <strong className="text-white">{email}</strong>.
+            <br />Haz clic en el link para entrar al portal.
           </p>
         </div>
-        <p className="text-xs text-gray-400">
-          ¿No lo ves? Revisa spam o{' '}
-          <button onClick={() => setEnviado(false)} className="text-orange-600 hover:underline">
+        <p className="text-xs" style={{ color: `${tw}0.35)` }}>
+          ¿No lo ves? Revisa la carpeta de spam o{' '}
+          <button
+            onClick={() => setEnviado(false)}
+            className="font-semibold hover:underline"
+            style={{ color: '#F5B800' }}
+          >
             intenta de nuevo
           </button>
         </p>
@@ -63,18 +69,20 @@ function LoginForm() {
     )
   }
 
-  const authError = searchParams.get('error')
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {authError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+        <div className="px-4 py-3 rounded-xl text-sm"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
           El link expiró o no es válido. Solicita uno nuevo.
         </div>
       )}
+
       <div className="space-y-2">
-        <Label htmlFor="email">Correo electrónico</Label>
-        <Input
+        <label htmlFor="email" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
+          Correo electrónico
+        </label>
+        <input
           id="email"
           type="email"
           placeholder="tu@email.com"
@@ -82,43 +90,86 @@ function LoginForm() {
           value={email}
           onChange={e => setEmail(e.target.value)}
           required
+          className="glass-input w-full px-4 py-3 text-sm outline-none"
         />
       </div>
-      {error && <p role="alert" aria-live="polite" className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
-        <Send className="h-4 w-4 mr-2" />
-        {loading ? 'Enviando...' : 'Enviar link de acceso'}
-      </Button>
-      <p className="text-xs text-center text-gray-400">
-        Te enviamos un link al correo. Sin contraseña.
+
+      {error && (
+        <p role="alert" aria-live="polite" className="text-sm" style={{ color: '#f87171' }}>{error}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="btn-gold w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold"
+      >
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+            Enviando...
+          </>
+        ) : (
+          <>
+            <Send className="h-4 w-4" />
+            Enviar link de acceso
+          </>
+        )}
+      </button>
+
+      <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
+        Te enviaremos un link al correo · Sin contraseña
       </p>
     </form>
   )
 }
 
 export default function LoginPage() {
+  const tw = 'rgba(255,255,255,'
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-white">
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2 text-orange-600">
-            <Package className="h-8 w-8" />
-            <span className="text-2xl font-bold">CeladaShopper</span>
-          </div>
-          <p className="text-sm text-gray-500">Portal de clientes</p>
+    <div className="portal-bg min-h-screen flex items-center justify-center p-4 relative">
+      <div className="portal-orb-gold" />
+      <div className="portal-orb-blue" />
+
+      <div className="relative z-10 w-full max-w-md space-y-8">
+
+        {/* Logo */}
+        <div className="flex flex-col items-center gap-3">
+          <Image
+            src="/celada-logo.svg"
+            alt="Celada Personal Shopper"
+            width={180}
+            height={52}
+            priority
+          />
+          <p className="text-sm" style={{ color: `${tw}0.4)` }}>Portal de clientes</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Iniciar sesión</CardTitle>
-            <CardDescription>Ingresa tu correo para recibir tu link de acceso</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={null}>
-              <LoginForm />
-            </Suspense>
-          </CardContent>
-        </Card>
+        {/* Card glass */}
+        <div className="glass-card p-8 space-y-6">
+          <div>
+            <h1 className="text-xl font-bold text-white">Iniciar sesión</h1>
+            <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>
+              Ingresa tu correo y te enviamos un link de acceso instantáneo
+            </p>
+          </div>
+
+          <Suspense fallback={null}>
+            <LoginForm />
+          </Suspense>
+        </div>
+
+        {/* Info sin fricción */}
+        <div className="flex items-center justify-center gap-6 text-xs" style={{ color: `${tw}0.3)` }}>
+          {['Sin contraseña', 'Link seguro', 'Acceso instantáneo'].map((t, i) => (
+            <span key={t} className="flex items-center gap-1.5">
+              {i > 0 && <span style={{ color: `${tw}0.15)` }}>·</span>}
+              <span style={{ color: '#F5B800', opacity: 0.7 }}>✓</span>
+              {t}
+            </span>
+          ))}
+        </div>
+
       </div>
     </div>
   )
