@@ -31,7 +31,7 @@ export default async function CajaDetallePage({ params }: Props) {
   // Cargar paquetes adentro
   const { data: paquetes } = await supabase
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, categoria, peso_libras, estado, cliente_id, bodega_destino')
+    .select('id, tracking_casilla, descripcion, categoria, peso_libras, valor_declarado, estado, cliente_id, bodega_destino')
     .eq('caja_id', id)
     .order('created_at', { ascending: true })
 
@@ -54,6 +54,7 @@ export default async function CajaDetallePage({ params }: Props) {
     descripcion: p.descripcion,
     categoria: p.categoria,
     peso_libras: p.peso_libras,
+    valor_declarado: p.valor_declarado,
     estado: p.estado,
     bodega_destino: p.bodega_destino,
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
