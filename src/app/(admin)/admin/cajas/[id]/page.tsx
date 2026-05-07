@@ -79,8 +79,7 @@ export default async function CajaDetallePage({ params }: Props) {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-start gap-3">
-        <Link href="/admin/cajas" className="mt-1 transition-colors" style={{ color: 'rgba(255,255,255,0.35)' }}
-          onMouseEnter={undefined} onMouseLeave={undefined}>
+        <Link href="/admin/cajas" className="mt-1 transition-colors hover:text-white/70" style={{ color: 'rgba(255,255,255,0.35)' }}>
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">

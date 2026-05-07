@@ -106,10 +106,8 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Link href="/admin/paquetes" className="mt-1 p-1.5 rounded-lg transition-all"
+        <Link href="/admin/paquetes" className="mt-1 p-1.5 rounded-lg transition-all hover:text-white/80"
           style={{ color: `${tw}0.4)` }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.8)'}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = `${tw}0.4)`}
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>

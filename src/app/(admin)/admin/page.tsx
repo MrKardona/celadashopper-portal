@@ -169,10 +169,8 @@ export default async function AdminDashboard() {
                 const dias = Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))
                 return (
                   <Link key={p.id} href={`/admin/paquetes/${p.id}`}
-                    className="flex items-center justify-between px-5 py-3 transition-colors"
+                    className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-white/[0.04]"
                     style={{ borderColor: `${tw}0.05)` }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
@@ -196,9 +194,7 @@ export default async function AdminDashboard() {
           <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
             {recientes.map(p => (
               <Link key={p.id} href={`/admin/paquetes/${p.id}`}
-                className="flex items-center justify-between px-5 py-3 transition-colors"
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}
+                className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-white/[0.04]"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>

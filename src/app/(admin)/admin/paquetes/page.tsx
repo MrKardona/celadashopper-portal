@@ -168,10 +168,8 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
                   return (
                     <tr
                       key={p.id}
-                      className="transition-colors cursor-pointer"
+                      className={`transition-colors cursor-pointer hover:bg-white/[0.04] ${!perfil ? 'bg-amber-500/[0.03]' : ''}`}
                       style={{ borderBottom: `1px solid ${tw}0.05)` }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = !perfil ? 'rgba(245,184,0,0.03)' : ''}
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
