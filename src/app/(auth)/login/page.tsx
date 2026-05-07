@@ -1,73 +1,75 @@
 'use client'
 
 import { Suspense, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, MailCheck, Eye, EyeOff } from 'lucide-react'
+import { Package, MailCheck, Send } from 'lucide-react'
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [verPassword, setVerPassword] = useState(false)
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     const supabase = createClient()
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: `${window.location.origin}/api/auth/callback?next=/auth/confirmar`,
+      },
+    })
 
     if (error) {
-      setError('Correo o contraseña incorrectos')
+      setError('Ocurrió un error al enviar el link. Intenta de nuevo.')
       setLoading(false)
       return
     }
 
-    // Leer rol directamente para redirigir al área correcta
-    const { data: perfil } = await supabase
-      .from('perfiles')
-      .select('rol')
-      .eq('id', data.user.id)
-      .single()
-
-    const rol = perfil?.rol ?? 'cliente'
-
-    if (rol === 'admin') router.push('/admin/paquetes')
-    else if (rol === 'agente_usa') router.push('/agente')
-    else {
-      // Respetar la página de destino si el usuario fue redirigido al login
-      const next = searchParams.get('next')
-      const destino = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard'
-      router.push(destino)
-    }
-
-    router.refresh()
+    setEnviado(true)
+    setLoading(false)
   }
 
-  const recienRegistrado = searchParams.get('registrado') === '1'
+  if (enviado) {
+    return (
+      <div className="text-center py-4 space-y-3">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-100">
+          <MailCheck className="h-7 w-7 text-green-600" />
+        </div>
+        <div>
+          <p className="font-semibold text-gray-900">¡Revisa tu correo!</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Enviamos un link de acceso a <strong>{email}</strong>.<br />
+            Haz clic en el link para entrar al portal.
+          </p>
+        </div>
+        <p className="text-xs text-gray-400">
+          ¿No lo ves? Revisa spam o{' '}
+          <button onClick={() => setEnviado(false)} className="text-orange-600 hover:underline">
+            intenta de nuevo
+          </button>
+        </p>
+      </div>
+    )
+  }
+
+  const authError = searchParams.get('error')
 
   return (
-    <form onSubmit={handleLogin} className="space-y-4">
-      {recienRegistrado && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-2">
-          <MailCheck className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-green-900">¡Cuenta creada!</p>
-            <p className="text-xs text-green-800 mt-1 leading-relaxed">
-              Verifica tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada
-              (y spam por las dudas).
-            </p>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {authError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          El link expiró o no es válido. Solicita uno nuevo.
         </div>
       )}
       <div className="space-y-2">
@@ -82,39 +84,14 @@ function LoginForm() {
           required
         />
       </div>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Contraseña</Label>
-          <Link href="/recuperar" className="text-xs text-orange-600 hover:underline">
-            ¿Olvidaste tu contraseña?
-          </Link>
-        </div>
-        <div className="relative">
-          <Input
-            id="password"
-            type={verPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            autoComplete="current-password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            className="pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setVerPassword(v => !v)}
-            aria-label={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-            tabIndex={-1}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-700 rounded-md transition-colors"
-          >
-            {verPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
       {error && <p role="alert" aria-live="polite" className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading} aria-busy={loading}>
-        {loading ? 'Entrando...' : 'Entrar'}
+      <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={loading}>
+        <Send className="h-4 w-4 mr-2" />
+        {loading ? 'Enviando...' : 'Enviar link de acceso'}
       </Button>
+      <p className="text-xs text-center text-gray-400">
+        Te enviamos un link al correo. Sin contraseña.
+      </p>
     </form>
   )
 }
@@ -134,18 +111,12 @@ export default function LoginPage() {
         <Card>
           <CardHeader>
             <CardTitle>Iniciar sesión</CardTitle>
-            <CardDescription>Accede a tu cuenta para ver tus paquetes</CardDescription>
+            <CardDescription>Ingresa tu correo para recibir tu link de acceso</CardDescription>
           </CardHeader>
           <CardContent>
             <Suspense fallback={null}>
               <LoginForm />
             </Suspense>
-            <p className="mt-4 text-center text-sm text-gray-600">
-              ¿No tienes cuenta?{' '}
-              <Link href="/register" className="text-orange-600 font-medium hover:underline">
-                Regístrate aquí
-              </Link>
-            </p>
           </CardContent>
         </Card>
       </div>
