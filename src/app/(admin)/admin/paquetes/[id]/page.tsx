@@ -67,12 +67,22 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
     perfil = perfilData
   }
 
-  // Cargar tarifa de la categoría
+  // Cargar tarifa legacy (solo para mostrar info de referencia)
   const { data: tarifa } = await supabase
     .from('categorias_tarifas')
     .select('tarifa_por_libra, precio_fijo, tarifa_tipo, descripcion, seguro_porcentaje')
     .eq('categoria', p.categoria)
-    .single()
+    .maybeSingle()
+
+  // Cargar primera regla de tarifas_rangos para la categoría (solo para mostrar referencia)
+  const { data: tarifaRango } = await supabase
+    .from('tarifas_rangos')
+    .select('tarifa_por_libra, precio_por_unidad, cargo_fijo, seguro_porcentaje, notas')
+    .eq('categoria', p.categoria)
+    .eq('activo', true)
+    .order('prioridad', { ascending: true })
+    .limit(1)
+    .maybeSingle()
 
   const fechaFmt = (d: string | null) =>
     d ? format(new Date(d), "d MMM yyyy, HH:mm", { locale: es }) : '—'
@@ -124,6 +134,14 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 <div>
                   <p className="text-gray-400 text-xs">Tracking USACO</p>
                   <p className="font-medium font-mono text-xs">{p.tracking_usaco ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs">Condición</p>
+                  <p className="font-medium capitalize">{p.condicion ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs">Cantidad</p>
+                  <p className="font-medium">{p.cantidad ?? 1} ud{(p.cantidad ?? 1) !== 1 ? 's' : ''}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 text-xs">Valor declarado</p>
@@ -336,24 +354,39 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
           </Card>
 
           {/* Tarifa info */}
-          {tarifa && (
+          {(tarifaRango || tarifa) && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
               <p className="font-semibold text-blue-800 mb-1 flex items-center gap-1">
                 <DollarSign className="h-3.5 w-3.5" /> Tarifa: {CATEGORIA_LABELS[p.categoria as keyof typeof CATEGORIA_LABELS]}
               </p>
-              <p className="text-blue-700">
-                {tarifa.tarifa_tipo === 'fijo_por_unidad'
-                  ? `$${tarifa.precio_fijo} fijo por unidad`
-                  : `$${tarifa.tarifa_por_libra} USD/lb`}
-              </p>
-              {tarifa.seguro_porcentaje > 0 && (
-                <p className="text-blue-600 text-xs mt-1 font-medium">
-                  + {tarifa.seguro_porcentaje}% seguro incluido
-                </p>
-              )}
-              {tarifa.descripcion && (
-                <p className="text-blue-600 text-xs mt-1">{tarifa.descripcion}</p>
-              )}
+              {tarifaRango ? (
+                <>
+                  <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Escalonada</span>
+                  <p className="text-blue-700 mt-1 text-xs">
+                    {Number(tarifaRango.cargo_fijo) > 0 && `$${tarifaRango.cargo_fijo} fijo + `}
+                    {Number(tarifaRango.precio_por_unidad) > 0 && `$${tarifaRango.precio_por_unidad}/ud + `}
+                    {Number(tarifaRango.tarifa_por_libra) > 0 && `$${tarifaRango.tarifa_por_libra}/lb`}
+                  </p>
+                  {Number(tarifaRango.seguro_porcentaje) > 0 && (
+                    <p className="text-blue-600 text-xs mt-0.5">+ {tarifaRango.seguro_porcentaje}% seguro</p>
+                  )}
+                  {tarifaRango.notas && (
+                    <p className="text-blue-500 text-xs mt-1 italic">{tarifaRango.notas}</p>
+                  )}
+                </>
+              ) : tarifa ? (
+                <>
+                  <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Legacy</span>
+                  <p className="text-blue-700 mt-1">
+                    {tarifa.tarifa_tipo === 'fijo_por_unidad'
+                      ? `$${tarifa.precio_fijo} fijo por unidad`
+                      : `$${tarifa.tarifa_por_libra} USD/lb`}
+                  </p>
+                  {tarifa.seguro_porcentaje > 0 && (
+                    <p className="text-blue-600 text-xs mt-1 font-medium">+ {tarifa.seguro_porcentaje}% seguro</p>
+                  )}
+                </>
+              ) : null}
             </div>
           )}
 

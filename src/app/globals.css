@@ -270,6 +270,36 @@
   text-shadow: 0 0 20px rgba(245,184,0,0.4);
 }
 
+/* ── Orb animations ────────────────────────────────────────────────── */
+@keyframes orb-float-gold {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(-20px, 30px) scale(1.06); }
+  66%       { transform: translate(16px, -18px) scale(0.96); }
+}
+@keyframes orb-float-blue {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(24px, -32px) scale(1.08); }
+  75%       { transform: translate(-14px, 22px) scale(0.94); }
+}
+@keyframes orb-pulse-mid {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.35); }
+}
+
+.portal-orb-gold { animation: orb-float-gold 20s ease-in-out infinite; }
+.portal-orb-blue { animation: orb-float-blue 25s ease-in-out infinite; }
+.portal-orb-mid  { animation: orb-pulse-mid 14s ease-in-out infinite; }
+
+/* ── Input shimmer on focus ─────────────────────────────────────────── */
+@keyframes shimmer-border {
+  0%   { box-shadow: 0 0 0 2px rgba(245,184,0,0); }
+  50%  { box-shadow: 0 0 0 3px rgba(245,184,0,0.18), 0 0 18px rgba(245,184,0,0.12); }
+  100% { box-shadow: 0 0 0 2px rgba(245,184,0,0); }
+}
+.glass-input:focus {
+  animation: shimmer-border 1.8s ease-in-out infinite;
+}
+
 /* Scrollbar oscuro */
 .portal-bg ::-webkit-scrollbar { width: 6px; }
 .portal-bg ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }

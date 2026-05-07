@@ -42,8 +42,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   const body = await req.json()
   const {
-    estado, bodega_destino, peso_libras, tarifa_aplicada,
-    costo_servicio, tracking_usaco, notas_cliente,
+    estado, bodega_destino, peso_libras, peso_facturable, tarifa_aplicada,
+    costo_servicio, tracking_usaco, notas_cliente, condicion, cantidad,
     notificar, estado_anterior,
   } = body
 
@@ -54,18 +54,24 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     .eq('id', id)
     .single()
 
-  // Calcular peso facturable (tomamos el mismo peso por ahora)
-  const pesoFacturable = peso_libras ?? null
-
   const updates: Record<string, unknown> = {}
   if (estado !== undefined) updates.estado = estado
   if (bodega_destino !== undefined) updates.bodega_destino = bodega_destino
   if (peso_libras !== undefined) updates.peso_libras = peso_libras
-  if (pesoFacturable !== undefined) updates.peso_facturable = pesoFacturable
+  // peso_facturable: usar el valor calculado por el frontend (que aplica peso_minimo),
+  // o caer a peso_libras si no se envió (compatibilidad hacia atrás)
+  if (peso_facturable !== undefined) {
+    updates.peso_facturable = peso_facturable
+  } else if (peso_libras !== undefined) {
+    updates.peso_facturable = peso_libras
+  }
   if (tarifa_aplicada !== undefined) updates.tarifa_aplicada = tarifa_aplicada
   if (costo_servicio !== undefined) updates.costo_servicio = costo_servicio
   if (tracking_usaco !== undefined) updates.tracking_usaco = tracking_usaco
   if (notas_cliente !== undefined) updates.notas_cliente = notas_cliente
+  // condicion y cantidad afectan el cálculo de tarifa — ahora son editables
+  if (condicion !== undefined) updates.condicion = condicion
+  if (cantidad !== undefined) updates.cantidad = cantidad
 
   // Marcar timestamp de la actualización
   updates.updated_at = new Date().toISOString()
