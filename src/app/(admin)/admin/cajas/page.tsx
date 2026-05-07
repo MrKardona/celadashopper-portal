@@ -53,15 +53,12 @@ export default async function CajasPage() {
 
   const CajaCard = ({ caja }: { caja: typeof lista[0] }) => {
     const count = conteoMap[caja.id] ?? 0
-    const puedeEliminar = caja.estado !== 'recibida_colombia'
     const s = ESTADO_STYLE[caja.estado] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', border: 'rgba(255,255,255,0.12)' }
     return (
       <div className="glass-card overflow-hidden relative group hover:border-white/[0.15] transition-all">
-        {puedeEliminar && (
-          <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-            <EliminarCajaIconButton cajaId={caja.id} codigo={caja.codigo_interno} paquetesCount={count} />
-          </div>
-        )}
+        <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <EliminarCajaIconButton cajaId={caja.id} codigo={caja.codigo_interno} paquetesCount={count} />
+        </div>
         <Link href={`/admin/cajas/${caja.id}`} className="block p-4 space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -70,7 +67,7 @@ export default async function CajasPage() {
                 <p className="text-xs font-mono mt-0.5" style={{ color: '#F5B800' }}>USACO: {caja.tracking_usaco}</p>
               )}
             </div>
-            <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${puedeEliminar ? 'mr-8' : ''}`}
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap mr-8"
               style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
               {ESTADO_LABELS[caja.estado]}
             </span>
@@ -199,26 +196,30 @@ export default async function CajasPage() {
               {historial.map(caja => {
                 const count = conteoMap[caja.id] ?? 0
                 return (
-                  <Link key={caja.id} href={`/admin/cajas/${caja.id}`}
-                    className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-white/[0.03]">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-mono text-sm font-semibold text-white">{caja.codigo_interno}</p>
-                        {caja.tracking_usaco && (
-                          <p className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>· {caja.tracking_usaco}</p>
-                        )}
+                  <div key={caja.id} className="flex items-center gap-2 px-4 py-3 group hover:bg-white/[0.03] transition-colors">
+                    <Link href={`/admin/cajas/${caja.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-mono text-sm font-semibold text-white">{caja.codigo_interno}</p>
+                          {caja.tracking_usaco && (
+                            <p className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>· {caja.tracking_usaco}</p>
+                          )}
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>
+                          {BODEGA_LABELS[caja.bodega_destino] ?? caja.bodega_destino}
+                          {caja.fecha_recepcion_colombia && ` · Llegó ${format(new Date(caja.fecha_recepcion_colombia), "d MMM yyyy", { locale: es })}`}
+                        </p>
                       </div>
-                      <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>
-                        {BODEGA_LABELS[caja.bodega_destino] ?? caja.bodega_destino}
-                        {caja.fecha_recepcion_colombia && ` · Llegó ${format(new Date(caja.fecha_recepcion_colombia), "d MMM yyyy", { locale: es })}`}
-                      </p>
+                      <div className="flex items-center gap-3 text-xs flex-shrink-0" style={{ color: `${tw}0.35)` }}>
+                        <span>{count} paq.</span>
+                        {caja.peso_real && <span>{Number(caja.peso_real).toFixed(1)} lb</span>}
+                        <CheckCircle2 className="h-4 w-4" style={{ color: '#34d399', opacity: 0.6 }} />
+                      </div>
+                    </Link>
+                    <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex-shrink-0">
+                      <EliminarCajaIconButton cajaId={caja.id} codigo={caja.codigo_interno} paquetesCount={count} />
                     </div>
-                    <div className="flex items-center gap-3 text-xs flex-shrink-0" style={{ color: `${tw}0.35)` }}>
-                      <span>{count} paq.</span>
-                      {caja.peso_real && <span>{Number(caja.peso_real).toFixed(1)} lb</span>}
-                      <CheckCircle2 className="h-4 w-4" style={{ color: '#34d399', opacity: 0.6 }} />
-                    </div>
-                  </Link>
+                  </div>
                 )
               })}
             </div>

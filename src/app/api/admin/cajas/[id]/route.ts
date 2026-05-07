@@ -144,13 +144,6 @@ export async function DELETE(req: NextRequest, { params }: Props) {
 
   if (!caja) return NextResponse.json({ error: 'Caja no encontrada' }, { status: 404 })
 
-  // Bloquear borrado si ya fue recibida en Colombia (los paquetes ya están entregándose)
-  if (caja.estado === 'recibida_colombia') {
-    return NextResponse.json({
-      error: 'No se puede borrar una caja que ya fue recibida en Colombia. Los paquetes ya están en su flujo final.',
-    }, { status: 400 })
-  }
-
   // Cargar paquetes asociados
   const { data: paquetes } = await admin
     .from('paquetes')
