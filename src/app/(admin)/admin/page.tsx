@@ -139,20 +139,50 @@ export default async function AdminDashboard() {
 
       {/* Estado breakdown */}
       <div className="glass-card p-5">
-        <h3 className="text-sm font-semibold text-white mb-3">Detalle por estado individual</h3>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(conteo).map(([estado, n]) => (
-            <Link
-              key={estado}
-              href={`/admin/paquetes?estado=${estado}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-opacity hover:opacity-80"
-              style={(() => { const s = ESTADO_DARK[estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' }; return { background: s.bg, color: s.color, border: `1px solid ${s.border}` } })()}
-            >
-              {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS] ?? estado}
-              <span className="font-bold">{n}</span>
-            </Link>
-          ))}
-        </div>
+        <h3 className="text-sm font-semibold text-white mb-4">Distribución por estado</h3>
+        {/* Grupos con etiqueta de sección */}
+        {[
+          {
+            label: '🇺🇸 En USA',
+            estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'],
+          },
+          {
+            label: '✈️ En tránsito',
+            estados: ['en_transito', 'en_colombia'],
+          },
+          {
+            label: '🇨🇴 En Colombia',
+            estados: ['en_bodega_local', 'en_camino_cliente', 'entregado', 'retenido', 'devuelto'],
+          },
+        ].map(grupo => {
+          const estadosConDatos = grupo.estados.filter(e => (conteo[e] ?? 0) > 0 || true)
+          return (
+            <div key={grupo.label} className="mb-5 last:mb-0">
+              <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.3)` }}>{grupo.label}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                {estadosConDatos.map(estado => {
+                  const n = conteo[estado] ?? 0
+                  const s = ESTADO_DARK[estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', border: 'rgba(255,255,255,0.12)' }
+                  return (
+                    <Link
+                      key={estado}
+                      href={`/admin/paquetes?estado=${estado}`}
+                      className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-center transition-all hover:scale-[1.03] hover:opacity-90"
+                      style={{ background: s.bg, border: `1px solid ${s.border}` }}
+                    >
+                      <span className="text-2xl font-extrabold leading-none" style={{ color: s.color }}>
+                        {n}
+                      </span>
+                      <span className="text-[11px] font-medium leading-tight" style={{ color: s.color, opacity: 0.8 }}>
+                        {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS] ?? estado}
+                      </span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
