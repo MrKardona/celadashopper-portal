@@ -7,6 +7,7 @@ import {
   Lock, Truck, Trash2, Camera, Plus, RefreshCw, Globe, Pencil, Save, Box,
 } from 'lucide-react'
 import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type EstadoPaquete } from '@/types'
+import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
   reportado:         { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' },
@@ -21,7 +22,6 @@ const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }>
   retenido:          { bg: 'rgba(239,68,68,0.12)',   color: '#f87171',               border: 'rgba(239,68,68,0.3)'   },
   devuelto:          { bg: 'rgba(244,63,94,0.12)',   color: '#fb7185',               border: 'rgba(244,63,94,0.3)'   },
 }
-import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 
 const tw = 'rgba(255,255,255,'
 

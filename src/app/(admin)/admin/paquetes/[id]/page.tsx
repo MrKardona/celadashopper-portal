@@ -1,14 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 import { ArrowLeft, Package, MapPin, Scale, DollarSign, Camera, FileText } from 'lucide-react'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
@@ -16,6 +11,13 @@ import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
+
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
   reportado:          { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' },
@@ -30,8 +32,6 @@ const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }>
   retenido:           { bg: 'rgba(239,68,68,0.12)',   color: '#f87171',               border: 'rgba(239,68,68,0.3)'   },
   devuelto:           { bg: 'rgba(244,63,94,0.12)',   color: '#fb7185',               border: 'rgba(244,63,94,0.3)'   },
 }
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',

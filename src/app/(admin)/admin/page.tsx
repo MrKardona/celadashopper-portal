@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 import { ESTADO_LABELS } from '@/types'
+import DashboardCharts from '@/components/admin/DashboardCharts'
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
   reportado:          { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' },
@@ -16,7 +17,6 @@ const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }>
   retenido:           { bg: 'rgba(239,68,68,0.12)',   color: '#f87171',               border: 'rgba(239,68,68,0.3)'   },
   devuelto:           { bg: 'rgba(244,63,94,0.12)',   color: '#fb7185',               border: 'rgba(244,63,94,0.3)'   },
 }
-import DashboardCharts from '@/components/admin/DashboardCharts'
 
 const GRUPO_USA = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] as const
 const GRUPO_TRANSITO = ['en_transito', 'en_colombia'] as const
