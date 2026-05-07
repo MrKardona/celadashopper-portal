@@ -42,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   const body = await req.json()
   const {
-    estado, bodega_destino, peso_libras, peso_facturable, tarifa_aplicada,
+    estado, bodega_destino, categoria, peso_libras, peso_facturable, tarifa_aplicada,
     costo_servicio, tracking_usaco, notas_cliente, condicion, cantidad,
     notificar, estado_anterior,
   } = body
@@ -57,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const updates: Record<string, unknown> = {}
   if (estado !== undefined) updates.estado = estado
   if (bodega_destino !== undefined) updates.bodega_destino = bodega_destino
+  if (categoria !== undefined) updates.categoria = categoria
   if (peso_libras !== undefined) updates.peso_libras = peso_libras
   // peso_facturable: usar el valor calculado por el frontend (que aplica peso_minimo),
   // o caer a peso_libras si no se envió (compatibilidad hacia atrás)

@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, AlertCircle, Save, MessageSquare, Loader2, Calculator } from 'lucide-react'
-import type { EstadoPaquete, BodegaDestino } from '@/types'
-import { ESTADO_LABELS } from '@/types'
+import type { EstadoPaquete, BodegaDestino, CategoriaProducto } from '@/types'
+import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 
 const tw = 'rgba(255,255,255,'
 
@@ -36,7 +36,7 @@ interface Props {
   paqueteId: string
   estado: EstadoPaquete
   bodega: BodegaDestino
-  categoria: string
+  categoria: CategoriaProducto
   pesoLibras?: number | null
   pesoFacturable?: number | null
   costoServicio?: number | null
@@ -62,6 +62,7 @@ export default function PaqueteEditForm({
   const [form, setForm] = useState({
     estado,
     bodega_destino: bodega,
+    categoria,
     peso_libras: pesoLibras?.toString() ?? '',
     condicion: condicionInicial ?? '' as '' | 'nuevo' | 'usado',
     cantidad: cantidadInicial?.toString() ?? '1',
@@ -136,6 +137,7 @@ export default function PaqueteEditForm({
         body: JSON.stringify({
           estado: form.estado,
           bodega_destino: form.bodega_destino,
+          categoria: form.categoria,
           peso_libras: form.peso_libras ? parseFloat(form.peso_libras) : null,
           peso_facturable: calculo?.peso_facturable ?? (form.peso_libras ? parseFloat(form.peso_libras) : null),
           tarifa_aplicada: form.tarifa_aplicada ? parseFloat(form.tarifa_aplicada) : null,
@@ -192,6 +194,20 @@ export default function PaqueteEditForm({
             ))}
           </select>
         </div>
+      </div>
+
+      {/* Categoría */}
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium" style={labelStyle}>Categoría</label>
+        <select
+          value={form.categoria}
+          onChange={e => setForm(prev => ({ ...prev, categoria: e.target.value as CategoriaProducto }))}
+          className={inputClass}
+        >
+          {(Object.entries(CATEGORIA_LABELS) as [CategoriaProducto, string][]).map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Condición y cantidad */}
