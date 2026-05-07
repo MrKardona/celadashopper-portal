@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { MailCheck, Send } from 'lucide-react'
@@ -27,9 +27,12 @@ function LoginForm() {
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const submitting = useRef(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (submitting.current) return
+    submitting.current = true
     setLoading(true)
     setError('')
 
@@ -45,11 +48,13 @@ function LoginForm() {
     if (error) {
       setError('Ocurrió un error al enviar el link. Intenta de nuevo.')
       setLoading(false)
+      submitting.current = false
       return
     }
 
     setEnviado(true)
     setLoading(false)
+    submitting.current = false
   }
 
   const tw = 'rgba(255,255,255,'
