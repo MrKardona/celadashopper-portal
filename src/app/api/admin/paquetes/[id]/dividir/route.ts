@@ -68,6 +68,7 @@ export async function POST(
   const inserts = body.sub_paquetes.map((sp, i) => ({
     cliente_id:          origen.cliente_id,
     descripcion:         sp.descripcion || `${origen.descripcion} — División ${i + 1}`,
+    tienda:              origen.tienda ?? 'Sin especificar',
     categoria:           origen.categoria,
     estado:              origen.estado,
     bodega_destino:      origen.bodega_destino,
