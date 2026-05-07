@@ -55,6 +55,8 @@ const BODEGAS = [
 ]
 
 const PER_UNIT_CATEGORIAS = new Set<CategoriaProducto>(['celular', 'computador', 'ipad_tablet', 'calzado'])
+// Para estas categorías el cobro es por unidad — no se requiere peso
+const SIN_PESO_CATEGORIAS = new Set<CategoriaProducto>(['celular', 'computador', 'ipad_tablet'])
 
 function unidadLabel(cat: CategoriaProducto | ''): string {
   return cat === 'calzado' ? 'pares' : 'unidades'
@@ -105,6 +107,7 @@ export default function RecibirForm() {
   const [notas, setNotas] = useState('')
   const [valorDeclarado, setValorDeclarado] = useState('')
   const [cantidad, setCantidad] = useState(1)
+  const [condicion, setCondicion] = useState<'nuevo' | 'usado' | ''>('')
   const [guardando, setGuardando] = useState(false)
 
   // --- Fotos: 2 slots independientes ---
@@ -129,6 +132,7 @@ export default function RecibirForm() {
     tracking_courier: '',
     peso: '',
     categoria: '' as CategoriaProducto | '',
+    condicion: '' as 'nuevo' | 'usado' | '',
     bodega_destino: 'medellin',
     notas: '',
     valor_declarado: '',
@@ -390,9 +394,10 @@ export default function RecibirForm() {
     setPeso('')
     setNotas('')
     setCantidad(1)
+    setCondicion('')
     setUltimoRecibido(null)
     setModoManual(false)
-    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', bodega_destino: 'medellin', notas: '', valor_declarado: '', cantidad: 1 })
+    setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', condicion: '', bodega_destino: 'medellin', notas: '', valor_declarado: '', cantidad: 1 })
     setValorDeclarado('')
     setClienteManual(null)
     setClientesSugeridos([])
@@ -418,13 +423,14 @@ export default function RecibirForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paquete_id: paquete.id,
-          peso_libras: parseFloat(peso),
+          peso_libras: SIN_PESO_CATEGORIAS.has(paquete.categoria) ? 0 : parseFloat(peso),
           notas_internas: notas || undefined,
           foto_url: foto1.url || undefined,
           foto2_url: foto2.url || undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
           valor_declarado: valorDeclarado.trim() ? parseFloat(valorDeclarado) : undefined,
           cantidad: PER_UNIT_CATEGORIAS.has(paquete.categoria) ? cantidad : 1,
+          condicion: condicion || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -502,10 +508,12 @@ export default function RecibirForm() {
 
       // Pre-llenar formulario manual con lo extraído (el agente puede editar)
       const catOCR = data.contenido!.categoria
+      const condOCR = data.contenido!.condicion ?? ''
       setFormManual(prev => ({
         ...prev,
         descripcion: data.contenido!.descripcion || prev.descripcion,
         categoria: catOCR || prev.categoria,
+        condicion: (condOCR as 'nuevo' | 'usado' | '') || prev.condicion,
         tienda: data.etiqueta!.tienda ?? prev.tienda,
         tracking_courier: data.etiqueta!.tracking_origen ?? prev.tracking_courier,
         cantidad: PER_UNIT_CATEGORIAS.has(catOCR) ? Math.max(1, data.contenido!.cantidad || 1) : 1,
@@ -564,7 +572,7 @@ export default function RecibirForm() {
           descripcion: formManual.descripcion,
           tienda: formManual.tienda || 'Sin especificar',
           tracking_origen: formManual.tracking_courier || undefined,
-          peso_libras: parseFloat(formManual.peso),
+          peso_libras: SIN_PESO_CATEGORIAS.has(formManual.categoria as CategoriaProducto) ? 0 : parseFloat(formManual.peso),
           categoria: formManual.categoria,
           bodega_destino: formManual.bodega_destino,
           notas_internas: formManual.notas || undefined,
@@ -574,6 +582,7 @@ export default function RecibirForm() {
           nombre_etiqueta: nombreEtiqueta || undefined,
           valor_declarado: formManual.valor_declarado.trim() ? parseFloat(formManual.valor_declarado) : undefined,
           cantidad: PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) ? formManual.cantidad : 1,
+          condicion: formManual.condicion || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; tracking_casilla?: string; error?: string; mensaje?: string; asignado?: boolean }
@@ -1046,19 +1055,21 @@ export default function RecibirForm() {
             Registrar recepción
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <input
-                  ref={pesoRef}
-                  type="number" step="0.1" min="0.1" max="999"
-                  value={peso} onChange={e => setPeso(e.target.value)}
-                  placeholder="0.0" required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 pr-10"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">lb</span>
+            {!SIN_PESO_CATEGORIAS.has(paquete.categoria) && (
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input
+                    ref={pesoRef}
+                    type="number" step="0.1" min="0.1" max="999"
+                    value={peso} onChange={e => setPeso(e.target.value)}
+                    placeholder="0.0" required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 pr-10"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">lb</span>
+                </div>
               </div>
-            </div>
+            )}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">
                 Valor declarado <span className="text-gray-400 font-normal">(USD, opcional — para factura)</span>
@@ -1101,6 +1112,27 @@ export default function RecibirForm() {
                 </div>
               </div>
             )}
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">
+                Condición <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <div className="flex gap-2">
+                {(['nuevo', 'usado'] as const).map(op => (
+                  <button
+                    key={op}
+                    type="button"
+                    onClick={() => setCondicion(c => c === op ? '' : op)}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      condicion === op
+                        ? 'bg-orange-600 text-white border-orange-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'
+                    }`}
+                  >
+                    {op === 'nuevo' ? '✨ Nuevo' : '🔄 Usado'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input
@@ -1147,7 +1179,7 @@ export default function RecibirForm() {
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
-              disabled={!peso || parseFloat(peso) <= 0 || guardando || subiendoCualquiera}
+              disabled={(SIN_PESO_CATEGORIAS.has(paquete.categoria) ? false : (!peso || parseFloat(peso) <= 0)) || guardando || subiendoCualquiera}
               className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
             >
               {guardando ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</> : <><CheckCircle2 className="h-5 w-5" />Confirmar recepción</>}
@@ -1192,25 +1224,27 @@ export default function RecibirForm() {
             }
           </p>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <input
-                  ref={pesoManualRef}
-                  type="number" step="0.1" min="0.1" max="999"
-                  value={formManual.peso}
-                  onChange={e => setFormManual(p => ({ ...p, peso: e.target.value }))}
-                  placeholder="0.0" required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">lb</span>
+            {!SIN_PESO_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input
+                    ref={pesoManualRef}
+                    type="number" step="0.1" min="0.1" max="999"
+                    value={formManual.peso}
+                    onChange={e => setFormManual(p => ({ ...p, peso: e.target.value }))}
+                    placeholder="0.0" required
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">lb</span>
+                </div>
               </div>
-            </div>
+            )}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium text-gray-700">Categoría <span className="text-red-500">*</span></label>
               <select
                 value={formManual.categoria}
-                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1 }))}
+                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1, condicion: '' }))}
                 required
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
@@ -1219,6 +1253,27 @@ export default function RecibirForm() {
                   <option key={val} value={val}>{label}</option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium text-gray-700">
+                Condición <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <div className="flex gap-2">
+                {(['nuevo', 'usado'] as const).map(op => (
+                  <button
+                    key={op}
+                    type="button"
+                    onClick={() => setFormManual(p => ({ ...p, condicion: p.condicion === op ? '' : op }))}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      formManual.condicion === op
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-white text-amber-700 border-amber-300 hover:border-amber-500'
+                    }`}
+                  >
+                    {op === 'nuevo' ? '✨ Nuevo' : '🔄 Usado'}
+                  </button>
+                ))}
+              </div>
             </div>
             {PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
               <div className="space-y-1.5 col-span-2 sm:col-span-1">

@@ -153,6 +153,8 @@ export async function POST(req: NextRequest) {
     valor_declarado?: number | string | null
     // Cantidad de unidades (para categorías cobradas por unidad: celular, computador, ipad_tablet, calzado)
     cantidad?: number
+    // Condición del producto (nuevo / usado)
+    condicion?: string | null
   }
 
   // Helper: parsea valor_declarado a number > 0 o null. Aceptamos "12.34" y 12.34.
@@ -164,6 +166,8 @@ export async function POST(req: NextRequest) {
   const valorDeclarado = parseValorDeclarado(body.valor_declarado)
   const cantidadParsed = (typeof body.cantidad === 'number' && Number.isInteger(body.cantidad) && body.cantidad >= 1)
     ? body.cantidad : 1
+  const condicionParsed: 'nuevo' | 'usado' | null =
+    body.condicion === 'nuevo' ? 'nuevo' : body.condicion === 'usado' ? 'usado' : null
 
   const admin = getSupabaseAdmin()
 
@@ -178,7 +182,9 @@ export async function POST(req: NextRequest) {
     const clienteIdManual = body.cliente_id?.trim() || null
     const nombreEtiquetaLimpio = body.nombre_etiqueta?.trim() || null
 
-    if (!descripcion || !peso_libras || peso_libras <= 0 || !categoria) {
+    const sinPesoCats = new Set(['celular', 'computador', 'ipad_tablet'])
+    const pesoRequerido = !sinPesoCats.has(categoria ?? '')
+    if (!descripcion || (pesoRequerido && (!peso_libras || peso_libras <= 0)) || !categoria) {
       return NextResponse.json({ error: 'descripcion, peso y categoria son requeridos' }, { status: 400 })
     }
 
@@ -239,6 +245,7 @@ export async function POST(req: NextRequest) {
         // Valor declarado: el agente puede sobrescribir el del cliente con lo que vio
         if (valorDeclarado !== null) updates.valor_declarado = valorDeclarado
         updates.cantidad = cantidadParsed
+        if (condicionParsed !== null) updates.condicion = condicionParsed
 
         const { error: updErr } = await admin
           .from('paquetes')
@@ -296,6 +303,7 @@ export async function POST(req: NextRequest) {
         nombre_etiqueta: nombreEtiquetaLimpio,
         valor_declarado: valorDeclarado,
         cantidad: cantidadParsed,
+        condicion: condicionParsed,
       })
       .select('id, tracking_casilla')
       .single()
@@ -345,8 +353,8 @@ export async function POST(req: NextRequest) {
   // ── MODO A: Actualizar paquete existente ────────────────────────────────
   const { paquete_id, peso_libras, tracking_usaco, notas_internas, foto_url, foto2_url } = body
 
-  if (!paquete_id || !peso_libras || peso_libras <= 0) {
-    return NextResponse.json({ error: 'paquete_id y peso_libras son requeridos' }, { status: 400 })
+  if (!paquete_id) {
+    return NextResponse.json({ error: 'paquete_id es requerido' }, { status: 400 })
   }
 
   const { data: paquete } = await admin
@@ -385,6 +393,7 @@ export async function POST(req: NextRequest) {
   if (nombreEtiquetaA) updates.nombre_etiqueta = nombreEtiquetaA
   if (valorDeclarado !== null) updates.valor_declarado = valorDeclarado
   updates.cantidad = cantidadParsed
+  if (condicionParsed !== null) updates.condicion = condicionParsed
 
   const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })

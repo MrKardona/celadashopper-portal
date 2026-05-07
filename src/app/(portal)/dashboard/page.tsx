@@ -230,62 +230,103 @@ export default async function DashboardPage() {
       {/* Direccion bodega USA */}
       <Card className="bg-orange-50 border-orange-200">
         <CardHeader>
-          <CardTitle className="text-base text-orange-800"><span aria-hidden="true">📦</span> Tu dirección de envío en USA</CardTitle>
+          <CardTitle className="text-base text-orange-800">📦 Tu dirección en USA para hacer compras</CardTitle>
+          <p className="text-xs text-orange-700 mt-1">Copia estos datos exactamente como aparecen cuando te pidan la dirección de envío en la tienda.</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Tarjeta principal con la dirección lista para copiar */}
-          <div className="bg-white rounded-lg border border-orange-200 p-4 font-mono text-sm text-orange-900 space-y-1.5">
-            <p className="font-bold text-base">
-              Diego Celada
-              {perfil?.numero_casilla && <span className="text-orange-600"> - {perfil.numero_casilla}</span>}
-            </p>
-            <p>8164 NW 108th Pl</p>
-            <p>Doral, FL 33178</p>
-            <p>United States</p>
-            <p className="pt-1 text-xs text-gray-500">📞 +1 (786) 000-0000</p>
-          </div>
 
-          {/* Aviso de cómo usar el casillero */}
+          {/* Aviso sin casillero */}
           {!perfil?.numero_casilla && (
-            <div className="bg-amber-100 border border-amber-300 rounded-lg p-3 text-xs text-amber-800">
-              ⏳ Tu número de casillero está pendiente de asignación. No realices compras hasta que te lo confirmemos.
+            <div className="bg-amber-100 border border-amber-300 rounded-lg p-3 text-sm text-amber-800 font-medium">
+              ⏳ Tu número de casillero está siendo asignado. No hagas compras aún — te avisamos cuando esté listo.
             </div>
           )}
 
-          {/* Instrucciones */}
-          <div className="bg-orange-100/60 border border-orange-200 rounded-lg p-3 text-xs text-orange-900 space-y-2">
-            <p className="font-semibold">⚠️ IMPORTANTE: Cómo poner tu dirección al comprar</p>
-            <ol className="list-decimal list-inside space-y-1 text-orange-800">
-              <li>
-                En el campo <strong>Nombre / Recipient</strong> escribe siempre:
-                <span className="block ml-4 mt-0.5 font-mono bg-white border border-orange-200 rounded px-2 py-1">
-                  Diego Celada / {perfil?.numero_casilla ?? '[tu casillero]'}
-                </span>
-              </li>
-              <li>El número de casillero <strong>al final del nombre</strong> es lo que nos permite identificar a quién pertenece tu paquete.</li>
-              <li>Usa la dirección exacta que aparece arriba (con el ZIP <strong>33178</strong>).</li>
-              <li>Si la tienda exige un número de teléfono, puedes usar el de la bodega que aparece arriba.</li>
-            </ol>
+          {/* Tarjeta de dirección campo por campo */}
+          <div className="bg-white rounded-xl border-2 border-orange-300 divide-y divide-orange-100 overflow-hidden text-sm">
+
+            {/* Nombre */}
+            <div className="p-3 space-y-0.5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                👤 Nombre / <span className="italic">Name / Recipient</span>
+              </p>
+              <p className="font-bold text-orange-900 font-mono text-base">
+                Diego Celada{perfil?.numero_casilla && <span className="text-orange-600"> {perfil.numero_casilla}</span>}
+              </p>
+              <p className="text-[11px] text-gray-400">Tu nombre + tu número de casillero. Así te identificamos cuando llega el paquete.</p>
+            </div>
+
+            {/* Dirección */}
+            <div className="p-3 space-y-0.5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                🏠 Dirección / <span className="italic">Address / Street</span>
+              </p>
+              <p className="font-bold text-orange-900 font-mono text-base">8164 NW 108th Pl</p>
+              <p className="text-[11px] text-gray-400">La calle de nuestra bodega en Miami. Escríbela tal cual.</p>
+            </div>
+
+            {/* Ciudad */}
+            <div className="p-3 space-y-0.5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                🏙️ Ciudad / <span className="italic">City, State, ZIP</span>
+              </p>
+              <p className="font-bold text-orange-900 font-mono text-base">Doral, FL 33178</p>
+              <p className="text-[11px] text-gray-400">Ciudad: Doral · Estado: FL (Florida) · Código postal: 33178</p>
+            </div>
+
+            {/* País */}
+            <div className="p-3 space-y-0.5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                🌎 País / <span className="italic">Country</span>
+              </p>
+              <p className="font-bold text-orange-900 font-mono text-base">United States</p>
+              <p className="text-[11px] text-gray-400">Estados Unidos. Algunas tiendas piden seleccionarlo de una lista.</p>
+            </div>
+
+            {/* Teléfono */}
+            <div className="p-3 space-y-0.5">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                📞 Teléfono / <span className="italic">Phone</span>
+              </p>
+              <p className="font-bold text-orange-900 font-mono text-base">+1 (786) 000-0000</p>
+              <p className="text-[11px] text-gray-400">Úsalo si la tienda exige un número. Es el teléfono de nuestra bodega.</p>
+            </div>
           </div>
 
-          {/* Aviso adicional: si la tienda no permite el número */}
-          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-900 space-y-1">
-            <p className="font-semibold flex items-center gap-1">
-              <span aria-hidden="true">💡</span> ¿La tienda no te deja poner el número de casillero?
-            </p>
-            <p className="leading-relaxed">
-              Si el formulario de la tienda no acepta el número o el carácter <strong>/</strong>, escribe en el campo
-              de nombre <strong>tal cual está registrado en la plataforma</strong>:
-            </p>
+          {/* Instrucciones simples */}
+          <div className="bg-orange-100/70 border border-orange-200 rounded-xl p-4 space-y-3 text-sm text-orange-900">
+            <p className="font-bold">⚠️ Importante: ¿cómo llenar el formulario de envío en la tienda?</p>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <span className="bg-orange-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                <p>En el campo <strong>Nombre / Recipient / Name</strong>, escribe esto exactamente:</p>
+              </div>
+              <p className="font-mono bg-white border border-orange-200 rounded-lg px-3 py-2 ml-7 text-orange-800 font-bold">
+                Diego Celada {perfil?.numero_casilla ?? '[tu casillero]'}
+              </p>
+              <div className="flex gap-2">
+                <span className="bg-orange-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                <p>Copia la dirección, ciudad, estado y ZIP <strong>exactamente como aparecen arriba</strong>. No cambies nada.</p>
+              </div>
+              <div className="flex gap-2">
+                <span className="bg-orange-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                <p>Después de hacer la compra, <strong>repórtanos el pedido</strong> desde el menú para que lo tengamos en el radar.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Si la tienda no deja poner el número */}
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-1.5">
+            <p className="font-semibold">💡 ¿La tienda no te deja poner tu número de casillero?</p>
+            <p className="leading-relaxed">No hay problema. Escribe solo tu nombre completo tal como está registrado aquí:</p>
             {perfil?.nombre_completo && (
-              <p className="font-mono bg-white border border-amber-200 rounded px-2 py-1 mt-1">
+              <p className="font-mono bg-white border border-amber-200 rounded px-2 py-1.5 font-bold text-amber-900">
                 {perfil.nombre_completo}
               </p>
             )}
-            <p className="text-[11px] mt-1 text-amber-800">
-              Igualmente lo identificaremos por tu nombre completo cuando llegue a la bodega.
-            </p>
+            <p className="text-amber-700">Lo identificamos igual cuando llega a la bodega.</p>
           </div>
+
         </CardContent>
       </Card>
     </div>
