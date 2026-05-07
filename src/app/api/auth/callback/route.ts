@@ -6,11 +6,14 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 // Soporta los flujos de auth de Supabase:
 //
 //  1. PKCE: ?code=xxx
-//     El code_verifier solo está en el navegador del usuario (localStorage)
-//     → REENVIAMOS al browser preservando el code para que el SDK haga
-//       exchangeCodeForSession con su verifier local. Esto es vital para
-//       resistir scanners de email (Outlook, Gmail) que consumirían el
-//       token si lo intercambiáramos en el server.
+//     Intercambiamos el código SERVER-SIDE usando el code_verifier que
+//     @supabase/ssr almacena en una cookie (no en localStorage).
+//     Esto resuelve el problema en móvil donde el app de correo (Gmail,
+//     Outlook, Apple Mail) abre el link en su propio webview — como las
+//     cookies del sistema se comparten (Chrome Custom Tabs / SFSafariViewController),
+//     el server puede completar el intercambio sin depender del browser del usuario.
+//     Si el intercambio server-side falla (edge case: webview aislado),
+//     enviamos el code al browser como fallback.
 //
 //  2. OTP legacy: ?token_hash=xxx&type=recovery|signup|magiclink|invite
 //     Se puede verificar server-side con verifyOtp.
@@ -29,10 +32,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}${errorDest}`)
   }
 
-  // ── Caso B: PKCE (?code=...) ─ reenviar al browser preservando el code ───
+  // ── Caso B: PKCE (?code=...) ─ intercambiar SERVER-SIDE ──────────────────
   if (code) {
-    // El destino final mantiene el ?code=... para que el SDK del browser
-    // pueda intercambiarlo con su code_verifier de localStorage.
+    const response = NextResponse.redirect(`${origin}${next}`)
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return request.cookies.getAll() },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      // Éxito: sesión establecida vía cookie, redirigir al destino final
+      return response
+    }
+
+    // Fallback: el verifier no estaba en la cookie (webview aislado).
+    // Enviamos el code al browser para que intente el intercambio client-side.
+    console.warn('[auth/callback] server-side exchange falló, intentando browser-side:', error.message)
     const dest = new URL(`${origin}${next}`)
     dest.searchParams.set('code', code)
     return NextResponse.redirect(dest)
