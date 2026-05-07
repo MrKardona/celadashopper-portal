@@ -72,7 +72,7 @@ export async function POST(
     categoria:           origen.categoria,
     estado:              origen.estado,
     bodega_destino:      origen.bodega_destino,
-    tracking_casilla:    origen.tracking_casilla,
+    tracking_casilla:    origen.tracking_casilla ? `${origen.tracking_casilla}-D${i + 1}` : null,
     condicion:           origen.condicion,
     fecha_recepcion_usa: origen.fecha_recepcion_usa,
     peso_libras:         sp.peso_libras ?? null,
