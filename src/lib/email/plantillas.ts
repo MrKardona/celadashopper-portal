@@ -301,8 +301,9 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
+        ${vars.tracking_origen ? bloqueDatos('🚚 Guía con que llegó', vars.tracking_origen) : ''}
         ${vars.peso ? bloqueDatos('⚖️ Peso', vars.peso) : ''}
-        ${bloqueDatos('🔖 Tracking', vars.tracking)}
+        ${bloqueDatos('🔖 Número CeladaShopper', vars.tracking)}
       </table>
     </div>
 
@@ -369,8 +370,9 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
+        ${vars.tracking_origen ? bloqueDatos('🚚 Guía con que llegó', vars.tracking_origen) : ''}
         ${vars.bodega ? bloqueDatos('📍 Ciudad destino', vars.bodega) : ''}
-        ${bloqueDatos('🔖 Tracking CeladaShopper', vars.tracking)}
+        ${bloqueDatos('🔖 Número CeladaShopper', vars.tracking)}
       </table>
     </div>
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
@@ -499,7 +501,8 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
-        ${bloqueDatos('🔖 Tracking', vars.tracking)}
+        ${vars.tracking_origen ? bloqueDatos('🚚 Guía con que llegó', vars.tracking_origen) : ''}
+        ${bloqueDatos('🔖 Número CeladaShopper', vars.tracking)}
         ${vars.bodega ? bloqueDatos('📍 Bodega', vars.bodega) : ''}
       </table>
     </div>
@@ -522,7 +525,8 @@ export function plantillaTrackingActualizado(vars: VariablesPlantilla): { subjec
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
-        ${bloqueDatos('🔖 Tracking CeladaShopper', vars.tracking)}
+        ${vars.tracking_origen ? bloqueDatos('🚚 Guía con que llegó', vars.tracking_origen) : ''}
+        ${bloqueDatos('🔖 Número CeladaShopper', vars.tracking)}
       </table>
     </div>
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">

@@ -40,7 +40,13 @@ const BODEGA_LABELS: Record<string, string> = {
 }
 
 function rellenarPlantilla(plantilla: string, vars: Record<string, string>): string {
-  return plantilla.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
+  const filled = plantilla.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
+  // Remove lines where an optional variable resolved to empty
+  // e.g. "🚚 Guía: *  *" or "💵 Valor: " → skip
+  return filled
+    .split('\n')
+    .filter(line => !/^[^:]+:\s*\*?\s*\*?\s*$/.test(line.trim()))
+    .join('\n')
 }
 
 // Tracker de último resultado de Meta (para trazabilidad en notificaciones)
@@ -312,6 +318,10 @@ async function cargarContexto(paqueteId: string, evento: string) {
       bodega,
       tracking: paquete.tracking_casilla ?? '',
       tracking_usaco: paquete.tracking_usaco ?? '',
+      tracking_origen: paquete.tracking_origen ?? '',
+      valor_declarado: paquete.valor_declarado
+        ? `$${Number(paquete.valor_declarado).toFixed(2)} USD`
+        : '',
       link: `https://portal.celadashopper.com/paquetes/${paqueteId}`,
     },
   }
