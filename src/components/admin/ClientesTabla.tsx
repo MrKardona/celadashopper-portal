@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Users, Pencil, X, Save, Loader2, AlertCircle, CheckCircle, MapPin, Trash2 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+
+const tw = 'rgba(255,255,255,'
 
 export interface ClienteRow {
   id: string
@@ -26,86 +26,103 @@ interface Props {
   paquetesMap: Record<string, { total: number; activos: number }>
 }
 
+const inputClass = 'glass-input w-full px-3 py-2.5 rounded-xl text-sm'
+const labelClass = 'text-xs font-medium block mb-1'
+const labelStyle = { color: `${tw}0.6)` }
+
 export default function ClientesTabla({ clientes, paquetesMap }: Props) {
   const [editando, setEditando] = useState<ClienteRow | null>(null)
   const [eliminando, setEliminando] = useState<{ cliente: ClienteRow; paquetesActivos: number } | null>(null)
 
   if (clientes.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="text-center py-12 text-gray-400">
-          <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          No hay clientes con esos filtros
-        </div>
+      <div className="glass-card p-12 text-center">
+        <Users className="h-10 w-10 mx-auto mb-2 opacity-20 text-white" />
+        <p style={{ color: `${tw}0.4)` }}>No hay clientes con esos filtros</p>
       </div>
     )
   }
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Contacto</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Ciudad</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Paquetes</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Desde</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+              <tr style={{ background: `${tw}0.03)`, borderBottom: `1px solid ${tw}0.07)` }}>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Cliente</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden md:table-cell" style={{ color: `${tw}0.35)` }}>Contacto</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Ciudad</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Paquetes</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Desde</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Estado</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {clientes.map(c => {
+            <tbody>
+              {clientes.map((c, i) => {
                 const stats = paquetesMap[c.id] ?? { total: 0, activos: 0 }
                 return (
-                  <tr key={c.id} className={`hover:bg-orange-50/40 transition-colors ${!c.activo ? 'opacity-60' : ''}`}>
+                  <tr
+                    key={c.id}
+                    style={{
+                      borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined,
+                      opacity: c.activo ? 1 : 0.55,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
                     <td className="px-4 py-3">
-                      <div>
-                        <p className="font-medium text-gray-900">{c.nombre_completo}</p>
-                        <p className="text-xs text-orange-600 font-mono">{c.numero_casilla}</p>
-                      </div>
+                      <p className="font-medium text-white">{c.nombre_completo}</p>
+                      <p className="text-xs font-mono" style={{ color: '#F5B800' }}>{c.numero_casilla}</p>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="space-y-0.5">
-                        <p className="text-gray-600 text-xs truncate max-w-[180px]">{c.email}</p>
+                        <p className="text-xs truncate max-w-[180px]" style={{ color: `${tw}0.5)` }}>{c.email}</p>
                         {(c.whatsapp ?? c.telefono) && (
                           <a
                             href={`https://wa.me/${(c.whatsapp ?? c.telefono)?.replace(/\D/g, '')}`}
                             target="_blank" rel="noopener noreferrer"
-                            className="text-green-600 text-xs hover:underline"
+                            className="text-xs hover:underline"
+                            style={{ color: '#34d399' }}
                           >
                             {c.whatsapp ?? c.telefono}
                           </a>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-gray-500 capitalize">{c.ciudad ?? '—'}</td>
+                    <td className="px-4 py-3 hidden lg:table-cell text-xs capitalize" style={{ color: `${tw}0.45)` }}>{c.ciudad ?? '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <Link
                         href={`/admin/paquetes?q=${encodeURIComponent(c.nombre_completo)}`}
                         className="inline-flex items-center gap-1 hover:underline"
                       >
-                        <span className="font-bold text-gray-900">{stats.activos}</span>
-                        <span className="text-gray-400 text-xs">/ {stats.total}</span>
+                        <span className="font-bold text-white">{stats.activos}</span>
+                        <span className="text-xs" style={{ color: `${tw}0.35)` }}>/ {stats.total}</span>
                       </Link>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-gray-400 text-xs">
+                    <td className="px-4 py-3 hidden lg:table-cell text-xs" style={{ color: `${tw}0.35)` }}>
                       {new Date(c.created_at).toLocaleDateString('es-CO')}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Badge variant="outline" className={c.activo ? 'border-green-200 text-green-700' : 'border-red-200 text-red-600'}>
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                        style={c.activo
+                          ? { background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }
+                          : { background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                      >
                         {c.activo ? 'Activo' : 'Inactivo'}
-                      </Badge>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => setEditando(c)}
-                          className="inline-flex items-center gap-1 text-xs text-orange-600 hover:bg-orange-50 px-2 py-1 rounded transition-colors"
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
+                          style={{ color: '#F5B800' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.1)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                           Editar
@@ -114,7 +131,10 @@ export default function ClientesTabla({ clientes, paquetesMap }: Props) {
                           type="button"
                           onClick={() => setEliminando({ cliente: c, paquetesActivos: stats.activos })}
                           aria-label="Eliminar cliente"
-                          className="inline-flex items-center text-xs text-gray-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
+                          className="inline-flex items-center text-xs p-1.5 rounded-lg transition-colors"
+                          style={{ color: `${tw}0.3)` }}
+                          onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                          onMouseLeave={e => { e.currentTarget.style.color = `${tw}0.3)`; e.currentTarget.style.background = 'transparent' }}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -209,49 +229,50 @@ function EliminarClienteModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={() => !eliminando && onClose()}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full"
+        className="glass-card max-w-md w-full overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-            <Trash2 className="h-4.5 w-4.5 text-red-600" />
+        <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+          <div className="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.12)' }}>
+            <Trash2 className="h-4 w-4" style={{ color: '#f87171' }} />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900">Eliminar cliente</h3>
-            <p className="text-xs text-gray-500">Esta acción no se puede deshacer</p>
+            <h3 className="font-bold text-white">Eliminar cliente</h3>
+            <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>Esta acción no se puede deshacer</p>
           </div>
         </div>
 
         <div className="p-5 space-y-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm" style={{ color: `${tw}0.7)` }}>
             Vas a eliminar la cuenta de{' '}
-            <strong className="text-gray-900">{cliente.nombre_completo}</strong>{' '}
-            (<span className="text-gray-500 break-all">{cliente.email}</span>).
+            <strong className="text-white">{cliente.nombre_completo}</strong>{' '}
+            (<span className="break-all" style={{ color: `${tw}0.5)` }}>{cliente.email}</span>).
           </p>
 
           {tieneActivos && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
-              <p className="text-sm font-semibold text-amber-900 flex items-center gap-1">
+            <div className="rounded-xl p-3 space-y-1" style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
+              <p className="text-sm font-semibold flex items-center gap-1" style={{ color: '#F5B800' }}>
                 <AlertCircle className="h-4 w-4" />
                 Tiene {paquetesActivos} paquete{paquetesActivos > 1 ? 's' : ''} en proceso
               </p>
-              <p className="text-xs text-amber-800 leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: `${tw}0.6)` }}>
                 Los paquetes no se borrarán — quedarán como &quot;sin asignar&quot; en el sistema y un admin podrá reasignarlos manualmente. Lo que se borra es la cuenta y el acceso al portal.
               </p>
             </div>
           )}
 
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 leading-relaxed">
+          <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)', color: `${tw}0.65)` }}>
             La cuenta de auth y el perfil del cliente se borrarán definitivamente. El cliente ya no podrá iniciar sesión ni recuperar su contraseña.
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1.5">
-              Para confirmar, escribe <strong className="text-red-600 font-mono">ELIMINAR</strong> abajo:
+            <label className={`${labelClass}`} style={labelStyle}>
+              Para confirmar, escribe <strong className="font-mono" style={{ color: '#f87171' }}>ELIMINAR</strong> abajo:
             </label>
             <input
               type="text"
@@ -259,17 +280,16 @@ function EliminarClienteModal({
               onChange={e => setConfirmTexto(e.target.value.toUpperCase())}
               placeholder="ELIMINAR"
               autoComplete="off"
-              className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              className={`${inputClass} font-mono`}
             />
           </div>
 
           {mensaje && (
             <div
-              className={`flex items-start gap-2 text-sm p-3 rounded-md border ${
-                mensaje.tipo === 'ok'
-                  ? 'bg-green-50 border-green-200 text-green-700'
-                  : 'bg-red-50 border-red-200 text-red-600'
-              }`}
+              className="flex items-start gap-2 text-sm p-3 rounded-xl"
+              style={mensaje.tipo === 'ok'
+                ? { background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
+                : { background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
               role="alert"
             >
               {mensaje.tipo === 'ok'
@@ -280,26 +300,29 @@ function EliminarClienteModal({
           )}
         </div>
 
-        <div className="flex gap-2 p-5 border-t border-gray-100">
-          <Button
+        <div className="flex gap-2 p-5" style={{ borderTop: `1px solid ${tw}0.07)` }}>
+          <button
             type="button"
-            variant="outline"
-            className="flex-1"
             onClick={onClose}
             disabled={eliminando}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.7)` }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             Cancelar
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
             onClick={eliminar}
             disabled={eliminando || !puedeConfirmar}
-            className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white gap-2"
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+            style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
           >
             {eliminando
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Eliminando...</>
               : <><Trash2 className="h-4 w-4" /> Eliminar</>}
-          </Button>
+          </button>
         </div>
       </div>
     </div>
@@ -352,26 +375,42 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
     setTimeout(() => { window.location.reload() }, 700)
   }
 
+  const modalBg = {
+    background: 'rgba(10,10,25,0.85)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: '1rem',
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
       onClick={() => !guardando && onClose()}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        style={modalBg}
         onClick={e => e.stopPropagation()}
       >
         <form onSubmit={guardar}>
-          <div className="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white">
+          <div
+            className="flex items-center justify-between px-5 py-4 sticky top-0"
+            style={{ background: 'rgba(10,10,25,0.9)', borderBottom: `1px solid ${tw}0.08)` }}
+          >
             <div>
-              <h3 className="font-bold text-gray-900">Editar cliente</h3>
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{cliente.email}</p>
+              <h3 className="font-bold text-white">Editar cliente</h3>
+              <p className="text-xs mt-0.5 truncate" style={{ color: `${tw}0.4)` }}>{cliente.email}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
               disabled={guardando}
-              className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              className="disabled:opacity-50 transition-colors p-1 rounded-lg"
+              style={{ color: `${tw}0.4)` }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+              onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.4)`)}
               aria-label="Cerrar"
             >
               <X className="h-5 w-5" />
@@ -381,161 +420,102 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
           <div className="p-5 space-y-4">
             {/* Nombre */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">Nombre completo *</label>
-              <input
-                type="text"
-                name="nombre_completo"
-                value={form.nombre_completo}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
+              <label className={labelClass} style={labelStyle}>Nombre completo *</label>
+              <input type="text" name="nombre_completo" value={form.nombre_completo} onChange={handleChange} required className={inputClass} />
             </div>
 
             {/* Casillero */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">Número de casillero *</label>
-              <input
-                type="text"
-                name="numero_casilla"
-                value={form.numero_casilla}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">
+              <label className={labelClass} style={labelStyle}>Número de casillero *</label>
+              <input type="text" name="numero_casilla" value={form.numero_casilla} onChange={handleChange} required className={`${inputClass} font-mono`} />
+              <p className="text-[11px] mt-1" style={{ color: `${tw}0.35)` }}>
                 Cambiar el casillero puede afectar paquetes ya asignados a este cliente
               </p>
             </div>
 
             {/* Teléfono */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">Teléfono</label>
-              <input
-                type="tel"
-                name="telefono"
-                value={form.telefono}
-                onChange={handleChange}
-                placeholder="3001234567"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
+              <label className={labelClass} style={labelStyle}>Teléfono</label>
+              <input type="tel" name="telefono" value={form.telefono} onChange={handleChange} placeholder="3001234567" className={inputClass} />
             </div>
 
             {/* WhatsApp */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">
-                WhatsApp <span className="text-gray-400 font-normal">(donde llegan las notificaciones)</span>
+              <label className={labelClass} style={labelStyle}>
+                WhatsApp <span style={{ color: `${tw}0.35)`, fontWeight: 400 }}>(donde llegan las notificaciones)</span>
               </label>
-              <input
-                type="tel"
-                name="whatsapp"
-                value={form.whatsapp}
-                onChange={handleChange}
-                placeholder="3001234567"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-[11px] text-gray-400 mt-1">Sin prefijo se asume +57 (Colombia)</p>
+              <input type="tel" name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="3001234567" className={inputClass} />
+              <p className="text-[11px] mt-1" style={{ color: `${tw}0.35)` }}>Sin prefijo se asume +57 (Colombia)</p>
             </div>
 
             {/* Ciudad */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">Ciudad</label>
-              <input
-                type="text"
-                name="ciudad"
-                value={form.ciudad}
-                onChange={handleChange}
-                placeholder="Medellín"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
+              <label className={labelClass} style={labelStyle}>Ciudad</label>
+              <input type="text" name="ciudad" value={form.ciudad} onChange={handleChange} placeholder="Medellín" className={inputClass} />
             </div>
 
-            {/* ── Sección dirección ────────────────────────────────────── */}
-            <div className="pt-3 border-t border-gray-100 space-y-3">
+            {/* Dirección */}
+            <div className="pt-3 space-y-3" style={{ borderTop: `1px solid ${tw}0.07)` }}>
               <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-orange-600" />
-                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Dirección de entrega</p>
+                <MapPin className="h-4 w-4" style={{ color: '#F5B800' }} />
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.6)` }}>Dirección de entrega</p>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">Dirección</label>
+                <label className={labelClass} style={labelStyle}>Dirección</label>
                 <textarea
                   name="direccion"
                   value={form.direccion}
                   onChange={handleChange}
                   placeholder="Calle 10 #45-20, Apto 502, Torre B"
                   rows={2}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                  className={inputClass}
+                  style={{ resize: 'none' }}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium text-gray-700 block mb-1">Barrio</label>
-                  <input
-                    type="text"
-                    name="barrio"
-                    value={form.barrio}
-                    onChange={handleChange}
-                    placeholder="Poblado"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
+                  <label className={labelClass} style={labelStyle}>Barrio</label>
+                  <input type="text" name="barrio" value={form.barrio} onChange={handleChange} placeholder="Poblado" className={inputClass} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700 block mb-1">Referencia</label>
-                  <input
-                    type="text"
-                    name="referencia"
-                    value={form.referencia}
-                    onChange={handleChange}
-                    placeholder="Cerca al parque"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
+                  <label className={labelClass} style={labelStyle}>Referencia</label>
+                  <input type="text" name="referencia" value={form.referencia} onChange={handleChange} placeholder="Cerca al parque" className={inputClass} />
                 </div>
               </div>
             </div>
 
-            {/* Activo */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-200">
+            {/* Activo toggle */}
+            <div
+              className="flex items-center justify-between rounded-xl px-3 py-2.5"
+              style={{ background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}
+            >
               <div>
-                <p className="text-sm font-medium text-gray-900">Cliente activo</p>
-                <p className="text-[11px] text-gray-500">Inactivos no pueden iniciar sesión</p>
+                <p className="text-sm font-medium text-white">Cliente activo</p>
+                <p className="text-[11px]" style={{ color: `${tw}0.4)` }}>Inactivos no pueden iniciar sesión</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="activo"
-                  checked={form.activo}
-                  onChange={handleChange}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                <input type="checkbox" name="activo" checked={form.activo} onChange={handleChange} className="sr-only peer" />
+                <div className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{ background: form.activo ? 'rgba(52,211,153,0.8)' : 'rgba(255,255,255,0.15)' }}></div>
               </label>
             </div>
 
-            {/* Email (editable, sincroniza auth.users) */}
+            {/* Email */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">Correo electrónico</label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+              <label className={labelClass} style={labelStyle}>Correo electrónico</label>
+              <input type="email" name="email" value={form.email} onChange={handleChange} required className={inputClass} />
+              <p className="text-[11px] mt-1 leading-relaxed" style={{ color: '#fbbf24' }}>
                 ⚠️ Cambiar el correo afecta el inicio de sesión del cliente. El nuevo correo quedará confirmado automáticamente.
               </p>
             </div>
 
             {mensaje && (
               <div
-                className={`flex items-start gap-2 text-sm p-3 rounded-md border ${
-                  mensaje.tipo === 'ok'
-                    ? 'bg-green-50 border-green-200 text-green-700'
-                    : 'bg-red-50 border-red-200 text-red-600'
-                }`}
+                className="flex items-start gap-2 text-sm p-3 rounded-xl"
+                style={mensaje.tipo === 'ok'
+                  ? { background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
+                  : { background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
                 role="alert"
               >
                 {mensaje.tipo === 'ok'
@@ -546,25 +526,30 @@ function EditarClienteModal({ cliente, onClose }: { cliente: ClienteRow; onClose
             )}
           </div>
 
-          <div className="flex gap-2 p-5 border-t border-gray-100 sticky bottom-0 bg-white">
-            <Button
+          <div
+            className="flex gap-2 p-5 sticky bottom-0"
+            style={{ background: 'rgba(10,10,25,0.9)', borderTop: `1px solid ${tw}0.08)` }}
+          >
+            <button
               type="button"
-              variant="outline"
-              className="flex-1"
               onClick={onClose}
               disabled={guardando}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+              style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.7)` }}
+              onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white gap-2"
               disabled={guardando}
+              className="btn-gold flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {guardando
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Guardando...</>
                 : <><Save className="h-4 w-4" /> Guardar cambios</>}
-            </Button>
+            </button>
           </div>
         </form>
       </div>

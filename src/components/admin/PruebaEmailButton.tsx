@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Mail, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+
+const tw = 'rgba(255,255,255,'
 
 interface Props {
   emailSugerido?: string | null
@@ -19,14 +20,12 @@ export default function PruebaEmailButton({ emailSugerido, nombreSugerido }: Pro
     if (!email.trim()) return
     setEnviando(true)
     setResultado(null)
-
     const res = await fetch('/api/admin/email-prueba', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), nombre: nombreSugerido }),
     })
     const data = await res.json() as { ok?: boolean; diagnostico?: string; error?: string; message_id?: string }
-
     setEnviando(false)
     setResultado({
       tipo: data.ok ? 'ok' : 'error',
@@ -36,48 +35,51 @@ export default function PruebaEmailButton({ emailSugerido, nombreSugerido }: Pro
 
   return (
     <div className="space-y-2">
-      <Button
+      <button
         type="button"
-        variant="outline"
-        className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 gap-2"
         onClick={() => setAbierto(v => !v)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+        style={{ border: '1px solid rgba(99,130,255,0.3)', color: '#8899ff', background: 'rgba(99,130,255,0.08)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.15)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.08)')}
       >
         <Mail className="h-4 w-4" />
         {abierto ? 'Ocultar prueba email' : 'Probar Email'}
-      </Button>
+      </button>
 
       {abierto && (
-        <div className="space-y-3 p-3 bg-blue-50/50 border border-blue-100 rounded-lg">
+        <div className="space-y-3 p-3 rounded-xl"
+          style={{ background: 'rgba(99,130,255,0.06)', border: '1px solid rgba(99,130,255,0.15)' }}>
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">Email destino</label>
+            <label className="text-xs font-medium block mb-1" style={{ color: `${tw}0.55)` }}>Email destino</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="cliente@email.com"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="glass-input w-full px-3 py-2 text-sm rounded-xl focus:outline-none"
             />
           </div>
 
-          <Button
+          <button
             type="button"
             onClick={enviar}
             disabled={enviando || !email.trim()}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
+            style={{ background: 'rgba(99,130,255,0.15)', color: '#8899ff', border: '1px solid rgba(99,130,255,0.3)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.25)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.15)')}
           >
             {enviando
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>
               : <><Mail className="h-4 w-4" /> Enviar email de prueba</>}
-          </Button>
+          </button>
 
           {resultado && (
-            <div
-              className={`flex items-start gap-2 text-xs p-2.5 rounded-md border ${
-                resultado.tipo === 'ok'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-red-50 border-red-200 text-red-800'
-              }`}
-            >
+            <div className="flex items-start gap-2 text-xs p-2.5 rounded-xl"
+              style={resultado.tipo === 'ok'
+                ? { background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }
+                : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
               {resultado.tipo === 'ok'
                 ? <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
                 : <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />}

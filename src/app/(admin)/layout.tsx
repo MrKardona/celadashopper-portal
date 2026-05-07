@@ -27,9 +27,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!perfil || perfil.rol !== 'admin') redirect('/dashboard')
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="portal-bg min-h-screen flex" style={{ fontFamily: "'Outfit', sans-serif" }}>
       <NavAdmin nombreAdmin={perfil.nombre_completo} />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0" style={{ background: 'linear-gradient(135deg, #07070f 0%, #0b0b1d 40%, #080c14 100%)' }}>
         <main className="flex-1 p-6 overflow-auto">
           {children}
         </main>

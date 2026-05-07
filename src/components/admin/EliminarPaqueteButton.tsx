@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Trash2, AlertTriangle, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Trash2, AlertTriangle, X, Loader2 } from 'lucide-react'
+
+const tw = 'rgba(255,255,255,'
 
 interface Props {
   paqueteId: string
@@ -12,7 +12,6 @@ interface Props {
 }
 
 export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, descripcion }: Props) {
-  const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [eliminando, setEliminando] = useState(false)
   const [error, setError] = useState('')
@@ -20,17 +19,13 @@ export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, desc
   async function handleEliminar() {
     setEliminando(true)
     setError('')
-
     const res = await fetch(`/api/admin/paquetes/${paqueteId}`, { method: 'DELETE' })
     const data = await res.json() as { ok?: boolean; error?: string }
-
     if (!res.ok || !data.ok) {
       setError(data.error ?? 'No se pudo eliminar el paquete')
       setEliminando(false)
       return
     }
-
-    // Hard navigation para refrescar la lista
     window.location.href = '/admin/paquetes'
   }
 
@@ -42,87 +37,105 @@ export default function EliminarPaqueteButton({ paqueteId, trackingCasilla, desc
 
   return (
     <>
-      <Button
+      <button
         type="button"
-        variant="outline"
-        className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 gap-2"
         onClick={() => setAbierto(true)}
+        className="w-full py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+        style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.14)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
       >
         <Trash2 className="h-4 w-4" />
         Eliminar paquete
-      </Button>
+      </button>
 
       {abierto && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
           onClick={cerrar}
         >
           <div
-            className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4"
+            className="max-w-md w-full p-6 space-y-4"
+            style={{
+              background: 'rgba(10,10,25,0.92)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: `1px solid ${tw}0.1)`,
+              borderRadius: '1rem',
+            }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(239,68,68,0.12)' }}>
+                  <AlertTriangle className="h-5 w-5" style={{ color: '#f87171' }} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">Eliminar paquete</h3>
-                  <p className="text-xs text-gray-500">Esta acción no se puede deshacer</p>
+                  <h3 className="font-bold text-white">Eliminar paquete</h3>
+                  <p className="text-xs" style={{ color: `${tw}0.4)` }}>Esta acción no se puede deshacer</p>
                 </div>
               </div>
               <button
                 onClick={cerrar}
                 disabled={eliminando}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                className="disabled:opacity-50 p-1 rounded-lg transition-colors"
+                style={{ color: `${tw}0.4)` }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+                onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.4)`)}
                 aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2 text-sm">
+            <div className="rounded-xl p-3 space-y-2 text-sm"
+              style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)' }}>
               <div>
-                <p className="text-xs text-red-600 font-medium">Tracking</p>
-                <p className="font-mono font-semibold text-red-900">{trackingCasilla}</p>
+                <p className="text-xs font-medium" style={{ color: '#f87171' }}>Tracking</p>
+                <p className="font-mono font-semibold text-white">{trackingCasilla}</p>
               </div>
               <div>
-                <p className="text-xs text-red-600 font-medium">Producto</p>
-                <p className="text-red-900">{descripcion}</p>
+                <p className="text-xs font-medium" style={{ color: '#f87171' }}>Producto</p>
+                <p style={{ color: `${tw}0.8)` }}>{descripcion}</p>
               </div>
             </div>
 
-            <div className="text-sm text-gray-700">
+            <div className="text-sm" style={{ color: `${tw}0.65)` }}>
               <p>¿Estás seguro de que quieres eliminar este paquete?</p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs mt-1" style={{ color: `${tw}0.4)` }}>
                 Se borrará permanentemente junto con sus fotos, historial de eventos y notificaciones.
               </p>
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              <div className="text-sm p-2 rounded-xl" style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 {error}
               </div>
             )}
 
             <div className="flex gap-2 pt-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                className="flex-1"
                 onClick={cerrar}
                 disabled={eliminando}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+                style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.65)` }}
+                onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 Cancelar
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300"
                 onClick={handleEliminar}
                 disabled={eliminando}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
+                style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}
               >
-                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
-              </Button>
+                {eliminando ? <><Loader2 className="h-4 w-4 animate-spin" /> Eliminando...</> : 'Sí, eliminar'}
+              </button>
             </div>
           </div>
         </div>

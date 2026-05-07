@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Search, X, UserCheck, Loader2, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+
+const tw = 'rgba(255,255,255,'
 
 interface ClienteResult {
   id: string
@@ -19,7 +20,6 @@ interface Props {
   trackingCasilla: string
   descripcion: string
   clienteActual?: { nombre: string; casilla: string | null } | null
-  // Variante visual: 'primary' para sin asignar (naranja), 'subtle' para reasignar
   variante?: 'primary' | 'subtle'
 }
 
@@ -27,21 +27,50 @@ export default function AsignarClienteButton({
   paqueteId, trackingCasilla, descripcion, clienteActual, variante = 'primary',
 }: Props) {
   const [abierto, setAbierto] = useState(false)
+
+  if (variante === 'primary') {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          className="btn-gold w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <UserCheck className="h-4 w-4" />
+          {clienteActual ? 'Reasignar a otro cliente' : 'Asignar a un cliente'}
+        </button>
+        {abierto && (
+          <ModalAsignar
+            paqueteId={paqueteId}
+            trackingCasilla={trackingCasilla}
+            descripcion={descripcion}
+            clienteActual={clienteActual}
+            onClose={() => setAbierto(false)}
+          />
+        )}
+      </>
+    )
+  }
+
   return (
     <>
-      <Button
+      <button
         type="button"
-        variant={variante === 'primary' ? 'default' : 'outline'}
-        className={variante === 'primary'
-          ? 'w-full bg-orange-600 hover:bg-orange-700 text-white gap-2'
-          : 'w-full gap-2 text-xs'}
         onClick={() => setAbierto(true)}
-        size={variante === 'subtle' ? 'sm' : undefined}
+        className="w-full py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+        style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.55)` }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = `${tw}0.05)`
+          e.currentTarget.style.color = 'white'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = `${tw}0.55)`
+        }}
       >
-        <UserCheck className="h-4 w-4" />
+        <UserCheck className="h-3.5 w-3.5" />
         {clienteActual ? 'Reasignar a otro cliente' : 'Asignar a un cliente'}
-      </Button>
-
+      </button>
       {abierto && (
         <ModalAsignar
           paqueteId={paqueteId}
@@ -55,7 +84,6 @@ export default function AsignarClienteButton({
   )
 }
 
-// ─── Modal con buscador y selección ─────────────────────────────────────────
 function ModalAsignar({
   paqueteId, trackingCasilla, descripcion, clienteActual, onClose,
 }: {
@@ -74,10 +102,8 @@ function ModalAsignar({
   const [resultado, setResultado] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const [stats, setStats] = useState<{ total: number; mostrando: number } | null>(null)
 
-  // Búsqueda con debounce
   useEffect(() => {
-    if (seleccionado) return // si ya hay seleccionado, no buscar
-
+    if (seleccionado) return
     const t = setTimeout(async () => {
       setBuscando(true)
       try {
@@ -91,7 +117,6 @@ function ModalAsignar({
         setBuscando(false)
       }
     }, 250)
-
     return () => clearTimeout(t)
   }, [query, seleccionado])
 
@@ -99,7 +124,6 @@ function ModalAsignar({
     if (!seleccionado) return
     setAsignando(true)
     setResultado(null)
-
     const res = await fetch(`/api/admin/paquetes/${paqueteId}/asignar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -111,13 +135,11 @@ function ModalAsignar({
       cliente?: { nombre: string }
       notificacion?: { intentada: boolean; enviada: boolean; error?: string; sin_telefono?: boolean }
     }
-
     if (!res.ok || !data.ok) {
       setAsignando(false)
       setResultado({ tipo: 'error', texto: data.error ?? 'No se pudo asignar' })
       return
     }
-
     let texto = `✅ Asignado a ${data.cliente?.nombre}.`
     if (data.notificacion?.intentada) {
       if (data.notificacion.enviada) texto += ' WhatsApp enviado.'
@@ -134,21 +156,33 @@ function ModalAsignar({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={cerrar}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+      onClick={cerrar}
+    >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
+        style={{
+          background: 'rgba(10,10,25,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: `1px solid ${tw}0.1)`,
+          borderRadius: '1rem',
+        }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+        <div className="flex items-start justify-between p-5" style={{ borderBottom: `1px solid ${tw}0.08)` }}>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900">
+            <h3 className="font-bold text-white">
               {clienteActual ? 'Reasignar paquete' : 'Asignar paquete a cliente'}
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5 font-mono">{trackingCasilla}</p>
-            <p className="text-xs text-gray-600 truncate mt-0.5">{descripcion}</p>
+            <p className="text-xs font-mono mt-0.5" style={{ color: `${tw}0.4)` }}>{trackingCasilla}</p>
+            <p className="text-xs truncate mt-0.5" style={{ color: `${tw}0.55)` }}>{descripcion}</p>
             {clienteActual && (
-              <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded mt-2 inline-block">
+              <p className="text-xs mt-2 inline-block px-2 py-1 rounded-lg"
+                style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
                 Actualmente asignado a: <span className="font-medium">{clienteActual.nombre}</span>
               </p>
             )}
@@ -157,7 +191,10 @@ function ModalAsignar({
             type="button"
             onClick={cerrar}
             disabled={asignando}
-            className="text-gray-400 hover:text-gray-600 disabled:opacity-50 ml-2"
+            className="disabled:opacity-50 p-1 rounded-lg ml-2 transition-colors"
+            style={{ color: `${tw}0.4)` }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+            onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.4)`)}
             aria-label="Cerrar"
           >
             <X className="h-5 w-5" />
@@ -165,25 +202,26 @@ function ModalAsignar({
         </div>
 
         {/* Buscador */}
-        <div className="p-5 border-b border-gray-100">
+        <div className="p-5" style={{ borderBottom: `1px solid ${tw}0.08)` }}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+              style={{ color: `${tw}0.3)` }} />
             <input
               type="text"
               autoFocus
               value={seleccionado ? `${seleccionado.nombre_completo} (${seleccionado.numero_casilla ?? '—'})` : query}
-              onChange={e => {
-                setQuery(e.target.value)
-                if (seleccionado) setSeleccionado(null)
-              }}
+              onChange={e => { setQuery(e.target.value); if (seleccionado) setSeleccionado(null) }}
               placeholder="Buscar cliente por nombre, email, casillero o teléfono..."
-              className="w-full pl-9 pr-9 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="glass-input w-full pl-9 pr-9 py-2.5 text-sm rounded-xl focus:outline-none"
             />
             {seleccionado && (
               <button
                 type="button"
                 onClick={() => { setSeleccionado(null); setQuery('') }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: `${tw}0.35)` }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.35)`)}
                 title="Limpiar selección"
               >
                 <X className="h-4 w-4" />
@@ -192,48 +230,53 @@ function ModalAsignar({
           </div>
         </div>
 
-        {/* Lista de resultados (oculta si ya hay seleccionado) */}
+        {/* Lista de resultados */}
         {!seleccionado && (
-          <div className="flex-1 overflow-y-auto px-2 py-2 min-h-[200px] max-h-[350px]">
-            {/* Contador de clientes */}
+          <div className="flex-1 overflow-y-auto px-2 py-2 min-h-[180px] max-h-[300px]">
             {stats && (
-              <div className="px-3 py-1.5 mb-1 text-[11px] text-gray-500 bg-gray-50 rounded">
+              <div className="px-3 py-1.5 mb-1 text-[11px] rounded-lg"
+                style={{ color: `${tw}0.4)`, background: `${tw}0.03)` }}>
                 {query
-                  ? `${stats.mostrando} resultado${stats.mostrando !== 1 ? 's' : ''} encontrados de ${stats.total} clientes totales`
+                  ? `${stats.mostrando} resultado${stats.mostrando !== 1 ? 's' : ''} de ${stats.total} clientes`
                   : `Mostrando ${stats.mostrando} de ${stats.total} clientes — escribe para filtrar`}
               </div>
             )}
 
             {buscando ? (
-              <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <div className="flex items-center justify-center h-28 text-sm gap-2"
+                style={{ color: `${tw}0.4)` }}>
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Buscando...
               </div>
             ) : resultados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-gray-400 text-sm gap-1">
+              <div className="flex flex-col items-center justify-center h-28 text-sm gap-2"
+                style={{ color: `${tw}0.3)` }}>
                 <Search className="h-6 w-6 opacity-30" />
                 {query ? 'Sin resultados' : 'Empieza a escribir para buscar'}
               </div>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {resultados.map(c => (
                   <li key={c.id}>
                     <button
                       type="button"
                       onClick={() => setSeleccionado(c)}
-                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-orange-50 transition-colors group"
+                      className="w-full text-left px-3 py-2.5 rounded-xl transition-colors"
+                      style={{ color: 'white' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.06)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{c.nombre_completo}</p>
-                          <p className="text-xs text-gray-500 truncate">{c.email}</p>
+                          <p className="text-sm font-medium text-white truncate">{c.nombre_completo}</p>
+                          <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>{c.email}</p>
                           {(c.whatsapp ?? c.telefono) && (
-                            <p className="text-xs text-green-600 mt-0.5">{c.whatsapp ?? c.telefono}</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#34d399' }}>{c.whatsapp ?? c.telefono}</p>
                           )}
                         </div>
-                        <div className="text-right ml-3">
-                          <p className="text-xs font-mono text-orange-600 font-semibold">{c.numero_casilla ?? '—'}</p>
-                          {c.ciudad && <p className="text-[11px] text-gray-400 capitalize">{c.ciudad}</p>}
+                        <div className="text-right ml-3 flex-shrink-0">
+                          <p className="text-xs font-mono font-semibold" style={{ color: '#F5B800' }}>{c.numero_casilla ?? '—'}</p>
+                          {c.ciudad && <p className="text-[11px] capitalize mt-0.5" style={{ color: `${tw}0.35)` }}>{c.ciudad}</p>}
                         </div>
                       </div>
                     </button>
@@ -244,20 +287,22 @@ function ModalAsignar({
           </div>
         )}
 
-        {/* Vista del cliente seleccionado */}
+        {/* Cliente seleccionado */}
         {seleccionado && (
-          <div className="p-5 border-b border-gray-100 bg-orange-50/40">
+          <div className="p-4 mx-4 mt-4 rounded-xl"
+            style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.18)' }}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                <UserCheck className="h-5 w-5 text-orange-600" />
+              <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(245,184,0,0.15)' }}>
+                <UserCheck className="h-5 w-5" style={{ color: '#F5B800' }} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900">{seleccionado.nombre_completo}</p>
-                <p className="text-xs text-gray-500">{seleccionado.email}</p>
+                <p className="font-semibold text-white">{seleccionado.nombre_completo}</p>
+                <p className="text-xs" style={{ color: `${tw}0.45)` }}>{seleccionado.email}</p>
                 <div className="flex gap-3 mt-1 text-xs">
-                  <span className="font-mono text-orange-600 font-semibold">{seleccionado.numero_casilla ?? '—'}</span>
+                  <span className="font-mono font-semibold" style={{ color: '#F5B800' }}>{seleccionado.numero_casilla ?? '—'}</span>
                   {(seleccionado.whatsapp ?? seleccionado.telefono) && (
-                    <span className="text-green-600">📱 {seleccionado.whatsapp ?? seleccionado.telefono}</span>
+                    <span style={{ color: '#34d399' }}>📱 {seleccionado.whatsapp ?? seleccionado.telefono}</span>
                   )}
                 </div>
               </div>
@@ -267,27 +312,30 @@ function ModalAsignar({
 
         {/* Checkbox notificar */}
         {seleccionado && (
-          <div className="px-5 py-3 border-b border-gray-100">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={notificar}
-                onChange={e => setNotificar(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-              />
-              <MessageCircle className="h-4 w-4 text-green-600" />
-              Avisar al cliente por WhatsApp que ya tiene su paquete
-            </label>
-          </div>
+          <label
+            className="flex items-center gap-2 cursor-pointer mx-4 mt-3 px-3 py-2.5 rounded-xl text-sm"
+            style={{ background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}
+          >
+            <input
+              type="checkbox"
+              checked={notificar}
+              onChange={e => setNotificar(e.target.checked)}
+              className="h-4 w-4 rounded"
+              style={{ accentColor: '#34d399' }}
+            />
+            <MessageCircle className="h-4 w-4" style={{ color: '#34d399' }} />
+            <span style={{ color: `${tw}0.7)` }}>Avisar al cliente por WhatsApp que ya tiene su paquete</span>
+          </label>
         )}
 
         {/* Resultado */}
         {resultado && (
-          <div className={`px-5 py-3 border-t border-b ${
-            resultado.tipo === 'ok'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : 'bg-red-50 border-red-200 text-red-600'
-          } text-sm flex items-start gap-2`}>
+          <div
+            className="mx-4 mt-3 px-4 py-3 rounded-xl text-sm flex items-start gap-2"
+            style={resultado.tipo === 'ok'
+              ? { background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
+              : { background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+          >
             {resultado.tipo === 'ok'
               ? <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               : <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />}
@@ -296,26 +344,28 @@ function ModalAsignar({
         )}
 
         {/* Footer */}
-        <div className="flex gap-2 p-5 border-t border-gray-100 mt-auto">
-          <Button
+        <div className="flex gap-2 p-5 mt-auto" style={{ borderTop: `1px solid ${tw}0.08)` }}>
+          <button
             type="button"
-            variant="outline"
-            className="flex-1"
             onClick={cerrar}
             disabled={asignando}
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+            style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.65)` }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             Cancelar
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white gap-2"
             onClick={asignar}
             disabled={!seleccionado || asignando}
+            className="btn-gold flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
           >
             {asignando
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Asignando...</>
               : <><UserCheck className="h-4 w-4" /> Asignar paquete</>}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

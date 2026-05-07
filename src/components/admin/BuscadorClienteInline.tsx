@@ -1,17 +1,9 @@
 'use client'
 
-// Buscador de cliente con autocompletar.
-// Llama a /api/admin/clientes/buscar con debounce y muestra sugerencias.
-// Se selecciona un cliente y se notifica al padre vía onSelect(cliente).
-//
-// Uso:
-//   <BuscadorClienteInline
-//     valor={clienteSeleccionado}
-//     onSelect={setClienteSeleccionado}
-//   />
-
 import { useEffect, useRef, useState } from 'react'
 import { Search, X, Loader2, User, Phone } from 'lucide-react'
+
+const tw = 'rgba(255,255,255,'
 
 export interface ClienteSugerido {
   id: string
@@ -27,9 +19,7 @@ interface Props {
   valor: ClienteSugerido | null
   onSelect: (cliente: ClienteSugerido | null) => void
   placeholder?: string
-  /** clase opcional para el contenedor externo */
   className?: string
-  /** Valor con el que pre-llenar el input cuando no hay cliente seleccionado (ej: nombre extraído por OCR de la etiqueta) */
   defaultQuery?: string
 }
 
@@ -47,8 +37,6 @@ export default function BuscadorClienteInline({
   const [resaltado, setResaltado] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Sincronizar query cuando defaultQuery cambia desde afuera (ej: OCR extrajo un nombre).
-  // Solo si no hay cliente seleccionado y el agente no ha empezado a escribir algo distinto.
   useEffect(() => {
     if (!valor && defaultQuery && !query) {
       setQuery(defaultQuery)
@@ -57,7 +45,6 @@ export default function BuscadorClienteInline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultQuery, valor])
 
-  // Cerrar al click fuera
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -68,9 +55,8 @@ export default function BuscadorClienteInline({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Debounce de búsqueda
   useEffect(() => {
-    if (valor) return // si ya hay un cliente seleccionado, no buscamos
+    if (valor) return
     const term = query.trim()
     if (term.length < 2) {
       setSugerencias([])
@@ -122,17 +108,18 @@ export default function BuscadorClienteInline({
     }
   }
 
-  // Cliente seleccionado: mostrar pill compacto
   if (valor) {
     return (
-      <div className={`flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-lg ${className}`}>
-        <div className="h-7 w-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-          <User className="h-3.5 w-3.5 text-orange-700" />
+      <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${className}`}
+        style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
+        <div className="h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: 'rgba(245,184,0,0.15)' }}>
+          <User className="h-3.5 w-3.5" style={{ color: '#F5B800' }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">{valor.nombre_completo}</p>
-          <p className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-orange-700">{valor.numero_casilla ?? 'sin casillero'}</span>
+          <p className="text-sm font-semibold text-white truncate">{valor.nombre_completo}</p>
+          <p className="text-[11px] flex items-center gap-2 flex-wrap" style={{ color: `${tw}0.5)` }}>
+            <span className="font-mono" style={{ color: '#F5B800' }}>{valor.numero_casilla ?? 'sin casillero'}</span>
             {(valor.whatsapp || valor.telefono) && (
               <span className="flex items-center gap-1">
                 <Phone className="h-2.5 w-2.5" />
@@ -145,7 +132,10 @@ export default function BuscadorClienteInline({
           type="button"
           onClick={limpiar}
           aria-label="Quitar cliente"
-          className="p-1 text-gray-400 hover:text-red-600 hover:bg-white rounded transition-colors"
+          className="p-1 rounded-lg transition-colors"
+          style={{ color: `${tw}0.35)` }}
+          onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+          onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.35)`)}
         >
           <X className="h-4 w-4" />
         </button>
@@ -153,11 +143,10 @@ export default function BuscadorClienteInline({
     )
   }
 
-  // Sin cliente seleccionado: input de búsqueda
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: `${tw}0.3)` }} />
         <input
           type="text"
           value={query}
@@ -166,17 +155,26 @@ export default function BuscadorClienteInline({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoComplete="off"
-          className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          className="glass-input w-full pl-9 pr-9 py-2.5 text-sm rounded-xl focus:outline-none"
         />
         {cargando && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" style={{ color: `${tw}0.35)` }} />
         )}
       </div>
 
       {abierto && query.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+        <div
+          className="absolute z-20 mt-1 w-full rounded-xl overflow-hidden max-h-72 overflow-y-auto"
+          style={{
+            background: 'rgba(10,10,25,0.95)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: `1px solid ${tw}0.1)`,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+          }}
+        >
           {sugerencias.length === 0 && !cargando ? (
-            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+            <div className="px-4 py-3 text-sm text-center" style={{ color: `${tw}0.4)` }}>
               Sin coincidencias para &quot;{query}&quot;
             </div>
           ) : (
@@ -186,19 +184,22 @@ export default function BuscadorClienteInline({
                 type="button"
                 onClick={() => seleccionar(c)}
                 onMouseEnter={() => setResaltado(idx)}
-                className={`w-full text-left px-3 py-2 border-b border-gray-50 last:border-b-0 transition-colors ${
-                  idx === resaltado ? 'bg-orange-50' : 'hover:bg-gray-50'
-                }`}
+                className="w-full text-left px-3 py-2.5 transition-colors"
+                style={{
+                  background: idx === resaltado ? 'rgba(245,184,0,0.08)' : 'transparent',
+                  borderBottom: idx < sugerencias.length - 1 ? `1px solid ${tw}0.05)` : undefined,
+                }}
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <User className="h-3.5 w-3.5 text-gray-500" />
+                  <div className="h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${tw}0.06)` }}>
+                    <User className="h-3.5 w-3.5" style={{ color: `${tw}0.4)` }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{c.nombre_completo}</p>
-                    <p className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-orange-600">{c.numero_casilla ?? 'sin casillero'}</span>
-                      <span className="text-gray-300">·</span>
+                    <p className="text-sm font-medium text-white truncate">{c.nombre_completo}</p>
+                    <p className="text-[11px] flex items-center gap-2 flex-wrap" style={{ color: `${tw}0.45)` }}>
+                      <span className="font-mono" style={{ color: '#F5B800' }}>{c.numero_casilla ?? 'sin casillero'}</span>
+                      <span style={{ color: `${tw}0.2)` }}>·</span>
                       <span className="truncate">{c.email}</span>
                     </p>
                   </div>

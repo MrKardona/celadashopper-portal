@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Pencil, Save, X, CheckCircle2, Loader2, Camera, Trash2 } from 'lucide-react'
+import { Pencil, Save, X, CheckCircle2, Loader2, Camera } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+const tw = 'rgba(255,255,255,'
 
 interface PaqueteRecibidoDB {
   id: string
@@ -20,7 +22,6 @@ interface PaqueteRecibidoDB {
 }
 
 interface Props {
-  /** Trigger numérico que cambia cuando se recibe un paquete nuevo, para refrescar */
   refreshKey?: number
 }
 
@@ -44,7 +45,8 @@ export default function HistorialRecibidos({ refreshKey = 0 }: Props) {
 
   if (cargando) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 flex items-center justify-center text-gray-400 text-sm gap-2">
+      <div className="glass-card p-8 flex items-center justify-center text-sm gap-2"
+        style={{ color: `${tw}0.35)` }}>
         <Loader2 className="h-4 w-4 animate-spin" />
         Cargando historial de hoy...
       </div>
@@ -53,7 +55,7 @@ export default function HistorialRecibidos({ refreshKey = 0 }: Props) {
 
   if (paquetes.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6 text-center text-sm text-gray-400">
+      <div className="glass-card p-6 text-center text-sm" style={{ color: `${tw}0.35)` }}>
         No has recibido paquetes hoy todavía.
       </div>
     )
@@ -64,14 +66,16 @@ export default function HistorialRecibidos({ refreshKey = 0 }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">Recibidos hoy</span>
-        <span className="text-xs bg-orange-100 text-orange-700 font-semibold px-2 py-0.5 rounded-full">
+    <div className="glass-card overflow-hidden">
+      <div className="px-5 py-3 flex items-center justify-between"
+        style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+        <span className="text-sm font-semibold" style={{ color: `${tw}0.7)` }}>Recibidos hoy</span>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+          style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
           {paquetes.length}
         </span>
       </div>
-      <div className="divide-y divide-gray-50 max-h-[480px] overflow-y-auto">
+      <div className="max-h-[480px] overflow-y-auto">
         {paquetes.map(p => (
           <FilaPaquete
             key={p.id}
@@ -90,7 +94,6 @@ export default function HistorialRecibidos({ refreshKey = 0 }: Props) {
   )
 }
 
-// ─── Fila individual con edición inline ─────────────────────────────────────
 function FilaPaquete({
   paquete, editando, onEditar, onCancelar, onGuardar,
 }: {
@@ -106,7 +109,6 @@ function FilaPaquete({
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
-  // Resetear si cambia el paquete o se cancela
   useEffect(() => {
     if (editando) {
       setPeso(String(paquete.peso_libras ?? ''))
@@ -125,83 +127,81 @@ function FilaPaquete({
       setGuardando(false)
       return
     }
-
     const res = await fetch(`/api/admin/paquetes/${paquete.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         peso_libras: pesoNum,
         tracking_usaco: trackingUsaco.trim() || null,
-        notificar: false, // editar desde historial NO re-notifica
+        notificar: false,
       }),
     })
     const data = await res.json() as { ok?: boolean; error?: string }
     setGuardando(false)
-
     if (!res.ok || !data.ok) {
       setError(data.error ?? 'No se pudo guardar')
       return
     }
-
-    // Si la descripción cambió, hacer un PATCH separado (no soportado por el endpoint actual)
-    // Por ahora solo peso y tracking_usaco editables
-    onGuardar({
-      peso_libras: pesoNum,
-      tracking_usaco: trackingUsaco.trim() || null,
-      descripcion,
-    })
+    onGuardar({ peso_libras: pesoNum, tracking_usaco: trackingUsaco.trim() || null, descripcion })
   }
 
   const horaCorta = format(new Date(paquete.fecha_recepcion_usa), 'HH:mm', { locale: es })
 
   if (editando) {
     return (
-      <div className="px-5 py-4 bg-orange-50/40 space-y-3">
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <span className="font-mono font-bold text-orange-700">{paquete.tracking_casilla}</span>
-          <span className="text-gray-400">·</span>
-          <span className={paquete.sin_asignar ? 'text-amber-600 italic' : ''}>
+      <div className="px-5 py-4 space-y-3"
+        style={{ background: 'rgba(245,184,0,0.04)', borderTop: `1px solid ${tw}0.06)` }}>
+        <div className="flex items-center gap-2 text-xs" style={{ color: `${tw}0.55)` }}>
+          <span className="font-mono font-bold" style={{ color: '#F5B800' }}>{paquete.tracking_casilla}</span>
+          <span style={{ color: `${tw}0.2)` }}>·</span>
+          <span style={{ color: paquete.sin_asignar ? '#F5B800' : `${tw}0.55)`, fontStyle: paquete.sin_asignar ? 'italic' : 'normal' }}>
             {paquete.cliente?.nombre_completo ?? '⏳ Sin asignar'}
           </span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-[11px] font-medium text-gray-700 block mb-0.5">Peso (lb)</label>
+            <label className="text-[11px] font-medium block mb-0.5" style={{ color: `${tw}0.5)` }}>Peso (lb)</label>
             <input
               type="number"
               step="0.01"
               min="0"
               value={peso}
               onChange={e => setPeso(e.target.value)}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="glass-input w-full px-2 py-1.5 text-sm rounded-lg focus:outline-none"
             />
           </div>
           <div>
-            <label className="text-[11px] font-medium text-gray-700 block mb-0.5">Tracking USACO</label>
+            <label className="text-[11px] font-medium block mb-0.5" style={{ color: `${tw}0.5)` }}>Tracking USACO</label>
             <input
               type="text"
               value={trackingUsaco}
               onChange={e => setTrackingUsaco(e.target.value)}
               placeholder="(opcional)"
-              className="w-full px-2 py-1.5 text-sm font-mono border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="glass-input w-full px-2 py-1.5 text-sm font-mono rounded-lg focus:outline-none"
             />
           </div>
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>}
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onCancelar}
             disabled={guardando}
-            className="flex-1 text-xs px-3 py-1.5 text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50"
+            className="flex-1 text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 disabled:opacity-50 transition-colors"
+            style={{ border: `1px solid ${tw}0.1)`, color: `${tw}0.55)` }}
+            onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.04)`)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            <X className="h-3 w-3 inline mr-1" /> Cancelar
+            <X className="h-3 w-3" /> Cancelar
           </button>
           <button
             type="button"
             onClick={guardar}
             disabled={guardando}
-            className="flex-1 text-xs px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded gap-1 inline-flex items-center justify-center"
+            className="flex-1 text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 disabled:opacity-50 transition-colors"
+            style={{ background: 'rgba(245,184,0,0.15)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.22)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.15)')}
           >
             {guardando
               ? <><Loader2 className="h-3 w-3 animate-spin" /> Guardando...</>
@@ -210,7 +210,10 @@ function FilaPaquete({
         </div>
         <a
           href={`/admin/paquetes/${paquete.id}`}
-          className="block text-center text-[11px] text-orange-600 hover:underline"
+          className="block text-center text-[11px] transition-colors"
+          style={{ color: '#F5B800' }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
         >
           Ver detalle completo del paquete →
         </a>
@@ -219,29 +222,44 @@ function FilaPaquete({
   }
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-gray-50 transition-colors group">
-      <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${paquete.sin_asignar ? 'text-amber-400' : 'text-green-500'}`} />
-      <span className="font-mono font-semibold text-orange-700 w-32 truncate text-xs">{paquete.tracking_casilla}</span>
+    <div
+      className="flex items-center gap-3 px-5 py-3 text-sm transition-colors group"
+      style={{ borderTop: `1px solid ${tw}0.05)` }}
+      onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <CheckCircle2 className="h-4 w-4 flex-shrink-0"
+        style={{ color: paquete.sin_asignar ? '#F5B800' : '#34d399' }} />
+      <span className="font-mono font-semibold w-32 truncate text-xs" style={{ color: '#F5B800' }}>
+        {paquete.tracking_casilla}
+      </span>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm truncate ${paquete.sin_asignar ? 'text-amber-600 italic' : 'text-gray-700'}`}>
+        <p className="text-sm truncate"
+          style={{ color: paquete.sin_asignar ? '#F5B800' : `${tw}0.75)`, fontStyle: paquete.sin_asignar ? 'italic' : 'normal' }}>
           {paquete.cliente?.nombre_completo ?? '⏳ Sin asignar'}
           {paquete.cliente?.numero_casilla && (
-            <span className="text-gray-400 text-xs ml-1">({paquete.cliente.numero_casilla})</span>
+            <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>({paquete.cliente.numero_casilla})</span>
           )}
         </p>
-        <p className="text-xs text-gray-400 truncate">{paquete.descripcion}</p>
+        <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>{paquete.descripcion}</p>
       </div>
-      <span className="text-gray-500 font-medium text-xs whitespace-nowrap">{paquete.peso_libras} lb</span>
+      <span className="font-medium text-xs whitespace-nowrap" style={{ color: `${tw}0.5)` }}>
+        {paquete.peso_libras} lb
+      </span>
       {paquete.fotos_count > 0 && (
-        <span className="text-blue-600 text-xs flex items-center gap-0.5" title={`${paquete.fotos_count} fotos`}>
+        <span className="text-xs flex items-center gap-0.5" style={{ color: '#8899ff' }}
+          title={`${paquete.fotos_count} fotos`}>
           <Camera className="h-3 w-3" /> {paquete.fotos_count}
         </span>
       )}
-      <span className="text-gray-400 text-xs w-10 text-right">{horaCorta}</span>
+      <span className="text-xs w-10 text-right" style={{ color: `${tw}0.35)` }}>{horaCorta}</span>
       <button
         type="button"
         onClick={onEditar}
-        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-orange-600 transition-opacity"
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded"
+        style={{ color: `${tw}0.35)` }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#F5B800')}
+        onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.35)`)}
         title="Editar peso o tracking USACO"
       >
         <Pencil className="h-3.5 w-3.5" />

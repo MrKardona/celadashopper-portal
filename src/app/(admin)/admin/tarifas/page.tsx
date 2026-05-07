@@ -24,26 +24,23 @@ export default async function AdminTarifasPage() {
     <div className="space-y-8 max-w-4xl">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tarifas</h1>
-          <p className="text-gray-500 text-sm mt-1">
-          Sistema con dos modelos: <strong>tarifas escalonadas</strong> (con condición, cantidad y rangos
-          de valor) y <strong>tarifas legacy</strong> (precio simple por libra o por unidad).
-          El cálculo prioriza siempre las escalonadas si existen para la categoría.
+          <h1 className="text-2xl font-bold text-white">Tarifas</h1>
+          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Sistema con dos modelos: <strong className="text-white/70">tarifas escalonadas</strong> (con condición, cantidad y rangos
+            de valor) y <strong className="text-white/70">tarifas legacy</strong> (precio simple por libra o por unidad).
+            El cálculo prioriza siempre las escalonadas si existen para la categoría.
           </p>
         </div>
         <SincronizarZohoItemsButton />
       </div>
 
-      {/* Tarifas escalonadas — modelo nuevo */}
       <TarifasRangosManager tarifas={tarifasRangos} />
 
-      {/* Tarifas legacy — fallback para juguetes y otras categorías sin reglas escalonadas */}
-      <div className="pt-6 border-t border-gray-200">
+      <div className="pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div className="mb-4">
-          <h2 className="text-lg font-bold text-gray-900">Tarifas legacy (fallback)</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="text-lg font-bold text-white">Tarifas legacy (fallback)</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
             Aplica solo si la categoría no tiene tarifas escalonadas configuradas arriba.
-            Útil para categorías simples como juguetes y otros productos.
           </p>
         </div>
         <TarifasForm tarifas={tarifasLegacy} />

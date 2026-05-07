@@ -1,22 +1,28 @@
 'use client'
 
-// Botón "Marcar como entregado" con modal:
-// - Subida opcional de foto de la entrega (con preview).
-// - Notas internas opcionales.
-// - Toggle para notificar o no al cliente por email/WhatsApp.
-// Al confirmar: POST /api/admin/paquetes/[id]/entregar.
-// Si el envío incluye foto, llega al cliente en el email "entregado".
-
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, Camera, Upload, X, Loader2, AlertCircle, Image as ImageIcon, MailCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+
+const tw = 'rgba(255,255,255,'
 
 interface Props {
   paqueteId: string
   tracking: string
   descripcion: string
   clienteEmail: string | null
+}
+
+const modalOverlay: React.CSSProperties = {
+  background: 'rgba(0,0,0,0.75)',
+  backdropFilter: 'blur(4px)',
+}
+const modalCard: React.CSSProperties = {
+  background: 'rgba(10,10,25,0.92)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: `1px solid ${tw}0.1)`,
+  borderRadius: '1rem',
 }
 
 export default function EntregarPaqueteButton({ paqueteId, tracking, descripcion, clienteEmail }: Props) {
@@ -26,7 +32,10 @@ export default function EntregarPaqueteButton({ paqueteId, tracking, descripcion
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+        className="w-full text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors"
+        style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.18)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.12)')}
       >
         <CheckCircle2 className="h-4 w-4" />
         Marcar como entregado
@@ -63,7 +72,6 @@ function ModalEntregar({
   const [camaraAbierta, setCamaraAbierta] = useState(false)
   const [errorCamara, setErrorCamara] = useState('')
 
-  // Cleanup al desmontar el modal: detener cámara si quedó activa
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -76,23 +84,18 @@ function ModalEntregar({
   async function abrirCamara() {
     setErrorCamara('')
     setCamaraAbierta(true)
-    await new Promise(r => setTimeout(r, 100)) // esperar render del <video>
+    await new Promise(r => setTimeout(r, 100))
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       })
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play().catch(() => {/* autoplay puede fallar, ignorar */})
+        await videoRef.current.play().catch(() => {})
       }
     } catch (err) {
-      console.error('[entregar] getUserMedia:', err)
       const msg = err instanceof Error ? err.message : ''
       setErrorCamara(
         msg.includes('Permission') || msg.includes('NotAllowed')
@@ -117,8 +120,6 @@ function ModalEntregar({
     if (!videoRef.current || !canvasRef.current) return
     const video = videoRef.current
     const canvas = canvasRef.current
-
-    // Tamaño del canvas igual al stream actual
     const w = video.videoWidth || 1280
     const h = video.videoHeight || 720
     canvas.width = w
@@ -126,8 +127,6 @@ function ModalEntregar({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.drawImage(video, 0, 0, w, h)
-
-    // Convertir a blob → File para reusar handleFile
     canvas.toBlob(async (blob) => {
       if (!blob) return
       const file = new File([blob], `entrega-${Date.now()}.jpg`, { type: 'image/jpeg' })
@@ -146,13 +145,9 @@ function ModalEntregar({
       setError('La imagen es demasiado grande (máx 10 MB)')
       return
     }
-
-    // Preview local instantáneo
     const reader = new FileReader()
     reader.onloadend = () => setFotoPreview(reader.result as string)
     reader.readAsDataURL(file)
-
-    // Subir al servidor
     setSubiendo(true)
     try {
       const formData = new FormData()
@@ -165,8 +160,7 @@ function ModalEntregar({
         return
       }
       setFotoUrl(data.url)
-    } catch (err) {
-      console.error('[entregar] subir foto:', err)
+    } catch {
       setError('Error de conexión al subir la foto')
       setFotoPreview(null)
     } finally {
@@ -187,11 +181,7 @@ function ModalEntregar({
       const res = await fetch(`/api/admin/paquetes/${paqueteId}/entregar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          foto_url: fotoUrl ?? null,
-          notas: notas.trim() || null,
-          notificar,
-        }),
+        body: JSON.stringify({ foto_url: fotoUrl ?? null, notas: notas.trim() || null, notificar }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
       if (!res.ok || !data.ok) {
@@ -199,12 +189,8 @@ function ModalEntregar({
         return
       }
       setExito(true)
-      setTimeout(() => {
-        onClose()
-        router.refresh()
-      }, 1200)
-    } catch (err) {
-      console.error('[entregar] confirmar:', err)
+      setTimeout(() => { onClose(); router.refresh() }, 1200)
+    } catch {
       setError('Error de conexión')
     } finally {
       setEnviando(false)
@@ -213,30 +199,35 @@ function ModalEntregar({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={modalOverlay}
       onClick={() => !enviando && !exito && onClose()}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+        className="max-w-md w-full max-h-[90vh] overflow-y-auto"
+        style={modalCard}
         onClick={e => e.stopPropagation()}
       >
-        <div className="p-5 border-b border-gray-100 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
+        {/* Header */}
+        <div className="p-5 flex items-center gap-3" style={{ borderBottom: `1px solid ${tw}0.08)` }}>
+          <div className="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(52,211,153,0.12)' }}>
+            <CheckCircle2 className="h-5 w-5" style={{ color: '#34d399' }} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900">Marcar como entregado</h3>
-            <p className="text-xs text-gray-500 font-mono truncate">{tracking}</p>
+            <h3 className="font-bold text-white">Marcar como entregado</h3>
+            <p className="text-xs font-mono truncate" style={{ color: `${tw}0.45)` }}>{tracking}</p>
           </div>
         </div>
 
         {exito ? (
-          <div className="p-8 text-center space-y-3">
-            <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="h-7 w-7 text-green-600" />
+          <div className="p-10 text-center space-y-3">
+            <div className="h-14 w-14 rounded-full flex items-center justify-center mx-auto"
+              style={{ background: 'rgba(52,211,153,0.15)' }}>
+              <CheckCircle2 className="h-7 w-7" style={{ color: '#34d399' }} />
             </div>
-            <p className="font-bold text-gray-900">¡Paquete entregado!</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-bold text-white">¡Paquete entregado!</p>
+            <p className="text-sm" style={{ color: `${tw}0.55)` }}>
               {notificar && clienteEmail
                 ? 'Se envió el reporte al cliente con foto incluida.'
                 : 'Estado actualizado correctamente.'}
@@ -244,15 +235,15 @@ function ModalEntregar({
           </div>
         ) : (
           <div className="p-5 space-y-4">
-            <p className="text-sm text-gray-700">
-              Confirmas la entrega de <strong className="text-gray-900">{descripcion}</strong>.
+            <p className="text-sm" style={{ color: `${tw}0.65)` }}>
+              Confirmas la entrega de <strong className="text-white">{descripcion}</strong>.
               Al guardar, el cliente recibirá email con la foto y se cerrará el flujo del paquete.
             </p>
 
             {/* Foto de entrega */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1.5">
-                Foto de la entrega <span className="text-gray-400 font-normal">(opcional pero recomendado)</span>
+              <label className="text-xs font-medium block mb-1.5" style={{ color: `${tw}0.6)` }}>
+                Foto de la entrega <span style={{ color: `${tw}0.35)`, fontWeight: 400 }}>(opcional pero recomendado)</span>
               </label>
 
               {fotoPreview ? (
@@ -260,10 +251,11 @@ function ModalEntregar({
                   <img
                     src={fotoPreview}
                     alt="Preview entrega"
-                    className="w-full max-h-72 object-contain bg-gray-50 rounded-lg border border-gray-200"
+                    className="w-full max-h-72 object-contain rounded-xl"
+                    style={{ background: `${tw}0.04)`, border: `1px solid ${tw}0.1)` }}
                   />
                   {subiendo && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg">
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-xl">
                       <Loader2 className="h-6 w-6 text-white animate-spin" />
                     </div>
                   )}
@@ -272,7 +264,8 @@ function ModalEntregar({
                     onClick={quitarFoto}
                     disabled={subiendo}
                     aria-label="Quitar foto"
-                    className="absolute top-2 right-2 bg-white/90 hover:bg-white text-gray-900 p-1.5 rounded-full shadow disabled:opacity-50"
+                    className="absolute top-2 right-2 p-1.5 rounded-full disabled:opacity-50"
+                    style={{ background: 'rgba(0,0,0,0.6)', color: 'white' }}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -282,30 +275,51 @@ function ModalEntregar({
                   <button
                     type="button"
                     onClick={abrirCamara}
-                    className="border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50 rounded-lg p-4 flex flex-col items-center gap-1 text-xs text-gray-600 transition-colors"
+                    className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center gap-1.5 text-xs transition-colors"
+                    style={{ borderColor: `${tw}0.12)`, color: `${tw}0.5)` }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'rgba(52,211,153,0.4)'
+                      e.currentTarget.style.background = 'rgba(52,211,153,0.06)'
+                      e.currentTarget.style.color = '#34d399'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = `${tw}0.12)`
+                      e.currentTarget.style.background = 'transparent'
+                      e.currentTarget.style.color = `${tw}0.5)`
+                    }}
                   >
-                    <Camera className="h-5 w-5 text-orange-600" />
+                    <Camera className="h-5 w-5" />
                     Tomar foto
                   </button>
                   <button
                     type="button"
                     onClick={() => galeriaInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-300 hover:border-orange-400 hover:bg-orange-50 rounded-lg p-4 flex flex-col items-center gap-1 text-xs text-gray-600 transition-colors"
+                    className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center gap-1.5 text-xs transition-colors"
+                    style={{ borderColor: `${tw}0.12)`, color: `${tw}0.5)` }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'rgba(52,211,153,0.4)'
+                      e.currentTarget.style.background = 'rgba(52,211,153,0.06)'
+                      e.currentTarget.style.color = '#34d399'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = `${tw}0.12)`
+                      e.currentTarget.style.background = 'transparent'
+                      e.currentTarget.style.color = `${tw}0.5)`
+                    }}
                   >
-                    <Upload className="h-5 w-5 text-orange-600" />
+                    <Upload className="h-5 w-5" />
                     Subir desde galería
                   </button>
                 </div>
               )}
 
               {errorCamara && (
-                <p className="text-xs text-red-600 mt-2 flex items-start gap-1">
+                <p className="text-xs mt-2 flex items-start gap-1" style={{ color: '#f87171' }}>
                   <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
                   {errorCamara}
                 </p>
               )}
 
-              {/* Input para GALERÍA: sin capture, abre selector de archivos */}
               <input
                 ref={galeriaInputRef}
                 type="file"
@@ -313,76 +327,86 @@ function ModalEntregar({
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
                 className="hidden"
               />
-              {/* Canvas oculto para capturar el frame de video */}
               <canvas ref={canvasRef} className="hidden" />
             </div>
 
             {/* Notas */}
             <div>
-              <label className="text-xs font-medium text-gray-700 block mb-1">
-                Notas internas <span className="text-gray-400 font-normal">(opcional)</span>
+              <label className="text-xs font-medium block mb-1" style={{ color: `${tw}0.6)` }}>
+                Notas internas <span style={{ color: `${tw}0.35)`, fontWeight: 400 }}>(opcional)</span>
               </label>
               <textarea
                 value={notas}
                 onChange={e => setNotas(e.target.value)}
                 placeholder="Ej: Recibido por María, mamá del cliente"
                 rows={2}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                className="glass-input w-full px-3 py-2 text-sm rounded-xl focus:outline-none"
+                style={{ resize: 'none' }}
               />
             </div>
 
             {/* Notificar cliente */}
-            <label className="flex items-start gap-2 cursor-pointer bg-gray-50 px-3 py-2.5 rounded-lg border border-gray-200">
+            <label
+              className="flex items-start gap-3 cursor-pointer rounded-xl px-3 py-2.5"
+              style={{ background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}
+            >
               <input
                 type="checkbox"
                 checked={notificar}
                 onChange={e => setNotificar(e.target.checked)}
-                className="h-4 w-4 mt-0.5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                className="h-4 w-4 mt-0.5 rounded"
+                style={{ accentColor: '#34d399' }}
               />
               <div className="flex-1 text-sm">
-                <p className="font-medium text-gray-900 flex items-center gap-1">
-                  <MailCheck className="h-3.5 w-3.5 text-green-600" />
+                <p className="font-medium text-white flex items-center gap-1.5">
+                  <MailCheck className="h-3.5 w-3.5" style={{ color: '#34d399' }} />
                   Enviar reporte al cliente
                 </p>
-                <p className="text-[11px] text-gray-500 mt-0.5">
+                <p className="text-[11px] mt-0.5" style={{ color: `${tw}0.4)` }}>
                   {clienteEmail
-                    ? <>Se enviará email a <span className="font-mono text-gray-700">{clienteEmail}</span> con la foto y los datos del paquete entregado.</>
+                    ? <>Se enviará email a <span className="font-mono" style={{ color: `${tw}0.65)` }}>{clienteEmail}</span> con la foto y los datos del paquete entregado.</>
                     : 'Cliente sin email registrado — solo se notificará por WhatsApp si tiene número.'}
                 </p>
               </div>
             </label>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-md px-3 py-2 text-sm text-red-700 flex items-start gap-2">
+              <div className="text-sm p-3 rounded-xl flex items-start gap-2"
+                style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
 
             <div className="flex gap-2 pt-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                className="flex-1"
                 onClick={onClose}
                 disabled={enviando}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+                style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.65)` }}
+                onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 Cancelar
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
                 onClick={confirmar}
                 disabled={enviando || subiendo}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white gap-2"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
+                style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.22)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.15)')}
               >
                 {enviando
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Entregando...</>
                   : <><CheckCircle2 className="h-4 w-4" /> Confirmar entrega</>}
-              </Button>
+              </button>
             </div>
 
             {!fotoUrl && !fotoPreview && (
-              <p className="text-[11px] text-gray-400 flex items-center gap-1 justify-center">
+              <p className="text-[11px] flex items-center gap-1 justify-center" style={{ color: `${tw}0.3)` }}>
                 <ImageIcon className="h-3 w-3" />
                 Sin foto, solo se enviará el texto al cliente
               </p>
@@ -391,7 +415,7 @@ function ModalEntregar({
         )}
       </div>
 
-      {/* Overlay de cámara — encima del modal */}
+      {/* Overlay de cámara */}
       {camaraAbierta && (
         <div
           className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center"
@@ -405,28 +429,28 @@ function ModalEntregar({
               muted
               autoPlay
             />
-            {/* Botón cerrar */}
             <button
               type="button"
               onClick={cerrarCamara}
-              className="absolute top-4 right-4 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-100"
+              className="absolute top-4 right-4 p-2 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}
               aria-label="Cerrar cámara"
             >
               <X className="h-5 w-5" />
             </button>
-            {/* Indicador */}
-            <p className="absolute top-4 left-4 right-16 text-center text-xs text-white bg-black/60 rounded px-3 py-2">
+            <p className="absolute top-4 left-4 right-16 text-center text-xs text-white rounded px-3 py-2"
+              style={{ background: 'rgba(0,0,0,0.6)' }}>
               Apunta la cámara al paquete y toma la foto
             </p>
-            {/* Botón de captura */}
-            <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-6">
+            <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center">
               <button
                 type="button"
                 onClick={capturarFoto}
                 aria-label="Tomar foto"
-                className="h-16 w-16 rounded-full bg-white border-4 border-orange-500 shadow-2xl active:scale-95 transition-transform flex items-center justify-center"
+                className="h-16 w-16 rounded-full border-4 shadow-2xl active:scale-95 transition-transform flex items-center justify-center"
+                style={{ background: 'white', borderColor: '#34d399' }}
               >
-                <div className="h-12 w-12 rounded-full bg-orange-500" />
+                <div className="h-12 w-12 rounded-full" style={{ background: '#34d399' }} />
               </button>
             </div>
           </div>

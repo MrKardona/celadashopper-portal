@@ -79,15 +79,16 @@ export default async function CajaDetallePage({ params }: Props) {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-start gap-3">
-        <Link href="/admin/cajas" className="text-gray-400 hover:text-gray-700 mt-1">
+        <Link href="/admin/cajas" className="mt-1 transition-colors" style={{ color: 'rgba(255,255,255,0.35)' }}
+          onMouseEnter={undefined} onMouseLeave={undefined}>
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-900 font-mono flex items-center gap-2">
-            <Box className="h-5 w-5 text-orange-600" />
+          <h1 className="text-xl font-bold text-white font-mono flex items-center gap-2">
+            <Box className="h-5 w-5" style={{ color: '#F5B800' }} />
             {caja.codigo_interno}
           </h1>
-          <p className="text-gray-500 text-sm mt-0.5">
+          <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
             Creada {format(new Date(caja.created_at), "d 'de' MMMM, HH:mm", { locale: es })}
             {caja.fecha_cierre && ` · Cerrada ${format(new Date(caja.fecha_cierre), "d MMM HH:mm", { locale: es })}`}
             {caja.fecha_despacho && ` · Despachada ${format(new Date(caja.fecha_despacho), "d MMM HH:mm", { locale: es })}`}

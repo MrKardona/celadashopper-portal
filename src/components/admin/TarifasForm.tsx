@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { CheckCircle, AlertCircle, Edit2, Save, X } from 'lucide-react'
 
+const tw = 'rgba(255,255,255,'
+
 interface Tarifa {
   id: string
   categoria: string
@@ -17,6 +19,8 @@ interface Tarifa {
   costo_envio_fijo: number | null
   zoho_item_id: string | null
 }
+
+const cellInput = 'glass-input px-2 py-1 text-sm rounded-lg w-20 focus:outline-none'
 
 export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
   const [editando, setEditando] = useState<string | null>(null)
@@ -69,7 +73,6 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
       if (res.ok) {
         setResultado({ id: t.id, ok: true, msg: 'Guardado ✅' })
         setEditando(null)
-        // Actualizar valor local visualmente
         t.tarifa_por_libra = parseFloat(v.tarifa_por_libra) || 0
         t.precio_fijo = v.precio_fijo ? parseFloat(v.precio_fijo) : null
         t.tarifa_tipo = v.tarifa_tipo
@@ -86,152 +89,128 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="glass-card overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoría</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarifa/lb</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio fijo</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Seguro</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-red-400 uppercase tracking-wide">Costo/lb</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-red-400 uppercase tracking-wide">Costo fijo</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Descripción</th>
+            <tr style={{ background: `${tw}0.03)`, borderBottom: `1px solid ${tw}0.07)` }}>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Categoría</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Tipo</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Tarifa/lb</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Precio fijo</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: `${tw}0.35)` }}>Seguro</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'rgba(248,113,113,0.7)' }}>Costo/lb</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'rgba(248,113,113,0.7)' }}>Costo fijo</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Descripción</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
-            {tarifas.map(t => {
+          <tbody>
+            {tarifas.map((t, i) => {
               const enEdicion = editando === t.id
               const v = valores[t.id]
               const res = resultado?.id === t.id ? resultado : null
               return (
-                <tr key={t.id} className={`transition-colors ${enEdicion ? 'bg-orange-50' : 'hover:bg-gray-50'}`}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{t.nombre_display}</td>
+                <tr
+                  key={t.id}
+                  style={{
+                    borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined,
+                    background: enEdicion ? 'rgba(245,184,0,0.04)' : 'transparent',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!enEdicion) e.currentTarget.style.background = `${tw}0.03)` }}
+                  onMouseLeave={e => { if (!enEdicion) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <td className="px-4 py-3 font-medium text-white">{t.nombre_display}</td>
                   <td className="px-4 py-3">
                     {enEdicion ? (
                       <select
                         value={v.tarifa_tipo}
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], tarifa_tipo: e.target.value } }))}
-                        className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 w-32"
+                        className="glass-input px-2 py-1 text-xs rounded-lg w-32 focus:outline-none"
                       >
                         <option value="por_libra">Por libra</option>
                         <option value="fijo_por_unidad">Fijo/unidad</option>
                         <option value="especial">Especial</option>
                       </select>
                     ) : (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={
                         t.tarifa_tipo === 'fijo_por_unidad'
-                          ? 'bg-blue-100 text-blue-700'
+                          ? { background: 'rgba(99,130,255,0.12)', color: '#8899ff', border: '1px solid rgba(99,130,255,0.25)' }
                           : t.tarifa_tipo === 'especial'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-600'
-                      }`}>
+                            ? { background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }
+                            : { background: `${tw}0.06)`, color: `${tw}0.5)`, border: `1px solid ${tw}0.1)` }
+                      }>
                         {t.tarifa_tipo === 'fijo_por_unidad' ? 'Fijo' : t.tarifa_tipo === 'por_libra' ? 'Por lb' : 'Especial'}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {enEdicion ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={v.tarifa_por_libra}
+                      <input type="number" step="0.01" min="0" value={v.tarifa_por_libra}
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], tarifa_por_libra: e.target.value } }))}
-                        className="border border-gray-200 rounded px-2 py-1 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                      />
+                        className={cellInput} />
                     ) : (
-                      <span className="font-mono font-semibold text-gray-700">${t.tarifa_por_libra}</span>
+                      <span className="font-mono font-semibold" style={{ color: '#F5B800' }}>${t.tarifa_por_libra}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {enEdicion ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={v.precio_fijo}
-                        placeholder="—"
+                      <input type="number" step="0.01" min="0" value={v.precio_fijo} placeholder="—"
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], precio_fijo: e.target.value } }))}
-                        className="border border-gray-200 rounded px-2 py-1 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                      />
+                        className={cellInput} />
                     ) : (
-                      <span className="font-mono text-gray-700">
+                      <span className="font-mono" style={{ color: `${tw}0.6)` }}>
                         {t.precio_fijo != null ? `$${t.precio_fijo}` : '—'}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {enEdicion ? (
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="100"
-                        value={v.seguro_porcentaje}
+                      <input type="number" step="0.5" min="0" max="100" value={v.seguro_porcentaje}
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], seguro_porcentaje: e.target.value } }))}
-                        className="border border-gray-200 rounded px-2 py-1 text-sm w-16 focus:outline-none focus:ring-1 focus:ring-orange-500"
-                      />
+                        className="glass-input px-2 py-1 text-sm rounded-lg w-16 focus:outline-none" />
                     ) : (
-                      <span className={`text-sm font-medium ${t.seguro_porcentaje > 0 ? 'text-blue-700' : 'text-gray-300'}`}>
+                      <span className="text-sm font-medium" style={{ color: t.seguro_porcentaje > 0 ? '#8899ff' : `${tw}0.2)` }}>
                         {t.seguro_porcentaje > 0 ? `${t.seguro_porcentaje}%` : '—'}
                       </span>
                     )}
                   </td>
-                  {/* Costo/lb nuestro */}
                   <td className="px-4 py-3">
                     {enEdicion ? (
-                      <input
-                        type="number" step="0.01" min="0"
-                        value={v.costo_envio_libra}
-                        placeholder="—"
+                      <input type="number" step="0.01" min="0" value={v.costo_envio_libra} placeholder="—"
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], costo_envio_libra: e.target.value } }))}
-                        className="border border-red-200 rounded px-2 py-1 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-red-400"
-                      />
+                        className="glass-input px-2 py-1 text-sm rounded-lg w-20 focus:outline-none" style={{ borderColor: 'rgba(248,113,113,0.3)' }} />
                     ) : (
-                      <span className={`font-mono text-sm font-semibold ${t.costo_envio_libra ? 'text-red-600' : 'text-gray-300'}`}>
+                      <span className="font-mono text-sm font-semibold" style={{ color: t.costo_envio_libra ? '#f87171' : `${tw}0.2)` }}>
                         {t.costo_envio_libra != null ? `$${t.costo_envio_libra}` : '—'}
                       </span>
                     )}
                   </td>
-                  {/* Costo fijo nuestro */}
                   <td className="px-4 py-3">
                     {enEdicion ? (
-                      <input
-                        type="number" step="0.01" min="0"
-                        value={v.costo_envio_fijo}
-                        placeholder="—"
+                      <input type="number" step="0.01" min="0" value={v.costo_envio_fijo} placeholder="—"
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], costo_envio_fijo: e.target.value } }))}
-                        className="border border-red-200 rounded px-2 py-1 text-sm w-20 focus:outline-none focus:ring-1 focus:ring-red-400"
-                      />
+                        className="glass-input px-2 py-1 text-sm rounded-lg w-20 focus:outline-none" style={{ borderColor: 'rgba(248,113,113,0.3)' }} />
                     ) : (
-                      <span className={`font-mono text-sm font-semibold ${t.costo_envio_fijo ? 'text-red-600' : 'text-gray-300'}`}>
+                      <span className="font-mono text-sm font-semibold" style={{ color: t.costo_envio_fijo ? '#f87171' : `${tw}0.2)` }}>
                         {t.costo_envio_fijo != null ? `$${t.costo_envio_fijo}` : '—'}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell max-w-[220px]">
                     {enEdicion ? (
-                      <input
-                        type="text"
-                        value={v.descripcion}
+                      <input type="text" value={v.descripcion}
                         onChange={e => setValores(prev => ({ ...prev, [t.id]: { ...prev[t.id], descripcion: e.target.value } }))}
-                        className="border border-gray-200 rounded px-2 py-1 text-xs w-full focus:outline-none focus:ring-1 focus:ring-orange-500"
-                      />
+                        className="glass-input px-2 py-1 text-xs rounded-lg w-full focus:outline-none" />
                     ) : (
-                      <span className="text-xs text-gray-500 truncate block">{t.descripcion ?? '—'}</span>
+                      <span className="text-xs truncate block" style={{ color: `${tw}0.4)` }}>{t.descripcion ?? '—'}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {res && (
-                      <span className={`text-xs mr-2 ${res.ok ? 'text-green-600' : 'text-red-600'}`}>
-                        {res.ok
-                          ? <CheckCircle className="h-3.5 w-3.5 inline" />
-                          : <AlertCircle className="h-3.5 w-3.5 inline" />
-                        }
+                      <span className="text-xs mr-2" style={{ color: res.ok ? '#34d399' : '#f87171' }}>
+                        {res.ok ? <CheckCircle className="h-3.5 w-3.5 inline" /> : <AlertCircle className="h-3.5 w-3.5 inline" />}
                       </span>
                     )}
                     {enEdicion ? (
@@ -239,14 +218,18 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
                         <button
                           onClick={() => guardar(t)}
                           disabled={guardando === t.id}
-                          className="flex items-center gap-1 px-2 py-1 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50 transition-colors"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors"
+                          style={{ background: 'rgba(245,184,0,0.15)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}
                         >
                           <Save className="h-3 w-3" />
                           {guardando === t.id ? '...' : 'Guardar'}
                         </button>
                         <button
                           onClick={() => setEditando(null)}
-                          className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
+                          className="p-1 rounded transition-colors"
+                          style={{ color: `${tw}0.35)` }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+                          onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.35)`)}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -254,7 +237,10 @@ export default function TarifasForm({ tarifas }: { tarifas: Tarifa[] }) {
                     ) : (
                       <button
                         onClick={() => iniciarEdicion(t)}
-                        className="p-1.5 text-gray-400 hover:text-orange-600 rounded hover:bg-orange-50 transition-colors"
+                        className="p-1.5 rounded-lg transition-colors"
+                        style={{ color: `${tw}0.3)` }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#F5B800'; e.currentTarget.style.background = 'rgba(245,184,0,0.08)' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = `${tw}0.3)`; e.currentTarget.style.background = 'transparent' }}
                         title="Editar tarifa"
                       >
                         <Edit2 className="h-3.5 w-3.5" />

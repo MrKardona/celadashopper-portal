@@ -18,7 +18,7 @@ export default function SincronizarZohoItemsButton() {
         error?: string
       }
       if (data.ok) {
-        const creados  = data.resultados?.filter(r => r.accion === 'creado').length ?? 0
+        const creados = data.resultados?.filter(r => r.accion === 'creado').length ?? 0
         const actualizados = data.resultados?.filter(r => r.accion === 'actualizado').length ?? 0
         setResultado({ ok: true, msg: `✅ ${creados} creados, ${actualizados} actualizados en Zoho` })
       } else {
@@ -36,17 +36,20 @@ export default function SincronizarZohoItemsButton() {
       <button
         onClick={sincronizar}
         disabled={cargando}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        style={{ background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.2)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.12)')}
       >
         <RefreshCw className={`h-4 w-4 ${cargando ? 'animate-spin' : ''}`} />
         {cargando ? 'Sincronizando...' : 'Sincronizar artículos en Zoho'}
       </button>
       {resultado && (
-        <div className={`flex items-center gap-1.5 text-sm font-medium ${resultado.ok ? 'text-green-700' : 'text-red-600'}`}>
+        <div className="flex items-center gap-1.5 text-sm font-medium"
+          style={{ color: resultado.ok ? '#34d399' : '#f87171' }}>
           {resultado.ok
             ? <CheckCircle className="h-4 w-4" />
-            : <AlertCircle className="h-4 w-4" />
-          }
+            : <AlertCircle className="h-4 w-4" />}
           {resultado.msg}
         </div>
       )}

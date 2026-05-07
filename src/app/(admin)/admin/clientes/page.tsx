@@ -81,8 +81,8 @@ export default async function AdminClientesPage({ searchParams }: Props) {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        <p className="text-gray-500 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-white">Clientes</h1>
+        <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
           {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}
           {periodo && ` registrados en los últimos ${periodo} días`}
         </p>
@@ -91,53 +91,38 @@ export default async function AdminClientesPage({ searchParams }: Props) {
       {/* Filtros */}
       <form method="get" className="flex flex-wrap items-center gap-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'rgba(255,255,255,0.35)' }} />
           <input
             name="q"
             defaultValue={q}
             placeholder="Buscar nombre, email, casillero..."
-            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-72"
+            className="glass-input pl-9 pr-4 py-2 text-sm rounded-xl w-72"
           />
         </div>
         {ciudades.length > 0 && (
-          <select
-            name="ciudad"
-            defaultValue={ciudad ?? ''}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          >
+          <select name="ciudad" defaultValue={ciudad ?? ''} className="glass-input text-sm px-3 py-2 rounded-xl">
             <option value="">Todas las ciudades</option>
             {ciudades.map(c => (
               <option key={c} value={c!}>{c}</option>
             ))}
           </select>
         )}
-        <select
-          name="periodo"
-          defaultValue={periodo}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
+        <select name="periodo" defaultValue={periodo} className="glass-input text-sm px-3 py-2 rounded-xl">
           <option value="">Todos los registros</option>
           <option value="7">Últimos 7 días</option>
           <option value="30">Últimos 30 días</option>
           <option value="90">Últimos 90 días</option>
         </select>
-        <select
-          name="orden"
-          defaultValue={orden}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
+        <select name="orden" defaultValue={orden} className="glass-input text-sm px-3 py-2 rounded-xl">
           <option value="recientes">Más recientes primero</option>
           <option value="antiguos">Más antiguos primero</option>
           <option value="nombre">Alfabético (A-Z)</option>
         </select>
-        <button
-          type="submit"
-          className="bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
-        >
+        <button type="submit" className="btn-gold px-4 py-2 rounded-xl text-sm font-semibold">
           Filtrar
         </button>
         {(q || ciudad || periodo || orden !== 'recientes') && (
-          <Link href="/admin/clientes" className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <Link href="/admin/clientes" className="px-4 py-2 text-sm rounded-xl font-medium transition-all" style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}>
             Limpiar
           </Link>
         )}

@@ -636,12 +636,9 @@ export default function RecibirForm() {
 
     const isActiveCam = camaraSlot?.slot === slot && camaraSlot?.ctx === context
     const ring = accent === 'amber' ? 'focus:ring-amber-500' : 'focus:ring-orange-500'
-    const dashed = accent === 'amber'
-      ? 'border-amber-200 text-amber-500 hover:border-amber-400 hover:text-amber-600'
-      : 'border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-500'
-    const badge = slot === 1
-      ? 'bg-blue-100 text-blue-700'
-      : 'bg-purple-100 text-purple-700'
+    const accentColor = accent === 'amber' ? '#F5B800' : '#8899ff'
+    const accentBg = accent === 'amber' ? 'rgba(245,184,0,0.12)' : 'rgba(99,130,255,0.12)'
+    const accentBorder = accent === 'amber' ? 'rgba(245,184,0,0.3)' : 'rgba(99,130,255,0.3)'
 
     const meta = FOTO_LABELS[slot]
     const Icon = meta.icon
@@ -650,13 +647,14 @@ export default function RecibirForm() {
       <div className="space-y-1.5">
         {/* Header slot */}
         <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${badge}`}>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: accentBg, color: accentColor, border: `1px solid ${accentBorder}` }}>
             <Icon className="h-3 w-3" />
             Foto {slot}
           </span>
           <div>
-            <p className="text-sm font-medium text-gray-700 leading-tight">{meta.titulo}</p>
-            <p className="text-xs text-gray-400 leading-tight">{meta.subtitulo}</p>
+            <p className="text-sm font-medium leading-tight" style={{ color: 'rgba(255,255,255,0.7)' }}>{meta.titulo}</p>
+            <p className="text-xs leading-tight" style={{ color: 'rgba(255,255,255,0.35)' }}>{meta.subtitulo}</p>
           </div>
         </div>
 
@@ -666,7 +664,7 @@ export default function RecibirForm() {
 
         {/* Vista previa de foto */}
         {!isActiveCam && fotoState.preview && (
-          <div className="relative rounded-lg overflow-hidden border border-gray-200">
+          <div className="relative rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={fotoState.preview} alt={`Vista previa foto ${slot}`} className="w-full max-h-48 object-cover" />
             {fotoState.subiendo && (
@@ -695,7 +693,10 @@ export default function RecibirForm() {
             <button
               type="button"
               onClick={() => iniciarCamaraFoto(slot, context)}
-              className={`border-2 border-dashed ${dashed} rounded-lg py-3 text-xs transition-colors flex flex-col items-center justify-center gap-1`}
+              className="border-2 border-dashed rounded-xl py-3 text-xs transition-colors flex flex-col items-center justify-center gap-1"
+              style={{ borderColor: accentBorder, color: accentColor }}
+              onMouseEnter={e => (e.currentTarget.style.background = accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
             >
               <Video className="h-4 w-4" />
               <span>Cámara</span>
@@ -703,7 +704,10 @@ export default function RecibirForm() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed ${dashed} rounded-lg py-3 text-xs transition-colors flex flex-col items-center justify-center gap-1`}
+              className="border-2 border-dashed rounded-xl py-3 text-xs transition-colors flex flex-col items-center justify-center gap-1"
+              style={{ borderColor: accentBorder, color: accentColor }}
+              onMouseEnter={e => (e.currentTarget.style.background = accentBg)}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
             >
               <ImageIcon className="h-4 w-4" />
               <span>Galería</span>
@@ -730,8 +734,8 @@ export default function RecibirForm() {
     const Icon = meta.icon
 
     return (
-      <div className="rounded-xl overflow-hidden border-2 border-orange-400 bg-black space-y-0">
-        <div className="px-3 py-2 bg-orange-600 flex items-center gap-2">
+      <div className="rounded-xl overflow-hidden bg-black space-y-0" style={{ border: '2px solid #F5B800' }}>
+        <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(245,184,0,0.15)' }}>
           <Icon className="h-4 w-4 text-white" />
           <span className="text-white text-sm font-medium">{meta.titulo} — {meta.subtitulo}</span>
         </div>
@@ -742,9 +746,9 @@ export default function RecibirForm() {
             <button
               type="button"
               onClick={capturarFoto}
-              className="bg-white text-gray-900 font-bold px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2 hover:bg-orange-50 transition-colors"
+              className="btn-gold font-bold px-5 py-2.5 rounded-full shadow-lg flex items-center gap-2"
             >
-              <Camera className="h-5 w-5 text-orange-600" />
+              <Camera className="h-5 w-5" />
               Capturar
             </button>
             <button
@@ -768,21 +772,22 @@ export default function RecibirForm() {
 
       {/* Notificación de éxito */}
       {ultimoRecibido && (
-        <div className={`flex items-start gap-3 rounded-xl p-4 border animate-in fade-in slide-in-from-top-2 duration-300 ${
-          ultimoRecibido.sinAsignar ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'
-        }`}>
-          <CheckCircle2 className={`h-5 w-5 mt-0.5 flex-shrink-0 ${ultimoRecibido.sinAsignar ? 'text-amber-600' : 'text-green-600'}`} />
+        <div className="flex items-start gap-3 rounded-xl p-4 border animate-in fade-in slide-in-from-top-2 duration-300"
+          style={ultimoRecibido.sinAsignar
+            ? { background: 'rgba(245,184,0,0.08)', borderColor: 'rgba(245,184,0,0.25)' }
+            : { background: 'rgba(52,211,153,0.08)', borderColor: 'rgba(52,211,153,0.25)' }}>
+          <CheckCircle2 className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: ultimoRecibido.sinAsignar ? '#F5B800' : '#34d399' }} />
           <div className="flex-1 min-w-0">
-            <p className={`font-semibold ${ultimoRecibido.sinAsignar ? 'text-amber-800' : 'text-green-800'}`}>
+            <p className="font-semibold" style={{ color: ultimoRecibido.sinAsignar ? '#F5B800' : '#34d399' }}>
               {ultimoRecibido.sinAsignar ? 'Paquete registrado sin asignar' : '¡Paquete recibido correctamente!'}
             </p>
-            <p className={`text-sm mt-0.5 ${ultimoRecibido.sinAsignar ? 'text-amber-700' : 'text-green-700'}`}>
+            <p className="text-sm mt-0.5" style={{ color: ultimoRecibido.sinAsignar ? 'rgba(245,184,0,0.7)' : 'rgba(52,211,153,0.7)' }}>
               <span className="font-mono font-bold">{ultimoRecibido.tracking}</span>
               {' · '}{ultimoRecibido.cliente}
               {' · '}{ultimoRecibido.peso} lb
             </p>
           </div>
-          <button onClick={() => setUltimoRecibido(null)} className="text-gray-400 hover:text-gray-600">
+          <button onClick={() => setUltimoRecibido(null)} style={{ color: 'rgba(255,255,255,0.4)' }}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -790,12 +795,13 @@ export default function RecibirForm() {
 
       {/* Atajo: Recibir por foto (OCR) */}
       {!paquete && !modoManual && clientesSugeridos.length === 0 && (
-        <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-200 rounded-xl p-4 flex items-center justify-between gap-3">
+        <div className="rounded-xl p-4 flex items-center justify-between gap-3"
+          style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
           <div className="flex items-center gap-2.5 min-w-0">
-            <Sparkles className="h-5 w-5 text-violet-600 flex-shrink-0" />
+            <Sparkles className="h-5 w-5 flex-shrink-0" style={{ color: '#c084fc' }} />
             <div className="min-w-0">
-              <p className="font-semibold text-violet-900 text-sm">¿No tienes el tracking a la mano?</p>
-              <p className="text-xs text-violet-700 truncate">
+              <p className="font-semibold text-sm" style={{ color: '#c084fc' }}>¿No tienes el tracking a la mano?</p>
+              <p className="text-xs truncate" style={{ color: 'rgba(192,132,252,0.7)' }}>
                 Toma o adjunta 2 fotos del paquete y la IA extrae tracking, casillero y descripción.
               </p>
             </div>
@@ -803,7 +809,10 @@ export default function RecibirForm() {
           <button
             type="button"
             onClick={() => setModoManual(true)}
-            className="flex-shrink-0 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition-colors"
+            className="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors"
+            style={{ background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.25)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.15)')}
           >
             <Camera className="h-4 w-4" />
             Recibir por foto
@@ -812,9 +821,9 @@ export default function RecibirForm() {
       )}
 
       {/* Scanner de tracking */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <div className="flex items-center gap-2 text-gray-700 font-semibold">
-          <ScanBarcode className="h-5 w-5 text-orange-600" />
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center gap-2 font-semibold text-white">
+          <ScanBarcode className="h-5 w-5" style={{ color: '#F5B800' }} />
           Escanear o escribir tracking
         </div>
 
@@ -837,7 +846,7 @@ export default function RecibirForm() {
             }}
             onKeyDown={handleTrackingKeyDown}
             placeholder="Escanear código de barras o escribir tracking..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-base font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="glass-input flex-1 px-4 py-3 text-base font-mono"
             autoComplete="off"
             spellCheck={false}
           />
@@ -845,11 +854,10 @@ export default function RecibirForm() {
             type="button"
             onClick={camaraScanner ? detenerScanner : iniciarScanner}
             title={camaraScanner ? 'Cerrar cámara' : 'Escanear con cámara'}
-            className={`px-4 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium border ${
-              camaraScanner
-                ? 'bg-red-50 border-red-300 text-red-600 hover:bg-red-100'
-                : 'bg-gray-50 border-gray-300 text-gray-600 hover:bg-orange-50 hover:border-orange-400 hover:text-orange-600'
-            }`}
+            className="px-4 py-3 rounded-xl transition-colors flex items-center gap-2 font-medium"
+            style={camaraScanner
+              ? { background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }
+              : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.12)' }}
           >
             {camaraScanner ? <VideoOff className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
           </button>
@@ -857,7 +865,7 @@ export default function RecibirForm() {
             type="button"
             onClick={() => buscarPaquete(tracking)}
             disabled={!tracking.trim() || buscando}
-            className="px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors flex items-center gap-2 font-medium"
+            className="btn-gold px-4 py-3 rounded-xl disabled:opacity-40 flex items-center gap-2 font-semibold"
           >
             {buscando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Buscar
@@ -888,29 +896,30 @@ export default function RecibirForm() {
         )}
 
         {errorCamara && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 flex items-center gap-2">
+          <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-sm"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
             <AlertCircle className="h-4 w-4 flex-shrink-0" /> {errorCamara}
-          </p>
+          </div>
         )}
 
-        {/* Sugerencias de cliente: cuando lo ingresado coincide con un cliente, no con paquete */}
+        {/* Sugerencias de cliente */}
         {clientesSugeridos.length > 0 && !modoManual && (
           <div className="space-y-3">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <div className="rounded-xl p-4 space-y-3"
+              style={{ background: 'rgba(99,130,255,0.08)', border: '1px solid rgba(99,130,255,0.2)' }}>
               <div className="flex items-start gap-2">
-                <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle2 className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: '#8899ff' }} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-blue-900">
+                  <p className="text-sm font-semibold" style={{ color: '#8899ff' }}>
                     {clientesSugeridos.length === 1
                       ? 'Este usuario ya está registrado en el sistema'
                       : `${clientesSugeridos.length} usuarios coinciden con la búsqueda`}
                   </p>
-                  <p className="text-xs text-blue-700 mt-1">
+                  <p className="text-xs mt-1" style={{ color: 'rgba(136,153,255,0.7)' }}>
                     No hay un paquete con ese tracking, pero el dato coincide con un cliente. Puedes recibir el paquete asignándolo directamente.
                   </p>
                 </div>
               </div>
-
               <div className="space-y-2">
                 {clientesSugeridos.map(c => (
                   <button
@@ -922,57 +931,65 @@ export default function RecibirForm() {
                       setErrorBusqueda('')
                       setModoManual(true)
                     }}
-                    className="w-full text-left bg-white border border-blue-200 hover:border-blue-400 hover:shadow-sm rounded-lg p-3 transition-all"
+                    className="w-full text-left rounded-xl p-3 transition-all"
+                    style={{ background: 'rgba(99,130,255,0.06)', border: '1px solid rgba(99,130,255,0.15)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.14)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.06)')}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-blue-700 font-bold text-sm">
+                      <div className="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(99,130,255,0.15)' }}>
+                        <span className="font-bold text-sm" style={{ color: '#8899ff' }}>
                           {c.nombre_completo?.[0]?.toUpperCase() ?? '?'}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{c.nombre_completo}</p>
-                        <p className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-orange-600">{c.numero_casilla ?? 'sin casillero'}</span>
-                          <span className="text-gray-300">·</span>
+                        <p className="text-sm font-semibold text-white truncate">{c.nombre_completo}</p>
+                        <p className="text-[11px] flex items-center gap-2 flex-wrap" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                          <span className="font-mono" style={{ color: '#F5B800' }}>{c.numero_casilla ?? 'sin casillero'}</span>
+                          <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
                           <span className="truncate">{c.email}</span>
                           {(c.whatsapp || c.telefono) && (
                             <>
-                              <span className="text-gray-300">·</span>
+                              <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
                               <span>{c.whatsapp ?? c.telefono}</span>
                             </>
                           )}
                         </p>
                       </div>
-                      <ClipboardList className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                      <ClipboardList className="h-4 w-4 flex-shrink-0" style={{ color: '#8899ff' }} />
                     </div>
                   </button>
                 ))}
               </div>
-
-              <p className="text-[11px] text-blue-600">
+              <p className="text-[11px]" style={{ color: 'rgba(136,153,255,0.6)' }}>
                 💡 Click en un cliente para iniciar la recepción manual con ese cliente preseleccionado.
               </p>
             </div>
           </div>
         )}
 
-        {/* Error: no encontrado (sin sugerencias de cliente) */}
+        {/* Error: no encontrado */}
         {errorBusqueda && !modoManual && clientesSugeridos.length === 0 && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-red-600 bg-red-50 rounded-lg px-4 py-3 text-sm">
+            <div className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               {errorBusqueda}
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-              <p className="text-sm font-medium text-amber-800">¿El paquete llegó sin casillero registrado?</p>
-              <p className="text-xs text-amber-700">
+            <div className="rounded-xl p-4 space-y-2"
+              style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.2)' }}>
+              <p className="text-sm font-medium" style={{ color: '#F5B800' }}>¿El paquete llegó sin casillero registrado?</p>
+              <p className="text-xs" style={{ color: 'rgba(245,184,0,0.7)' }}>
                 Puedes registrarlo sin asignar. Cuando el cliente lo reporte, el sistema lo asociará y le notificará por WhatsApp.
               </p>
               <button
                 type="button"
                 onClick={() => setModoManual(true)}
-                className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl"
+                style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.2)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.12)')}
               >
                 <ClipboardList className="h-4 w-4" />
                 Recibir sin asignar
@@ -983,61 +1000,67 @@ export default function RecibirForm() {
 
         {/* Paquete encontrado */}
         {paquete && (
-          <div className={`rounded-lg border p-4 space-y-3 ${yaRecibido ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+          <div className="rounded-xl p-4 space-y-3"
+            style={yaRecibido
+              ? { background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.2)' }
+              : { background: 'rgba(99,130,255,0.07)', border: '1px solid rgba(99,130,255,0.2)' }}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Package className={`h-5 w-5 flex-shrink-0 ${yaRecibido ? 'text-amber-600' : 'text-blue-600'}`} />
-                <span className="font-mono font-bold text-gray-900">
+                <Package className="h-5 w-5 flex-shrink-0" style={{ color: yaRecibido ? '#F5B800' : '#8899ff' }} />
+                <span className="font-mono font-bold text-white">
                   {paquete.tracking_casilla ?? paquete.tracking_origen ?? tracking}
                 </span>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${yaRecibido ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+              <span className="text-xs px-2 py-1 rounded-full font-semibold"
+                style={yaRecibido
+                  ? { background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }
+                  : { background: 'rgba(99,130,255,0.12)', color: '#8899ff', border: '1px solid rgba(99,130,255,0.25)' }}>
                 {ESTADO_LABELS[paquete.estado]}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <span className="text-gray-500">Cliente</span>
-                <p className="font-semibold text-gray-900">{paquete.perfiles?.nombre_completo ?? '—'}</p>
-                <p className="text-xs text-gray-400">Casilla: {paquete.perfiles?.numero_casilla}</p>
+                <span style={{ color: 'rgba(255,255,255,0.45)' }}>Cliente</span>
+                <p className="font-semibold text-white">{paquete.perfiles?.nombre_completo ?? '—'}</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>Casilla: {paquete.perfiles?.numero_casilla}</p>
               </div>
               <div>
-                <span className="text-gray-500">Destino</span>
-                <p className="font-semibold text-gray-900">{BODEGA_LABELS[paquete.bodega_destino] ?? paquete.bodega_destino}</p>
+                <span style={{ color: 'rgba(255,255,255,0.45)' }}>Destino</span>
+                <p className="font-semibold text-white">{BODEGA_LABELS[paquete.bodega_destino] ?? paquete.bodega_destino}</p>
               </div>
               <div>
-                <span className="text-gray-500">Producto</span>
-                <p className="font-semibold text-gray-900 truncate">{paquete.descripcion}</p>
-                <p className="text-xs text-gray-400">{paquete.tienda} · {CATEGORIA_LABELS[paquete.categoria]}</p>
+                <span style={{ color: 'rgba(255,255,255,0.45)' }}>Producto</span>
+                <p className="font-semibold text-white truncate">{paquete.descripcion}</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{paquete.tienda} · {CATEGORIA_LABELS[paquete.categoria]}</p>
               </div>
               {paquete.valor_declarado && (
                 <div>
-                  <span className="text-gray-500">Valor declarado</span>
-                  <p className="font-semibold text-gray-900">${paquete.valor_declarado.toLocaleString()} USD</p>
+                  <span style={{ color: 'rgba(255,255,255,0.45)' }}>Valor declarado</span>
+                  <p className="font-semibold" style={{ color: '#34d399' }}>${paquete.valor_declarado.toLocaleString()} USD</p>
                 </div>
               )}
             </div>
             {paquete.notas_cliente && (
-              <p className="text-xs text-gray-500 italic bg-white/60 rounded px-3 py-2">
+              <p className="text-xs italic rounded-xl px-3 py-2"
+                style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.5)' }}>
                 Nota del cliente: {paquete.notas_cliente}
               </p>
             )}
             {yaRecibido && (
-              <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 space-y-2">
-                <p className="text-sm font-bold text-red-900 flex items-center gap-2">
+              <div className="rounded-xl p-4 space-y-2"
+                style={{ background: 'rgba(239,68,68,0.1)', border: '2px solid rgba(239,68,68,0.3)' }}>
+                <p className="text-sm font-bold flex items-center gap-2" style={{ color: '#f87171' }}>
                   <AlertCircle className="h-5 w-5" />
                   Este paquete ya fue reportado
                 </p>
-                <p className="text-xs text-red-700 leading-relaxed">
+                <p className="text-xs leading-relaxed" style={{ color: 'rgba(248,113,113,0.8)' }}>
                   Estado actual: <strong>{ESTADO_LABELS[paquete.estado]}</strong>.
-                  No se permite un segundo registro con el mismo tracking. Si crees que es un
-                  error, busca el paquete en el listado de paquetes o contacta a un admin.
+                  No se permite un segundo registro con el mismo tracking.
                 </p>
                 {paquete.id && (
-                  <a
-                    href={`/admin/paquetes/${paquete.id}`}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-red-800 hover:underline"
-                  >
+                  <a href={`/admin/paquetes/${paquete.id}`}
+                    className="inline-flex items-center gap-1 text-xs font-semibold hover:underline"
+                    style={{ color: '#f87171' }}>
                     Ver detalle del paquete →
                   </a>
                 )}
@@ -1049,72 +1072,74 @@ export default function RecibirForm() {
 
       {/* Formulario recepción normal — solo si NO fue ya recibido */}
       {paquete && !yaRecibido && (
-        <form onSubmit={handleConfirmar} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-          <div className="flex items-center gap-2 text-gray-700 font-semibold">
-            <Scale className="h-5 w-5 text-orange-600" />
+        <form onSubmit={handleConfirmar} className="glass-card p-5 space-y-4">
+          <div className="flex items-center gap-2 font-semibold text-white">
+            <Scale className="h-5 w-5" style={{ color: '#F5B800' }} />
             Registrar recepción
           </div>
           <div className="grid grid-cols-2 gap-4">
             {!SIN_PESO_CATEGORIAS.has(paquete.categoria) && (
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Peso en libras <span style={{ color: '#f87171' }}>*</span></label>
                 <div className="relative">
                   <input
                     ref={pesoRef}
                     type="number" step="0.1" min="0.1" max="999"
                     value={peso} onChange={e => setPeso(e.target.value)}
                     placeholder="0.0" required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 pr-10"
+                    className="glass-input w-full px-4 py-2.5 text-lg font-bold pr-10"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">lb</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>lb</span>
                 </div>
               </div>
             )}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">
-                Valor declarado <span className="text-gray-400 font-normal">(USD, opcional — para factura)</span>
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Valor declarado <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(USD, opcional — para factura)</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>$</span>
                 <input
                   type="number" step="0.01" min="0" max="99999"
                   value={valorDeclarado}
                   onChange={e => setValorDeclarado(e.target.value)}
                   placeholder="0.00"
-                  className="w-full pl-7 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="glass-input w-full pl-7 pr-10 py-2.5 text-sm"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">USD</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>USD</span>
               </div>
             </div>
             {PER_UNIT_CATEGORIAS.has(paquete.categoria) && (
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Cantidad en {unidadLabel(paquete.categoria)} <span className="text-red-500">*</span>
+                <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                  Cantidad en {unidadLabel(paquete.categoria)} <span style={{ color: '#f87171' }}>*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setCantidad(c => Math.max(1, c - 1))}
-                    className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center justify-center text-lg font-bold"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
                   >−</button>
                   <input
                     type="number" min="1" max="50"
                     value={cantidad}
                     onChange={e => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-16 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="glass-input w-16 text-center px-2 py-2 text-lg font-bold"
                   />
                   <button
                     type="button"
                     onClick={() => setCantidad(c => Math.min(50, c + 1))}
-                    className="w-9 h-9 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center justify-center text-lg font-bold"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
                   >+</button>
-                  <span className="text-sm text-gray-500">{unidadLabel(paquete.categoria)}</span>
+                  <span className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>{unidadLabel(paquete.categoria)}</span>
                 </div>
               </div>
             )}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">
-                Condición <span className="text-gray-400 font-normal">(opcional)</span>
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Condición <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span>
               </label>
               <div className="flex gap-2">
                 {(['nuevo', 'usado'] as const).map(op => (
@@ -1122,11 +1147,10 @@ export default function RecibirForm() {
                     key={op}
                     type="button"
                     onClick={() => setCondicion(c => c === op ? '' : op)}
-                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      condicion === op
-                        ? 'bg-orange-600 text-white border-orange-600'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-orange-400'
-                    }`}
+                    style={condicion === op
+                      ? { background: '#F5B800', color: '#000', border: '1px solid #F5B800' }
+                      : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}
+                    className="flex-1 py-2 rounded-xl border text-sm font-medium transition-colors"
                   >
                     {op === 'nuevo' ? '✨ Nuevo' : '🔄 Usado'}
                   </button>
@@ -1134,11 +1158,11 @@ export default function RecibirForm() {
               </div>
             </div>
             <div className="space-y-1.5 col-span-2">
-              <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Notas internas <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span></label>
               <input
                 type="text" value={notas} onChange={e => setNotas(e.target.value)}
                 placeholder="Ej: Caja con daño leve, producto bien..."
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="glass-input w-full px-4 py-2.5 text-sm"
               />
             </div>
           </div>
@@ -1146,31 +1170,28 @@ export default function RecibirForm() {
           {/* ── Sección fotos ── */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">
+              <Camera className="h-4 w-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
+              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
                 Fotos del paquete{' '}
-                <span className="text-gray-400 font-normal">— se enviarán al cliente</span>
+                <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>— se enviarán al cliente</span>
               </span>
             </div>
 
-            {/* Cámara activa (para contexto normal) */}
             <CamaraVivo context="normal" />
 
-            {/* Grid de 2 slots — solo si la cámara no está activa */}
             {!camaraSlot && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <SlotFoto slot={1} context="normal" accent="orange" />
                 </div>
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <SlotFoto slot={2} context="normal" accent="orange" />
                 </div>
               </div>
             )}
 
-            {/* Tip */}
             {!foto1.preview && !foto2.preview && !camaraSlot && (
-              <p className="text-xs text-gray-400 text-center">
+              <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
                 📸 Toma la foto del empaque antes de abrir y la del contenido después. Ambas se envían al cliente.
               </p>
             )}
@@ -1180,11 +1201,12 @@ export default function RecibirForm() {
             <button
               type="submit"
               disabled={(SIN_PESO_CATEGORIAS.has(paquete.categoria) ? false : (!peso || parseFloat(peso) <= 0)) || guardando || subiendoCualquiera}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base"
+              className="btn-gold flex-1 py-3 rounded-xl disabled:opacity-40 flex items-center justify-center gap-2 text-base font-semibold"
             >
               {guardando ? <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</> : <><CheckCircle2 className="h-5 w-5" />Confirmar recepción</>}
             </button>
-            <button type="button" onClick={limpiar} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors font-medium">
+            <button type="button" onClick={limpiar} className="px-4 py-3 rounded-xl font-medium"
+              style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}>
               Cancelar
             </button>
           </div>
@@ -1193,21 +1215,22 @@ export default function RecibirForm() {
 
       {/* Formulario recepción manual (sin asignar) */}
       {modoManual && (
-        <form onSubmit={handleGuardarManual} className="bg-white rounded-xl border border-amber-200 p-5 space-y-4">
+        <form onSubmit={handleGuardarManual} className="glass-card p-5 space-y-4"
+          style={{ borderColor: 'rgba(245,184,0,0.2)' }}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-amber-700 font-semibold">
+            <div className="flex items-center gap-2 font-semibold" style={{ color: '#F5B800' }}>
               <ClipboardList className="h-5 w-5" />
               Recibir paquete — datos del paquete
             </div>
-            <button type="button" onClick={limpiar} className="text-gray-400 hover:text-gray-600">
+            <button type="button" onClick={limpiar} style={{ color: 'rgba(255,255,255,0.4)' }}>
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Buscador de cliente: opcional, permite asociar el paquete por casillero/nombre */}
+          {/* Buscador de cliente */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-gray-700">
-              Cliente <span className="text-gray-400 font-normal">(opcional — busca por casillero, nombre, email o teléfono)</span>
+            <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              Cliente <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional — busca por casillero, nombre, email o teléfono)</span>
             </label>
             <BuscadorClienteInline
               valor={clienteManual}
@@ -1217,7 +1240,7 @@ export default function RecibirForm() {
             />
           </div>
 
-          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+          <p className="text-xs rounded-xl px-3 py-2" style={{ background: 'rgba(245,184,0,0.07)', color: 'rgba(245,184,0,0.85)', border: '1px solid rgba(245,184,0,0.15)' }}>
             {clienteManual
               ? <>El paquete se asignará a <strong>{clienteManual.nombre_completo}</strong> y le llegará notificación por email/WhatsApp con la foto del paquete.</>
               : <>Este paquete quedará en espera. Cuando el cliente lo reporte con el tracking <strong>{formManual.tracking_courier || 'del courier'}</strong>, el sistema lo asociará automáticamente.</>
@@ -1226,7 +1249,7 @@ export default function RecibirForm() {
           <div className="grid grid-cols-2 gap-4">
             {!SIN_PESO_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-sm font-medium text-gray-700">Peso en libras <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Peso en libras <span style={{ color: '#f87171' }}>*</span></label>
                 <div className="relative">
                   <input
                     ref={pesoManualRef}
@@ -1234,19 +1257,19 @@ export default function RecibirForm() {
                     value={formManual.peso}
                     onChange={e => setFormManual(p => ({ ...p, peso: e.target.value }))}
                     placeholder="0.0" required
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500 pr-10"
+                    className="glass-input w-full px-4 py-2.5 text-lg font-bold pr-10"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">lb</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>lb</span>
                 </div>
               </div>
             )}
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Categoría <span className="text-red-500">*</span></label>
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Categoría <span style={{ color: '#f87171' }}>*</span></label>
               <select
                 value={formManual.categoria}
                 onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1, condicion: '' }))}
                 required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className="glass-input w-full px-3 py-2.5 text-sm"
               >
                 <option value="">Seleccionar...</option>
                 {CATEGORIAS.map(([val, label]) => (
@@ -1255,8 +1278,8 @@ export default function RecibirForm() {
               </select>
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">
-                Condición <span className="text-gray-400 font-normal">(opcional)</span>
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Condición <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span>
               </label>
               <div className="flex gap-2">
                 {(['nuevo', 'usado'] as const).map(op => (
@@ -1264,11 +1287,10 @@ export default function RecibirForm() {
                     key={op}
                     type="button"
                     onClick={() => setFormManual(p => ({ ...p, condicion: p.condicion === op ? '' : op }))}
-                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      formManual.condicion === op
-                        ? 'bg-amber-600 text-white border-amber-600'
-                        : 'bg-white text-amber-700 border-amber-300 hover:border-amber-500'
-                    }`}
+                    className="flex-1 py-2 rounded-xl border text-sm font-medium transition-colors"
+                    style={formManual.condicion === op
+                      ? { background: '#F5B800', color: '#000', border: '1px solid #F5B800' }
+                      : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.12)' }}
                   >
                     {op === 'nuevo' ? '✨ Nuevo' : '🔄 Usado'}
                   </button>
@@ -1277,106 +1299,88 @@ export default function RecibirForm() {
             </div>
             {PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Cantidad en {unidadLabel(formManual.categoria)} <span className="text-red-500">*</span>
+                <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                  Cantidad en {unidadLabel(formManual.categoria)} <span style={{ color: '#f87171' }}>*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setFormManual(p => ({ ...p, cantidad: Math.max(1, p.cantidad - 1) }))}
-                    className="w-9 h-9 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 flex items-center justify-center text-lg font-bold"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
                   >−</button>
                   <input
                     type="number" min="1" max="50"
                     value={formManual.cantidad}
                     onChange={e => setFormManual(p => ({ ...p, cantidad: Math.max(1, parseInt(e.target.value) || 1) }))}
-                    className="w-16 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="glass-input w-16 text-center px-2 py-2 text-lg font-bold"
                   />
                   <button
                     type="button"
                     onClick={() => setFormManual(p => ({ ...p, cantidad: Math.min(50, p.cantidad + 1) }))}
-                    className="w-9 h-9 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 flex items-center justify-center text-lg font-bold"
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
                   >+</button>
-                  <span className="text-sm text-amber-700">{unidadLabel(formManual.categoria)}</span>
+                  <span className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>{unidadLabel(formManual.categoria)}</span>
                 </div>
               </div>
             )}
             <div className="space-y-1.5 col-span-2">
-              <label className="text-sm font-medium text-gray-700">Descripción física <span className="text-red-500">*</span></label>
-              <input
-                type="text"
-                value={formManual.descripcion}
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Descripción física <span style={{ color: '#f87171' }}>*</span></label>
+              <input type="text" value={formManual.descripcion}
                 onChange={e => setFormManual(p => ({ ...p, descripcion: e.target.value }))}
-                placeholder="Ej: Caja mediana Amazon, posible zapatillas"
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
+                placeholder="Ej: Caja mediana Amazon, posible zapatillas" required
+                className="glass-input w-full px-4 py-2.5 text-sm" />
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Tienda <span className="text-gray-400 font-normal">(si se ve)</span></label>
-              <input
-                type="text"
-                value={formManual.tienda}
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Tienda <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si se ve)</span></label>
+              <input type="text" value={formManual.tienda}
                 onChange={e => setFormManual(p => ({ ...p, tienda: e.target.value }))}
-                placeholder="Amazon, Nike..."
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
+                placeholder="Amazon, Nike..." className="glass-input w-full px-3 py-2.5 text-sm" />
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Tracking courier <span className="text-gray-400 font-normal">(si tiene)</span></label>
-              <input
-                type="text"
-                value={formManual.tracking_courier}
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Tracking courier <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si tiene)</span></label>
+              <input type="text" value={formManual.tracking_courier}
                 onChange={e => setFormManual(p => ({ ...p, tracking_courier: e.target.value }))}
-                placeholder="1Z, 9400..."
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                autoComplete="off"
-              />
+                placeholder="1Z, 9400..." className="glass-input w-full px-3 py-2.5 font-mono text-sm"
+                autoComplete="off" />
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">Bodega destino</label>
-              <select
-                value={formManual.bodega_destino}
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Bodega destino</label>
+              <select value={formManual.bodega_destino}
                 onChange={e => setFormManual(p => ({ ...p, bodega_destino: e.target.value }))}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-              >
+                className="glass-input w-full px-3 py-2.5 text-sm">
                 {BODEGAS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
               </select>
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium text-gray-700">
-                Valor declarado <span className="text-gray-400 font-normal">(USD, opcional — para factura)</span>
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Valor declarado <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(USD, opcional)</span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
-                <input
-                  type="number" step="0.01" min="0" max="99999"
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>$</span>
+                <input type="number" step="0.01" min="0" max="99999"
                   value={formManual.valor_declarado}
                   onChange={e => setFormManual(p => ({ ...p, valor_declarado: e.target.value }))}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">USD</span>
+                  placeholder="0.00" className="glass-input w-full pl-7 pr-10 py-2.5 text-sm" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>USD</span>
               </div>
             </div>
             <div className="space-y-1.5 col-span-2">
-              <label className="text-sm font-medium text-gray-700">Notas internas <span className="text-gray-400 font-normal">(opcional)</span></label>
-              <input
-                type="text"
-                value={formManual.notas}
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Notas internas <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span></label>
+              <input type="text" value={formManual.notas}
                 onChange={e => setFormManual(p => ({ ...p, notas: e.target.value }))}
                 placeholder="Estado del embalaje, observaciones..."
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
+                className="glass-input w-full px-4 py-2.5 text-sm" />
             </div>
           </div>
 
           {/* ── Fotos modo manual ── */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-medium text-amber-700">
-                Fotos del paquete <span className="text-amber-500 font-normal">(muy útil para identificarlo)</span>
+              <Camera className="h-4 w-4" style={{ color: '#F5B800' }} />
+              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Fotos del paquete <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(muy útil para identificarlo)</span>
               </span>
             </div>
 
@@ -1384,81 +1388,65 @@ export default function RecibirForm() {
 
             {!camaraSlot && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
                   <SlotFoto slot={1} context="manual" accent="amber" />
                 </div>
-                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
                   <SlotFoto slot={2} context="manual" accent="amber" />
                 </div>
               </div>
             )}
 
-            {/* ── Botón Analizar con IA (Claude Vision) ── */}
+            {/* ── Botón Analizar con IA ── */}
             {fotoManual1.url && fotoManual2.url && !camaraSlot && (
-              <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-200 rounded-xl p-3 space-y-2">
+              <div className="rounded-xl p-3 space-y-2"
+                style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
                 <button
-                  type="button"
-                  onClick={analizarConIA}
-                  disabled={analizandoOCR}
-                  className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 text-sm transition-colors"
+                  type="button" onClick={analizarConIA} disabled={analizandoOCR}
+                  className="w-full font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                  style={{ background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.25)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.15)')}
                 >
                   {analizandoOCR
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Analizando con IA...</>
                     : <><Sparkles className="h-4 w-4" />Analizar fotos con IA</>}
                 </button>
-                <p className="text-[11px] text-violet-700 text-center">
+                <p className="text-[11px] text-center" style={{ color: 'rgba(192,132,252,0.65)' }}>
                   Extrae tracking, casillero, descripción y categoría automáticamente. Revisa siempre antes de guardar.
                 </p>
-
                 {ocrError && (
-                  <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
+                  <div className="text-xs rounded-xl px-2.5 py-1.5 flex items-start gap-1.5"
+                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                     <span>{ocrError}</span>
                   </div>
                 )}
-
                 {ocrResultado && !ocrError && (
-                  <div className="text-xs bg-white rounded-lg border border-violet-200 px-3 py-2 space-y-1">
-                    <div className="flex items-center gap-2 font-medium text-violet-900">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-violet-600" />
+                  <div className="text-xs rounded-xl px-3 py-2 space-y-1"
+                    style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }}>
+                    <div className="flex items-center gap-2 font-medium" style={{ color: '#c084fc' }}>
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                       Análisis completo — revisa los campos
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 text-gray-600">
-                      <span>Etiqueta: <span className={
-                        ocrResultado.confianza_etiqueta === 'alta' ? 'text-green-700 font-medium' :
-                        ocrResultado.confianza_etiqueta === 'media' ? 'text-amber-700 font-medium' :
-                        'text-red-700 font-medium'
-                      }>{ocrResultado.confianza_etiqueta}</span></span>
-                      <span>Contenido: <span className={
-                        ocrResultado.confianza_contenido === 'alta' ? 'text-green-700 font-medium' :
-                        ocrResultado.confianza_contenido === 'media' ? 'text-amber-700 font-medium' :
-                        'text-red-700 font-medium'
-                      }>{ocrResultado.confianza_contenido}</span></span>
+                    <div className="grid grid-cols-2 gap-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      <span>Etiqueta: <span style={{ color: ocrResultado.confianza_etiqueta === 'alta' ? '#34d399' : ocrResultado.confianza_etiqueta === 'media' ? '#F5B800' : '#f87171', fontWeight: 600 }}>{ocrResultado.confianza_etiqueta}</span></span>
+                      <span>Contenido: <span style={{ color: ocrResultado.confianza_contenido === 'alta' ? '#34d399' : ocrResultado.confianza_contenido === 'media' ? '#F5B800' : '#f87171', fontWeight: 600 }}>{ocrResultado.confianza_contenido}</span></span>
                     </div>
                     {ocrResultado.auto_busqueda === 'encontrado' && (
-                      <p className="text-green-700 font-medium">
-                        ✓ Paquete encontrado por tracking — pasamos al flujo normal
-                      </p>
+                      <p style={{ color: '#34d399', fontWeight: 600 }}>✓ Paquete encontrado por tracking — pasamos al flujo normal</p>
                     )}
                     {ocrResultado.auto_busqueda === 'no_encontrado' && (
-                      <p className="text-amber-700">
-                        ⚠ Tracking no coincide con un paquete reportado — se guarda como nuevo
-                      </p>
+                      <p style={{ color: '#F5B800' }}>⚠ Tracking no coincide con un paquete reportado — se guarda como nuevo</p>
                     )}
                     {ocrResultado.match_tipo && ocrResultado.auto_busqueda !== 'encontrado' && (
-                      <p className="text-green-700 font-medium">
-                        ✓ Cliente identificado por {ocrResultado.match_tipo === 'tracking' ? 'tracking del courier'
-                          : ocrResultado.match_tipo === 'casillero' ? 'número de casilla'
-                          : 'nombre'}
-                      </p>
+                      <p style={{ color: '#34d399', fontWeight: 600 }}>✓ Cliente identificado por {ocrResultado.match_tipo === 'tracking' ? 'tracking del courier' : ocrResultado.match_tipo === 'casillero' ? 'número de casilla' : 'nombre'}</p>
                     )}
                     {ocrResultado.match_tipo === null && ocrResultado.auto_busqueda !== 'encontrado' && (
-                      <p className="text-amber-700">
-                        ⚠ No se identificó cliente — el paquete quedará sin asignar
-                      </p>
+                      <p style={{ color: '#F5B800' }}>⚠ No se identificó cliente — el paquete quedará sin asignar</p>
                     )}
                     {ocrResultado.notas && (
-                      <p className="text-gray-500 italic">Nota IA: {ocrResultado.notas}</p>
+                      <p className="italic" style={{ color: 'rgba(255,255,255,0.45)' }}>Nota IA: {ocrResultado.notas}</p>
                     )}
                   </div>
                 )}
@@ -1470,11 +1458,7 @@ export default function RecibirForm() {
             <button
               type="submit"
               disabled={!formManual.peso || !formManual.descripcion || !formManual.categoria || guardandoManual || subiendoCualquiera}
-              className={`flex-1 disabled:opacity-40 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 text-base ${
-                clienteManual
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-amber-600 hover:bg-amber-700'
-              }`}
+              className="btn-gold flex-1 py-3 rounded-xl disabled:opacity-40 flex items-center justify-center gap-2 text-base font-semibold"
             >
               {guardandoManual ? (
                 <><Loader2 className="h-5 w-5 animate-spin" />Guardando...</>
@@ -1487,7 +1471,8 @@ export default function RecibirForm() {
                 <><CheckCircle2 className="h-5 w-5" />Guardar sin asignar</>
               )}
             </button>
-            <button type="button" onClick={limpiar} className="px-4 py-3 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 font-medium">
+            <button type="button" onClick={limpiar} className="px-4 py-3 rounded-xl font-medium"
+              style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}>
               Cancelar
             </button>
           </div>

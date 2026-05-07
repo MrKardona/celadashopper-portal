@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { MessageCircle, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+
+const tw = 'rgba(255,255,255,'
 
 interface Props {
   telefonoSugerido?: string | null
@@ -24,43 +25,27 @@ export default function PruebaWhatsappButton({ telefonoSugerido }: Props) {
     if (!telefono.trim()) return
     setEnviando(true)
     setResultado(null)
-
     const res = await fetch('/api/admin/whatsapp-prueba', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ telefono: telefono.trim(), via }),
     })
     const data = await res.json() as {
-      ok?: boolean
-      via?: string
-      metodo?: string
-      mensaje?: string
-      error?: string
+      ok?: boolean; via?: string; metodo?: string; mensaje?: string; error?: string
     }
-
     setEnviando(false)
-
     if (!res.ok) {
       setResultado({ tipo: 'error', texto: data.error ?? 'Falló el envío' })
       return
     }
-
     if (data.via === 'kommo' && data.metodo === 'sin_contacto') {
-      setResultado({
-        tipo: 'aviso',
-        texto: data.mensaje ?? 'Sin contacto en Kommo. El cliente debe escribir primero al WhatsApp del negocio.',
-      })
+      setResultado({ tipo: 'aviso', texto: data.mensaje ?? 'Sin contacto en Kommo. El cliente debe escribir primero al WhatsApp del negocio.' })
       return
     }
-
     if (data.via === 'kommo' && data.metodo === 'tarea') {
-      setResultado({
-        tipo: 'aviso',
-        texto: data.mensaje ?? 'Sin chat activo. Se creó una tarea en Kommo.',
-      })
+      setResultado({ tipo: 'aviso', texto: data.mensaje ?? 'Sin chat activo. Se creó una tarea en Kommo.' })
       return
     }
-
     setResultado({
       tipo: 'ok',
       texto: data.via === 'meta'
@@ -71,81 +56,79 @@ export default function PruebaWhatsappButton({ telefonoSugerido }: Props) {
 
   return (
     <div className="space-y-2">
-      <Button
+      <button
         type="button"
-        variant="outline"
-        className="w-full border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 gap-2"
         onClick={() => setAbierto(v => !v)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+        style={{ border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', background: 'rgba(52,211,153,0.08)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.15)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.08)')}
       >
         <MessageCircle className="h-4 w-4" />
         {abierto ? 'Ocultar prueba' : 'Probar WhatsApp'}
-      </Button>
+      </button>
 
       {abierto && (
-        <div className="space-y-3 p-3 bg-green-50/50 border border-green-100 rounded-lg">
+        <div className="space-y-3 p-3 rounded-xl"
+          style={{ background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.15)' }}>
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">Teléfono destino</label>
+            <label className="text-xs font-medium block mb-1" style={{ color: `${tw}0.55)` }}>Teléfono destino</label>
             <input
               type="tel"
               value={telefono}
               onChange={e => setTelefono(e.target.value)}
               placeholder="+573001234567"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="glass-input w-full px-3 py-2 text-sm rounded-xl focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">Método de envío</label>
+            <label className="text-xs font-medium block mb-1" style={{ color: `${tw}0.55)` }}>Método de envío</label>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setVia('kommo')}
-                className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                  via === 'kommo'
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                Vía Kommo
-              </button>
-              <button
-                type="button"
-                onClick={() => setVia('meta')}
-                className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
-                  via === 'meta'
-                    ? 'bg-green-600 text-white border-green-600'
-                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                Vía Meta directo
-              </button>
+              {(['kommo', 'meta'] as const).map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setVia(v)}
+                  className="flex-1 px-3 py-2 text-xs rounded-xl transition-colors"
+                  style={via === v
+                    ? { background: 'rgba(52,211,153,0.2)', color: '#34d399', border: '1px solid rgba(52,211,153,0.4)' }
+                    : { border: `1px solid ${tw}0.1)`, color: `${tw}0.5)` }}
+                  onMouseEnter={e => { if (via !== v) e.currentTarget.style.background = `${tw}0.04)` }}
+                  onMouseLeave={e => { if (via !== v) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {v === 'kommo' ? 'Vía Kommo' : 'Vía Meta directo'}
+                </button>
+              ))}
             </div>
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p className="text-[11px] mt-1" style={{ color: `${tw}0.35)` }}>
               {via === 'kommo'
                 ? 'Usa el chat existente en Kommo. Requiere que el cliente haya escrito antes.'
                 : 'Llama a la API de Meta directamente. Requiere ventana de 24h o plantilla aprobada.'}
             </p>
           </div>
 
-          <Button
+          <button
             type="button"
             onClick={enviar}
             disabled={enviando || !telefono.trim()}
-            className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
+            style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.25)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.15)')}
           >
             {enviando
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>
               : 'Enviar mensaje de prueba'}
-          </Button>
+          </button>
 
           {resultado && (
-            <div
-              className={`flex items-start gap-2 text-xs p-2.5 rounded-md border ${
-                resultado.tipo === 'ok' ? 'bg-green-50 border-green-200 text-green-800'
-                  : resultado.tipo === 'aviso' ? 'bg-amber-50 border-amber-200 text-amber-800'
-                    : 'bg-red-50 border-red-200 text-red-800'
-              }`}
-            >
+            <div className="flex items-start gap-2 text-xs p-2.5 rounded-xl"
+              style={resultado.tipo === 'ok'
+                ? { background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }
+                : resultado.tipo === 'aviso'
+                  ? { background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)', color: '#F5B800' }
+                  : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
               {resultado.tipo === 'ok'
                 ? <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
                 : <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />}

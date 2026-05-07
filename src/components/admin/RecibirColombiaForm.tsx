@@ -5,10 +5,11 @@ import {
   ScanBarcode, Search, Package, CheckCircle2, AlertCircle, Loader2,
   X, MapPin, MessageCircle, Camera,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
+import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import HistorialRecibidasColombia from '@/components/admin/HistorialRecibidasColombia'
+
+const tw = 'rgba(255,255,255,'
 
 interface PaqueteCaja {
   id: string
@@ -37,6 +38,20 @@ const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
 }
 
+const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
+  recibido_usa:      { bg: 'rgba(99,130,255,0.12)', color: '#8899ff',  border: 'rgba(99,130,255,0.3)' },
+  en_camino_colombia:{ bg: 'rgba(168,85,247,0.12)', color: '#c084fc',  border: 'rgba(168,85,247,0.3)' },
+  en_bodega_local:   { bg: 'rgba(52,211,153,0.12)', color: '#34d399',  border: 'rgba(52,211,153,0.3)' },
+  en_camino_cliente: { bg: 'rgba(245,184,0,0.12)',  color: '#F5B800',  border: 'rgba(245,184,0,0.3)'  },
+  entregado:         { bg: 'rgba(52,211,153,0.18)', color: '#34d399',  border: 'rgba(52,211,153,0.4)' },
+}
+
+function estadoBadgeStyle(estado: string): React.CSSProperties {
+  const s = ESTADO_DARK[estado]
+  if (s) return { background: s.bg, color: s.color, border: `1px solid ${s.border}` }
+  return { background: `${tw}0.06)`, color: `${tw}0.5)`, border: `1px solid ${tw}0.12)` }
+}
+
 export default function RecibirColombiaForm() {
   const inputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -50,14 +65,12 @@ export default function RecibirColombiaForm() {
   const [notificar, setNotificar] = useState(true)
   const [notas, setNotas] = useState('')
   const [confirmando, setConfirmando] = useState(false)
-  // refreshKey para que el historial se recargue tras cada recepción exitosa
   const [historialKey, setHistorialKey] = useState(0)
   const [resultado, setResultado] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const [scannerAbierto, setScannerAbierto] = useState(false)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  // ─── Buscar caja por tracking USACO ──────────────────────────────────────
   async function buscar(q: string) {
     const term = q.trim()
     if (!term) return
@@ -66,7 +79,6 @@ export default function RecibirColombiaForm() {
     setCaja(null)
     setSeleccionados(new Set())
     setResultado(null)
-
     try {
       const res = await fetch(`/api/admin/recibir-colombia?tracking_usaco=${encodeURIComponent(term)}`)
       const data = await res.json() as { caja?: CajaResponse; error?: string }
@@ -75,7 +87,6 @@ export default function RecibirColombiaForm() {
         return
       }
       setCaja(data.caja)
-      // Pre-seleccionar todos los que aún no están en Colombia
       const elegibles = data.caja.paquetes.filter(p =>
         !['en_bodega_local', 'en_camino_cliente', 'entregado'].includes(p.estado)
       )
@@ -87,12 +98,10 @@ export default function RecibirColombiaForm() {
     }
   }
 
-  // ─── Confirmar recepción ──────────────────────────────────────────────────
   async function confirmar() {
     if (!caja || seleccionados.size === 0) return
     setConfirmando(true)
     setResultado(null)
-
     const res = await fetch('/api/admin/recibir-colombia', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -108,30 +117,23 @@ export default function RecibirColombiaForm() {
       procesados?: number; notificados?: number; fallidos?: number; sin_cliente?: number;
       ya_estaban?: boolean;
     }
-
     setConfirmando(false)
-
     if (!res.ok || !data.ok) {
       setResultado({ tipo: 'error', texto: data.error ?? 'Error al procesar' })
       return
     }
-
     if (data.ya_estaban) {
       setResultado({ tipo: 'ok', texto: 'Estos paquetes ya estaban marcados como recibidos en Colombia.' })
       return
     }
-
     let txt = `✅ ${data.procesados} paquetes recibidos en bodega Colombia.`
     if (notificar && data.notificados) {
       txt += ` ${data.notificados} clientes notificados por WhatsApp.`
       if (data.fallidos) txt += ` ${data.fallidos} notificaciones fallaron.`
     }
     if (data.sin_cliente) txt += ` ${data.sin_cliente} sin cliente asignado.`
-
     setResultado({ tipo: 'ok', texto: txt })
-    setHistorialKey(k => k + 1) // refresca el historial inferior
-
-    // Recargar la caja después de 1.5s
+    setHistorialKey(k => k + 1)
     setTimeout(() => buscar(caja.tracking_usaco), 1500)
   }
 
@@ -153,23 +155,14 @@ export default function RecibirColombiaForm() {
     inputRef.current?.focus()
   }
 
-  // ─── Scanner de cámara ────────────────────────────────────────────────────
-  // Usa cámara trasera (facingMode 'environment') con resolución HD —
-  // mejor enfoque para leer códigos de barra que el modo default.
   async function abrirScanner() {
     setScannerAbierto(true)
-    await new Promise(r => setTimeout(r, 100)) // esperar a que el video monte
+    await new Promise(r => setTimeout(r, 100))
     if (!videoRef.current) return
     try {
       const codeReader = new BrowserMultiFormatReader()
       const controls = await codeReader.decodeFromConstraints(
-        {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        },
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
         videoRef.current,
         (result, _err, ctrl) => {
           if (result) {
@@ -199,28 +192,35 @@ export default function RecibirColombiaForm() {
     <div className="space-y-6 max-w-3xl">
       {/* Resultado de operación */}
       {resultado && (
-        <div className={`flex items-start gap-3 rounded-xl p-4 border ${
-          resultado.tipo === 'ok' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-        }`}>
+        <div className="flex items-start gap-3 rounded-xl p-4"
+          style={resultado.tipo === 'ok'
+            ? { background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }
+            : { background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
           {resultado.tipo === 'ok'
-            ? <CheckCircle2 className="h-5 w-5 mt-0.5 flex-shrink-0 text-green-600" />
-            : <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0 text-red-600" />}
-          <p className={`text-sm flex-1 ${resultado.tipo === 'ok' ? 'text-green-800' : 'text-red-700'}`}>
+            ? <CheckCircle2 className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: '#34d399' }} />
+            : <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: '#f87171' }} />}
+          <p className="text-sm flex-1" style={{ color: resultado.tipo === 'ok' ? '#34d399' : '#f87171' }}>
             {resultado.texto}
           </p>
-          <button onClick={() => setResultado(null)} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={() => setResultado(null)}
+            className="transition-colors"
+            style={{ color: `${tw}0.35)` }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+            onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.35)`)}
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
       {/* Scanner de tracking USACO */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
-        <div className="flex items-center gap-2 text-gray-700 font-semibold">
-          <ScanBarcode className="h-5 w-5 text-orange-600" />
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center gap-2 font-semibold text-white">
+          <ScanBarcode className="h-5 w-5" style={{ color: '#F5B800' }} />
           Escanear tracking USACO de la caja
         </div>
-        <p className="text-xs text-gray-500 -mt-2">
+        <p className="text-xs -mt-2" style={{ color: `${tw}0.4)` }}>
           Cada caja USACO trae varios paquetes de distintos clientes. Escanea o escribe el tracking de la caja para ver lo que contiene.
         </p>
 
@@ -232,30 +232,34 @@ export default function RecibirColombiaForm() {
             onChange={e => { setTracking(e.target.value); setError('') }}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); buscar(tracking) } }}
             placeholder="Tracking USACO de la caja..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-base font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="glass-input flex-1 px-4 py-3 rounded-xl text-base font-mono focus:outline-none"
             autoComplete="off"
           />
           <button
             type="button"
             onClick={abrirScanner}
-            className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-3 py-2 rounded-xl transition-colors"
+            style={{ border: `1px solid ${tw}0.12)`, color: `${tw}0.5)` }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${tw}0.06)`; e.currentTarget.style.color = 'white' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = `${tw}0.5)` }}
             title="Escanear con cámara"
           >
-            <Camera className="h-5 w-5 text-gray-600" />
+            <Camera className="h-5 w-5" />
           </button>
-          <Button
+          <button
             onClick={() => buscar(tracking)}
             disabled={!tracking.trim() || buscando}
-            className="bg-orange-600 hover:bg-orange-700 text-white gap-2"
+            className="btn-gold flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
           >
             {buscando
               ? <><Loader2 className="h-4 w-4 animate-spin" /> Buscando...</>
               : <><Search className="h-4 w-4" /> Buscar</>}
-          </Button>
+          </button>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 text-sm">
+          <div className="flex items-center gap-2 text-sm rounded-xl px-3 py-2"
+            style={{ background: 'rgba(239,68,68,0.08)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             {error}
           </div>
@@ -265,27 +269,30 @@ export default function RecibirColombiaForm() {
       {/* Scanner overlay */}
       {scannerAbierto && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.92)' }}
           onClick={cerrarScanner}
         >
           <div
-            className="relative bg-black rounded-lg overflow-hidden max-w-md w-full"
+            className="relative rounded-xl overflow-hidden max-w-md w-full"
             onClick={e => e.stopPropagation()}
           >
             <video ref={videoRef} className="w-full max-h-[70vh] object-cover" playsInline muted />
-            {/* Marco de guía visual */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-3/4 h-24 border-2 border-orange-500 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+              <div className="w-3/4 h-24 border-2 rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
+                style={{ borderColor: '#F5B800' }} />
             </div>
             <button
               type="button"
               onClick={cerrarScanner}
-              className="absolute top-3 right-3 bg-white text-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-100"
+              className="absolute top-3 right-3 p-2 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}
               aria-label="Cerrar escáner"
             >
               <X className="h-5 w-5" />
             </button>
-            <p className="absolute bottom-3 left-3 right-3 text-center text-xs text-white bg-black/60 rounded px-3 py-2">
+            <p className="absolute bottom-3 left-3 right-3 text-center text-xs text-white rounded px-3 py-2"
+              style={{ background: 'rgba(0,0,0,0.6)' }}>
               Apunta la cámara al código de barras del tracking USACO
             </p>
           </div>
@@ -294,36 +301,41 @@ export default function RecibirColombiaForm() {
 
       {/* Información de la caja */}
       {caja && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+        <div className="glass-card overflow-hidden">
+          <div className="px-5 py-4" style={{ background: `${tw}0.03)`, borderBottom: `1px solid ${tw}0.07)` }}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <p className="text-xs text-gray-500">Caja USACO</p>
-                <p className="font-mono font-bold text-gray-900">{caja.tracking_usaco}</p>
+                <p className="text-xs" style={{ color: `${tw}0.4)` }}>Caja USACO</p>
+                <p className="font-mono font-bold text-white">{caja.tracking_usaco}</p>
               </div>
               <button
                 onClick={limpiar}
-                className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                className="text-xs flex items-center gap-1 transition-colors"
+                style={{ color: `${tw}0.4)` }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'white')}
+                onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.4)`)}
               >
                 <X className="h-3 w-3" /> Limpiar
               </button>
             </div>
-            <div className="flex flex-wrap gap-3 mt-3 text-xs">
-              <div className="bg-white border border-gray-200 rounded px-3 py-1.5">
-                <span className="text-gray-500">Total: </span>
+            <div className="flex flex-wrap gap-2 mt-3 text-xs">
+              <div className="px-3 py-1.5 rounded-lg" style={{ background: `${tw}0.05)`, border: `1px solid ${tw}0.1)`, color: `${tw}0.65)` }}>
+                <span style={{ color: `${tw}0.4)` }}>Total: </span>
                 <span className="font-bold">{caja.total}</span> paquetes
               </div>
-              <div className="bg-white border border-gray-200 rounded px-3 py-1.5">
-                <span className="text-gray-500">Peso: </span>
+              <div className="px-3 py-1.5 rounded-lg" style={{ background: `${tw}0.05)`, border: `1px solid ${tw}0.1)`, color: `${tw}0.65)` }}>
+                <span style={{ color: `${tw}0.4)` }}>Peso: </span>
                 <span className="font-bold">{caja.peso_total.toFixed(1)}</span> lb
               </div>
               {caja.sin_asignar > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded px-3 py-1.5 text-amber-800">
+                <div className="px-3 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)', color: '#F5B800' }}>
                   ⏳ {caja.sin_asignar} sin asignar
                 </div>
               )}
               {caja.ya_recibidos_colombia > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded px-3 py-1.5 text-green-800">
+                <div className="px-3 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}>
                   ✓ {caja.ya_recibidos_colombia} ya en Colombia
                 </div>
               )}
@@ -331,43 +343,50 @@ export default function RecibirColombiaForm() {
           </div>
 
           {/* Lista de paquetes */}
-          <div className="divide-y divide-gray-50 max-h-[480px] overflow-y-auto">
-            {caja.paquetes.map(p => {
+          <div className="max-h-[480px] overflow-y-auto">
+            {caja.paquetes.map((p, i) => {
               const yaEnColombia = ['en_bodega_local', 'en_camino_cliente', 'entregado'].includes(p.estado)
               return (
                 <label
                   key={p.id}
-                  className={`flex items-center gap-3 px-5 py-3 text-sm cursor-pointer hover:bg-orange-50/40 ${
-                    yaEnColombia ? 'opacity-50' : ''
-                  }`}
+                  className="flex items-center gap-3 px-5 py-3 text-sm cursor-pointer transition-colors"
+                  style={{
+                    borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined,
+                    opacity: yaEnColombia ? 0.45 : 1,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <input
                     type="checkbox"
                     checked={seleccionados.has(p.id)}
                     onChange={() => toggleSeleccion(p.id)}
                     disabled={yaEnColombia}
-                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    className="h-4 w-4 rounded"
+                    style={{ accentColor: '#F5B800' }}
                   />
-                  <Package className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <span className="font-mono text-xs text-orange-700 font-semibold w-32 truncate">
+                  <Package className="h-4 w-4 flex-shrink-0" style={{ color: `${tw}0.3)` }} />
+                  <span className="font-mono text-xs font-semibold w-32 truncate" style={{ color: '#F5B800' }}>
                     {p.tracking_casilla}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm truncate ${!p.cliente ? 'text-amber-700 italic' : 'text-gray-900'}`}>
+                    <p className="text-sm truncate"
+                      style={{ color: !p.cliente ? '#F5B800' : 'white', fontStyle: !p.cliente ? 'italic' : 'normal' }}>
                       {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
                       {p.cliente?.numero_casilla && (
-                        <span className="text-gray-400 text-xs ml-1">({p.cliente.numero_casilla})</span>
+                        <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>({p.cliente.numero_casilla})</span>
                       )}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>
                       {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">
+                  <span className="text-xs whitespace-nowrap" style={{ color: `${tw}0.45)` }}>
                     <MapPin className="h-3 w-3 inline mr-0.5" />
                     {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
                   </span>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full ${ESTADO_COLORES[p.estado as EstadoPaquete] ?? 'bg-gray-100 text-gray-600'}`}>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap"
+                    style={estadoBadgeStyle(p.estado)}>
                     {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
                   </span>
                 </label>
@@ -377,9 +396,9 @@ export default function RecibirColombiaForm() {
 
           {/* Footer con acción */}
           {seleccionados.size > 0 && (
-            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-3">
+            <div className="px-5 py-4 space-y-3" style={{ borderTop: `1px solid ${tw}0.07)`, background: `${tw}0.02)` }}>
               <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">
+                <label className="text-xs font-medium block mb-1" style={{ color: `${tw}0.6)` }}>
                   Notas internas (opcional)
                 </label>
                 <input
@@ -387,34 +406,34 @@ export default function RecibirColombiaForm() {
                   value={notas}
                   onChange={e => setNotas(e.target.value)}
                   placeholder="Ej: Caja con avería, falta verificar..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  className="glass-input w-full px-3 py-2 text-sm rounded-xl focus:outline-none"
                 />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+              <label className="flex items-center gap-2 cursor-pointer text-sm" style={{ color: `${tw}0.7)` }}>
                 <input
                   type="checkbox"
                   checked={notificar}
                   onChange={e => setNotificar(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  className="h-4 w-4 rounded"
+                  style={{ accentColor: '#34d399' }}
                 />
-                <MessageCircle className="h-4 w-4 text-green-600" />
+                <MessageCircle className="h-4 w-4" style={{ color: '#34d399' }} />
                 Notificar a los clientes por WhatsApp ({seleccionados.size} mensajes)
               </label>
-              <Button
+              <button
                 onClick={confirmar}
                 disabled={confirmando}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2 h-11"
+                className="btn-gold w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {confirmando
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</>
                   : <><CheckCircle2 className="h-4 w-4" /> Confirmar recepción de {seleccionados.size} paquete{seleccionados.size > 1 ? 's' : ''} en Colombia</>}
-              </Button>
+              </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Historial de cajas recibidas en Colombia */}
       <HistorialRecibidasColombia refreshKey={historialKey} />
     </div>
   )
