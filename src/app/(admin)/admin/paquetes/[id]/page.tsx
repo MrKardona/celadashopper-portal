@@ -341,7 +341,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
 
           {/* Factura Zoho */}
           <GlassSection icon={FileText} title="Factura Zoho Inventory">
-            <CrearFacturaZohoButton paqueteId={id} facturaId={p.factura_id ?? null} costoServicio={p.costo_servicio ?? null} />
+            <CrearFacturaZohoButton paqueteId={id} facturaId={p.factura_id ?? null} costoServicio={p.costo_servicio ?? null} facturaPagada={p.factura_pagada ?? null} />
           </GlassSection>
 
           {/* Editar */}
