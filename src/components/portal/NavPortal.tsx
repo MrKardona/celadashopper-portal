@@ -17,8 +17,10 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
     router.refresh()
   }
 
+  const dashboardHref = perfil?.rol === 'admin' ? '/dashboard?as=client' : '/dashboard'
+
   const navItems = [
-    { href: '/dashboard', label: 'Mi Panel', icon: LayoutDashboard },
+    { href: dashboardHref, label: 'Mi Panel', icon: LayoutDashboard },
     { href: '/reportar', label: 'Reportar', icon: PlusCircle },
     { href: '/paquetes', label: 'Paquetes', icon: Package },
     { href: '/perfil', label: 'Perfil', icon: User },
@@ -47,7 +49,7 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
                 key={href}
                 href={href}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                  pathname === href ? 'nav-item-active' : 'nav-item'
+                  pathname === href.split('?')[0] ? 'nav-item-active' : 'nav-item'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -112,7 +114,7 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
               key={href}
               href={href}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                pathname === href ? 'nav-item-active' : 'nav-item'
+                pathname === href.split('?')[0] ? 'nav-item-active' : 'nav-item'
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
