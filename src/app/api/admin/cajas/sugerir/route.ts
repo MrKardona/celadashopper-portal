@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
     for (const p of perfiles ?? []) nombresMap[p.id] = p.nombre_completo
   }
 
-  // Cargar primera foto de cada paquete
+  // Cargar segunda foto de cada paquete (foto del contenido)
   const paqueteIds = lista.map(p => p.id)
   const fotosMap: Record<string, string> = {}
   if (paqueteIds.length > 0) {
@@ -146,9 +146,15 @@ export async function GET(req: NextRequest) {
       .select('paquete_id, url')
       .in('paquete_id', paqueteIds)
       .order('created_at', { ascending: true })
-    // Solo guardamos la primera foto por paquete
+    // Acumulamos todas las fotos por paquete y elegimos la segunda (índice 1);
+    // si solo hay una, usamos esa.
+    const acum: Record<string, string[]> = {}
     for (const f of fotos ?? []) {
-      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+      if (!acum[f.paquete_id]) acum[f.paquete_id] = []
+      acum[f.paquete_id].push(f.url)
+    }
+    for (const [id, urls] of Object.entries(acum)) {
+      fotosMap[id] = urls[1] ?? urls[0]
     }
   }
 
