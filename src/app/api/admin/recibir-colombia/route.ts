@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
       .in('paquete_origen_id', origenIds)
 
     // Por cada origen, verificar si algún hermano falta en esta caja y no está en Colombia
-    const hermanosPorOrigen = new Map<string, typeof todosHermanos>()
+    const hermanosPorOrigen = new Map<string, NonNullable<typeof todosHermanos>>()
     for (const h of todosHermanos ?? []) {
       if (!h.paquete_origen_id) continue
       if (!hermanosPorOrigen.has(h.paquete_origen_id)) hermanosPorOrigen.set(h.paquete_origen_id, [])
