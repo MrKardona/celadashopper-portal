@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera, Trash2, Package, CheckSquare, Square, X } from 'lucide-react'
+import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2 } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
@@ -59,6 +59,7 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const toggleOne = (id: string) => {
@@ -78,6 +79,7 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
   }
 
   const eliminarSeleccionados = async () => {
+    setDeleteError('')
     const ids = [...selected]
     const res = await fetch('/api/admin/paquetes/bulk-delete', {
       method: 'POST',
@@ -86,7 +88,7 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
     })
     if (!res.ok) {
       const data = await res.json()
-      alert(`Error al eliminar: ${data.error ?? 'Error desconocido'}`)
+      setDeleteError(data.error ?? 'Error al eliminar')
       return
     }
     setSelected(new Set())
@@ -96,6 +98,10 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
 
   const allSelected = paquetes.length > 0 && selected.size === paquetes.length
   const someSelected = selected.size > 0
+
+  const selectedPaquetes = paquetes.filter(p => selected.has(p.id))
+  const previewTrackings = selectedPaquetes.slice(0, 5).map(p => p.tracking_casilla ?? p.id.slice(0, 8))
+  const restoCount = selectedPaquetes.length - previewTrackings.length
 
   return (
     <div className="relative">
@@ -113,28 +119,43 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
           </div>
           {!confirmando ? (
             <button
-              onClick={() => setConfirmando(true)}
+              onClick={() => { setDeleteError(''); setConfirmando(true) }}
               className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
               style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.4)' }}>
               <Trash2 className="h-4 w-4" />
               Eliminar seleccionados
             </button>
           ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: '#f87171' }}>¿Confirmar eliminación?</span>
-              <button
-                onClick={eliminarSeleccionados}
-                disabled={isPending}
-                className="px-3 py-1.5 rounded-lg text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: '#ef4444', color: 'white' }}>
-                {isPending ? 'Eliminando...' : `Sí, eliminar ${selected.size}`}
-              </button>
-              <button
-                onClick={() => setConfirmando(false)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
-                style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                Cancelar
-              </button>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <span className="text-sm" style={{ color: '#f87171' }}>¿Eliminar estos paquetes?</span>
+                  <p className="text-xs mt-0.5 font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    {previewTrackings.join(', ')}
+                    {restoCount > 0 && <span style={{ color: 'rgba(255,255,255,0.3)' }}> y {restoCount} más</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={eliminarSeleccionados}
+                  disabled={isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ background: '#ef4444', color: 'white' }}>
+                  {isPending ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Eliminando...</> : `Sí, eliminar ${selected.size}`}
+                </button>
+                <button
+                  onClick={() => { setConfirmando(false); setDeleteError('') }}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                  style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  Cancelar
+                </button>
+              </div>
+              {deleteError && (
+                <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)' }}>
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                  {deleteError}
+                </div>
+              )}
             </div>
           )}
         </div>

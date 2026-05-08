@@ -23,7 +23,7 @@ const ContenidoSchema = z.object({
   categoria: z.enum([
     'celular', 'computador', 'ipad_tablet', 'calzado',
     'ropa_accesorios', 'electrodomestico', 'juguetes',
-    'cosmeticos', 'suplementos', 'libros', 'tarifa_especial', 'otro',
+    'cosmeticos', 'perfumeria', 'suplementos', 'libros', 'tarifa_especial', 'otro',
   ]),
   condicion: z.enum(['nuevo', 'usado']).nullable(),
   cantidad: z.number().int().min(1).max(50),
@@ -73,7 +73,8 @@ CAMPOS:
   - "ropa_accesorios" → camisas, pantalones, gorras, bolsos, relojes baratos, gafas
   - "electrodomestico" → licuadoras, planchas, freidoras, etc.
   - "juguetes" → juguetes, peluches, juegos
-  - "cosmeticos" → maquillaje, cremas, perfumes, productos de belleza
+  - "cosmeticos" → maquillaje, cremas, productos de belleza
+  - "perfumeria" → perfumes, colonias, fragancias, body splash
   - "suplementos" → vitaminas, proteínas, productos GNC, batidos
   - "libros" → libros físicos
   - "otro" → si no encaja en ninguna anterior
@@ -85,7 +86,7 @@ CAMPOS:
 DEVUELVE ÚNICAMENTE JSON VÁLIDO, sin markdown, con esta forma exacta:
 {
   "descripcion": string,
-  "categoria": "celular" | "computador" | "ipad_tablet" | "calzado" | "ropa_accesorios" | "electrodomestico" | "juguetes" | "cosmeticos" | "suplementos" | "libros" | "tarifa_especial" | "otro",
+  "categoria": "celular" | "computador" | "ipad_tablet" | "calzado" | "ropa_accesorios" | "electrodomestico" | "juguetes" | "cosmeticos" | "perfumeria" | "suplementos" | "libros" | "tarifa_especial" | "otro",
   "condicion": "nuevo" | "usado" | null,
   "cantidad": number,
   "confianza": "alta" | "media" | "baja"

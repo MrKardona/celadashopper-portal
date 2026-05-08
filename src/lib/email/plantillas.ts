@@ -200,6 +200,7 @@ const CATEGORIA_LABELS_EMAIL: Record<string, string> = {
   electrodomestico: 'Electrodoméstico',
   juguetes: 'Juguetes',
   cosmeticos: 'Cosméticos',
+  perfumeria: 'Perfumería',
   suplementos: 'Suplementos',
   libros: 'Libros',
   otro: 'Otro',

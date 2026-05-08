@@ -43,7 +43,8 @@ async function getAccessToken(): Promise<string> {
 const NOMBRE_ITEM: Record<string, string> = {
   ropa_accesorios: 'Envío Ropa y Accesorios',
   suplementos:     'Envío Suplementos',
-  cosmeticos:      'Envío Cosméticos y Perfumes',
+  cosmeticos:      'Envío Cosméticos',
+  perfumeria:      'Envío Perfumería',
   calzado:         'Envío Calzado',
   juguetes:        'Envío Juguetes',
   libros:          'Envío Libros',

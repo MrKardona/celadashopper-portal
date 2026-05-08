@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList } from 'lucide-react'
+import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList, ScanBarcode, Box, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { ESTADO_LABELS } from '@/types'
 import DashboardCharts from '@/components/admin/DashboardCharts'
@@ -18,8 +18,8 @@ const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }>
   devuelto:           { bg: 'rgba(244,63,94,0.12)',   color: '#fb7185',               border: 'rgba(244,63,94,0.3)'   },
 }
 
-const GRUPO_USA = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] as const
-const GRUPO_TRANSITO = ['en_transito', 'en_colombia'] as const
+const GRUPO_USA         = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] as const
+const GRUPO_TRANSITO    = ['en_transito', 'en_colombia'] as const
 const GRUPO_BODEGA_LOCAL = ['en_bodega_local', 'en_camino_cliente'] as const
 
 const tw = 'rgba(255,255,255,'
@@ -37,25 +37,28 @@ export default async function AdminDashboard() {
   const [
     conteoRes, recientesRes, alertasRes, clientesRes,
     entregadosTotalRes, entregadosMesRes, recepcionesUsaRes, devueltosTotalRes,
+    cajasActivasRes,
   ] = await Promise.all([
     supabase.from('paquetes').select('estado').not('estado', 'in', '("entregado","devuelto")'),
-    supabase.from('paquetes').select('id, tracking_casilla, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(10),
+    supabase.from('paquetes').select('id, tracking_casilla, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(8),
     supabase.from('paquetes').select('id, tracking_casilla, descripcion, estado, cliente_id, updated_at').not('estado', 'in', '("entregado","devuelto")').lt('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order('updated_at', { ascending: true }).limit(5),
     supabase.from('perfiles').select('id', { count: 'exact', head: true }).eq('rol', 'cliente').eq('activo', true),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'entregado'),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'entregado').gte('updated_at', hace30Dias),
     supabase.from('paquetes').select('fecha_recepcion_usa').gte('fecha_recepcion_usa', hace14Dias).not('fecha_recepcion_usa', 'is', null),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'devuelto'),
+    supabase.from('cajas_consolidacion').select('id', { count: 'exact', head: true }).in('estado', ['abierta', 'cerrada', 'despachada']),
   ])
 
-  const paquetes = conteoRes.data ?? []
-  const recientes = recientesRes.data ?? []
-  const alertas = alertasRes.data ?? []
-  const totalClientes = clientesRes.count ?? 0
+  const paquetes        = conteoRes.data ?? []
+  const recientes       = recientesRes.data ?? []
+  const alertas         = alertasRes.data ?? []
+  const totalClientes   = clientesRes.count ?? 0
   const totalEntregados = entregadosTotalRes.count ?? 0
-  const entregadosMes = entregadosMesRes.count ?? 0
-  const recepcionesUsa = recepcionesUsaRes.data ?? []
-  const totalDevueltos = devueltosTotalRes.count ?? 0
+  const entregadosMes   = entregadosMesRes.count ?? 0
+  const recepcionesUsa  = recepcionesUsaRes.data ?? []
+  const totalDevueltos  = devueltosTotalRes.count ?? 0
+  const cajasActivas    = cajasActivasRes.count ?? 0
 
   const clienteIds = [...new Set([
     ...recientes.map(p => p.cliente_id),
@@ -74,22 +77,22 @@ export default async function AdminDashboard() {
   }, {} as Record<string, number>)
 
   const sumaGrupo = (estados: readonly string[]) => estados.reduce((s, e) => s + (conteo[e] ?? 0), 0)
-  const enUsa = sumaGrupo(GRUPO_USA)
-  const enTransito = sumaGrupo(GRUPO_TRANSITO)
+  const enUsa         = sumaGrupo(GRUPO_USA)
+  const enTransito    = sumaGrupo(GRUPO_TRANSITO)
   const enBodegaLocal = sumaGrupo(GRUPO_BODEGA_LOCAL)
 
   const stats = [
-    { label: 'Total activos', value: paquetes.length, icon: Package, iconBg: 'rgba(99,130,255,0.15)', iconColor: '#8899ff' },
-    { label: 'Recibidos en USA', value: enUsa, icon: ClipboardList, iconBg: 'rgba(245,184,0,0.15)', iconColor: '#F5B800', sub: 'Reportados + recibidos + consolidación', href: '/admin/paquetes?grupo=usa' },
-    { label: 'En tránsito', value: enTransito, icon: Plane, iconBg: 'rgba(168,85,247,0.15)', iconColor: '#c084fc', sub: 'En camino USA → Colombia', href: '/admin/paquetes?grupo=transito' },
-    { label: 'En bodega Colombia', value: enBodegaLocal, icon: MapPin, iconBg: 'rgba(245,184,0,0.15)', iconColor: '#fbbf24', sub: 'Listos para entrega', href: '/admin/listos-entrega' },
-    { label: 'Entregados', value: totalEntregados, icon: CheckCircle2, iconBg: 'rgba(52,211,153,0.15)', iconColor: '#34d399', sub: entregadosMes > 0 ? `${entregadosMes} en últimos 30 días` : undefined },
-    { label: 'Clientes activos', value: totalClientes, icon: Users, iconBg: 'rgba(52,211,153,0.12)', iconColor: '#6ee7b7' },
+    { label: 'Total activos',      value: paquetes.length,   icon: Package,      iconBg: 'rgba(99,130,255,0.15)',  iconColor: '#8899ff' },
+    { label: 'En USA',             value: enUsa,             icon: ClipboardList, iconBg: 'rgba(245,184,0,0.15)',  iconColor: '#F5B800',  href: '/admin/paquetes?grupo=usa' },
+    { label: 'En tránsito',        value: enTransito,        icon: Plane,        iconBg: 'rgba(168,85,247,0.15)', iconColor: '#c084fc',  href: '/admin/paquetes?grupo=transito' },
+    { label: 'En bodega Colombia', value: enBodegaLocal,     icon: MapPin,       iconBg: 'rgba(245,184,0,0.15)',  iconColor: '#fbbf24',  href: '/admin/listos-entrega' },
+    { label: 'Entregados (30d)',   value: entregadosMes,     icon: CheckCircle2, iconBg: 'rgba(52,211,153,0.15)', iconColor: '#34d399' },
+    { label: 'Clientes activos',   value: totalClientes,     icon: Users,        iconBg: 'rgba(52,211,153,0.12)', iconColor: '#6ee7b7' },
   ]
 
   const datosDonut = [
-    { nombre: 'En USA', valor: enUsa, color: '#eab308' },
-    { nombre: 'En tránsito', valor: enTransito, color: '#a855f7' },
+    { nombre: 'En USA',       valor: enUsa,         color: '#eab308' },
+    { nombre: 'En tránsito',  valor: enTransito,    color: '#a855f7' },
     { nombre: 'En bodega CO', valor: enBodegaLocal, color: '#F5B800' },
     { nombre: 'Entregados (30d)', valor: entregadosMes, color: '#10b981' },
   ].filter(d => d.valor > 0)
@@ -113,16 +116,102 @@ export default async function AdminDashboard() {
         <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>Vista general de la operación</p>
       </div>
 
-      {/* Stats */}
+      {/* ── Alertas (arriba porque son urgentes) ───────────────── */}
+      {alertas.length > 0 && (
+        <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(245,184,0,0.22)' }}>
+          <div className="px-5 py-3.5 flex items-center gap-2" style={{ borderBottom: `1px solid ${tw}0.06)`, background: 'rgba(245,184,0,0.04)' }}>
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
+            <h3 className="text-sm font-semibold flex-1" style={{ color: '#F5B800' }}>
+              Sin movimiento +7 días — {alertas.length} paquete{alertas.length !== 1 ? 's' : ''}
+            </h3>
+            <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: `${tw}0.35)` }}>Ver todos →</Link>
+          </div>
+          <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
+            {alertas.map(p => {
+              const dias = Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))
+              const s = ESTADO_DARK[p.estado] ?? { bg: '', color: `${tw}0.5)`, border: '' }
+              return (
+                <Link key={p.id} href={`/admin/paquetes/${p.id}`}
+                  className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-white/[0.04]">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
+                    <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
+                      {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                      {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
+                    </span>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: '#F5B800' }}>{dias}d</span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Acciones del día ───────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Link href="/admin/recibir"
+          className="glass-card p-4 flex items-center gap-4 group hover:border-white/[0.18] transition-all">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(99,130,255,0.15)' }}>
+            <ScanBarcode className="h-5 w-5" style={{ color: '#8899ff' }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-white text-sm">Recibir en USA</p>
+            <p className="text-xs mt-0.5" style={{ color: `${tw}0.38)` }}>Escanear paquetes nuevos</p>
+          </div>
+          <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ color: 'white' }} />
+        </Link>
+
+        <Link href="/admin/cajas"
+          className="glass-card p-4 flex items-center gap-4 group hover:border-white/[0.18] transition-all">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(168,85,247,0.15)' }}>
+            <Box className="h-5 w-5" style={{ color: '#c084fc' }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-white text-sm">Cajas USA</p>
+            <p className="text-xs mt-0.5" style={{ color: `${tw}0.38)` }}>
+              {cajasActivas > 0 ? `${cajasActivas} caja${cajasActivas !== 1 ? 's' : ''} activa${cajasActivas !== 1 ? 's' : ''}` : 'Sin cajas activas'}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ color: 'white' }} />
+        </Link>
+
+        <Link href="/admin/listos-entrega"
+          className="glass-card p-4 flex items-center gap-4 group transition-all"
+          style={enBodegaLocal > 0
+            ? { borderColor: 'rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.04)' }
+            : {}
+          }>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(52,211,153,0.15)' }}>
+            <CheckCircle2 className="h-5 w-5" style={{ color: '#34d399' }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-white text-sm">Listos para entrega</p>
+            <p className="text-xs mt-0.5 font-semibold" style={{ color: enBodegaLocal > 0 ? '#34d399' : `${tw}0.38)` }}>
+              {enBodegaLocal > 0 ? `${enBodegaLocal} paquete${enBodegaLocal !== 1 ? 's' : ''} esperando` : 'Todo entregado'}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ color: 'white' }} />
+        </Link>
+      </div>
+
+      {/* ── Stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {stats.map(({ label, value, icon: Icon, iconBg, iconColor, sub, href }) => {
+        {stats.map(({ label, value, icon: Icon, iconBg, iconColor, href }) => {
           const inner = (
             <div className="glass-card h-full p-4 hover:border-white/[0.14] transition-all">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs" style={{ color: `${tw}0.45)` }}>{label}</p>
-                  <p className="text-3xl font-bold text-white mt-1">{value}</p>
-                  {sub && <p className="text-[11px] mt-0.5 truncate" style={{ color: `${tw}0.3)` }}>{sub}</p>}
+                  <p className="text-3xl font-bold text-white mt-1 tabular-nums">{value}</p>
                 </div>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
                   <Icon className="h-5 w-5" style={{ color: iconColor }} />
@@ -136,17 +225,16 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      {/* Charts */}
+      {/* ── Charts ────────────────────────────────────────────── */}
       <DashboardCharts datosDonut={datosDonut} datosBarras={datosBarras} />
 
-      {/* Estado breakdown */}
+      {/* ── Distribución por estado ───────────────────────────── */}
       <div className="glass-card p-5">
         <h3 className="text-sm font-semibold text-white mb-4">Distribución por estado</h3>
-        {/* Grupos activos */}
         {[
-          { label: '🇺🇸 En USA',       estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] },
-          { label: '✈️ En tránsito',   estados: ['en_transito', 'en_colombia'] },
-          { label: '🇨🇴 En Colombia',  estados: ['en_bodega_local', 'en_camino_cliente', 'retenido'] },
+          { label: '🇺🇸 En USA',      estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] },
+          { label: '✈️ En tránsito',  estados: ['en_transito', 'en_colombia'] },
+          { label: '🇨🇴 En Colombia', estados: ['en_bodega_local', 'en_camino_cliente', 'retenido'] },
         ].map(grupo => (
           <div key={grupo.label} className="mb-5">
             <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.3)` }}>{grupo.label}</p>
@@ -158,7 +246,7 @@ export default async function AdminDashboard() {
                   <Link key={estado} href={`/admin/paquetes?estado=${estado}`}
                     className="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-center transition-all hover:scale-[1.03] hover:opacity-90"
                     style={{ background: s.bg, border: `1px solid ${s.border}` }}>
-                    <span className="text-2xl font-extrabold leading-none" style={{ color: s.color }}>{n}</span>
+                    <span className="text-2xl font-extrabold leading-none tabular-nums" style={{ color: s.color }}>{n}</span>
                     <span className="text-[11px] font-medium leading-tight" style={{ color: s.color, opacity: 0.8 }}>
                       {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS] ?? estado}
                     </span>
@@ -169,7 +257,6 @@ export default async function AdminDashboard() {
           </div>
         ))}
 
-        {/* Historial — separador */}
         <div className="mt-2 pt-4" style={{ borderTop: `1px solid ${tw}0.07)` }}>
           <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.25)` }}>📋 Historial</p>
           <div className="grid grid-cols-2 gap-2 max-w-xs">
@@ -182,7 +269,7 @@ export default async function AdminDashboard() {
                 <Link key={estado} href={`/admin/paquetes?estado=${estado}`}
                   className="flex flex-col items-center justify-center gap-0.5 py-3 px-2 rounded-xl text-center transition-all hover:scale-[1.03] hover:opacity-90"
                   style={{ background: s.bg, border: `1px solid ${s.border}`, opacity: 0.75 }}>
-                  <span className="text-2xl font-extrabold leading-none" style={{ color: s.color }}>{count}</span>
+                  <span className="text-2xl font-extrabold leading-none tabular-nums" style={{ color: s.color }}>{count}</span>
                   <span className="text-[11px] font-medium leading-tight" style={{ color: s.color, opacity: 0.85 }}>
                     {ESTADO_LABELS[estado as keyof typeof ESTADO_LABELS] ?? estado}
                   </span>
@@ -194,62 +281,30 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {alertas.length > 0 && (
-          <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(245,184,0,0.2)' }}>
-            <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
-              <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: '#F5B800' }}>
-                <AlertTriangle className="h-4 w-4" />
-                Sin movimiento +7 días ({alertas.length})
-              </h3>
-            </div>
-            <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
-              {alertas.map(p => {
-                const dias = Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))
-                return (
-                  <Link key={p.id} href={`/admin/paquetes/${p.id}`}
-                    className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-white/[0.04]"
-                    style={{ borderColor: `${tw}0.05)` }}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
-                      <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
-                        {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
-                      </p>
-                    </div>
-                    <span className="text-xs font-semibold ml-2 flex-shrink-0" style={{ color: '#F5B800' }}>{dias}d</span>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="glass-card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
-            <h3 className="text-sm font-semibold text-white">Últimos registros</h3>
-            <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: '#F5B800' }}>Ver todos →</Link>
-          </div>
-          <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
-            {recientes.map(p => (
-              <Link key={p.id} href={`/admin/paquetes/${p.id}`}
-                className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-white/[0.04]"
+      {/* ── Últimos registros ──────────────────────────────────── */}
+      <div className="glass-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
+          <h3 className="text-sm font-semibold text-white">Últimos registros</h3>
+          <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: '#F5B800' }}>Ver todos →</Link>
+        </div>
+        <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
+          {recientes.map(p => (
+            <Link key={p.id} href={`/admin/paquetes/${p.id}`}
+              className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-white/[0.04]">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
+                <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
+                  {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
+                </p>
+              </div>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full ml-2 flex-shrink-0 font-semibold"
+                style={(() => { const s = ESTADO_DARK[p.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' }; return { background: s.bg, color: s.color, border: `1px solid ${s.border}` } })()}
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
-                  <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
-                    {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
-                  </p>
-                </div>
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full ml-2 flex-shrink-0 font-semibold"
-                  style={(() => { const s = ESTADO_DARK[p.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' }; return { background: s.bg, color: s.color, border: `1px solid ${s.border}` } })()}
-                >
-                  {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
-                </span>
-              </Link>
-            ))}
-          </div>
+                {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}
+              </span>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

@@ -18,17 +18,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect('/login')
 
   // Usar service role para saltar RLS y leer el rol correctamente
-  const { data: perfil } = await supabaseAdmin
-    .from('perfiles')
-    .select('nombre_completo, rol')
-    .eq('id', user.id)
-    .single()
+  const [perfilRes, listosRes] = await Promise.all([
+    supabaseAdmin.from('perfiles').select('nombre_completo, rol').eq('id', user.id).single(),
+    supabaseAdmin.from('paquetes').select('id', { count: 'exact', head: true }).in('estado', ['en_bodega_local', 'en_camino_cliente']),
+  ])
 
+  const perfil = perfilRes.data
   if (!perfil || perfil.rol !== 'admin') redirect('/dashboard')
+
+  const badges = { listosEntrega: listosRes.count ?? 0 }
 
   return (
     <div className="portal-bg min-h-screen flex" style={{ fontFamily: "'Outfit', sans-serif" }}>
-      <NavAdmin nombreAdmin={perfil.nombre_completo} />
+      <NavAdmin nombreAdmin={perfil.nombre_completo} badges={badges} />
       <div className="flex-1 flex flex-col min-w-0" style={{ background: 'linear-gradient(135deg, #07070f 0%, #0b0b1d 40%, #080c14 100%)' }}>
         <main className="flex-1 p-6 overflow-auto">
           {children}

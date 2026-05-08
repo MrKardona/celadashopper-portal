@@ -19,9 +19,16 @@ type Duplicado = DuplicadoPropio | DuplicadoOtro | null
 
 const tw = 'rgba(255,255,255,'
 
-function GlassLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
+function GlassLabel({ children, htmlFor, required }: { children: React.ReactNode; htmlFor?: string; required?: boolean }) {
   return (
-    <label htmlFor={htmlFor} className="block text-sm font-medium mb-1.5" style={{ color: `${tw}0.7)` }}>
+    <label
+      htmlFor={htmlFor}
+      className="flex items-center gap-1 text-sm font-medium mb-1.5"
+      style={{ color: required ? `${tw}0.88)` : `${tw}0.7)` }}
+    >
+      {required && (
+        <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#F5B800' }} />
+      )}
       {children}
     </label>
   )
@@ -33,7 +40,11 @@ function GlassInput(props: React.InputHTMLAttributes<HTMLInputElement> & { hasEr
     <input
       {...rest}
       className={`glass-input w-full px-4 py-3 text-sm outline-none ${className}`}
-      style={hasError ? { borderColor: 'rgba(245,184,0,0.5)' } : {}}
+      style={hasError
+        ? { borderColor: 'rgba(245,184,0,0.5)' }
+        : rest.required
+          ? { borderColor: 'rgba(245,184,0,0.28)' }
+          : {}}
     />
   )
 }
@@ -49,11 +60,13 @@ function GlassTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>)
 }
 
 function GlassSelect(props: React.SelectHTMLAttributes<HTMLSelectElement> & { placeholder?: string }) {
-  const { placeholder, children, className = '', ...rest } = props
+  const { placeholder, children, className = '', required, ...rest } = props
   return (
     <select
       {...rest}
+      required={required}
       className={`glass-input select w-full px-4 py-3 text-sm outline-none ${className}`}
+      style={required ? { borderColor: 'rgba(245,184,0,0.28)' } : {}}
     >
       {placeholder && <option value="">{placeholder}</option>}
       {children}
@@ -272,8 +285,9 @@ export default function ReportarPage() {
             <Package className="h-5 w-5" style={{ color: '#F5B800' }} />
             <h2 className="font-semibold text-white">Datos del paquete</h2>
           </div>
-          <p className="text-xs mt-1" style={{ color: `${tw}0.4)` }}>
-            Completa la información de tu compra. Los campos con * son obligatorios.
+          <p className="text-xs mt-1 flex items-center gap-1.5" style={{ color: `${tw}0.4)` }}>
+            <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#F5B800' }} />
+            Los campos marcados son obligatorios
           </p>
         </div>
 
@@ -283,12 +297,13 @@ export default function ReportarPage() {
             {/* Tienda y tipo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <GlassLabel htmlFor="tienda">Tienda donde compraste *</GlassLabel>
+                <GlassLabel htmlFor="tienda" required>Tienda donde compraste</GlassLabel>
                 <GlassInput id="tienda" name="tienda" placeholder="Amazon, Nike, Shein..." value={form.tienda} onChange={handleChange} required />
               </div>
               <div>
-                <GlassLabel>Tipo de producto *</GlassLabel>
+                <GlassLabel required>Tipo de producto</GlassLabel>
                 <GlassSelect
+                  required
                   value={form.categoria}
                   onChange={e => setForm(prev => ({ ...prev, categoria: e.target.value as CategoriaProducto, condicion: '' }))}
                   placeholder="Selecciona el tipo..."
@@ -337,10 +352,10 @@ export default function ReportarPage() {
                   </div>
 
                   <div className="col-span-2 sm:col-span-1">
-                    <GlassLabel htmlFor="cantidad">
-                      {form.categoria === 'calzado' ? 'Pares' : 'Cantidad de unidades'} *
+                    <GlassLabel htmlFor="cantidad" required>
+                      {form.categoria === 'calzado' ? 'Pares' : 'Cantidad de unidades'}
                     </GlassLabel>
-                    <GlassInput id="cantidad" name="cantidad" type="number" min="1" placeholder="1" value={form.cantidad} onChange={handleChange} />
+                    <GlassInput id="cantidad" name="cantidad" type="number" min="1" placeholder="1" value={form.cantidad} onChange={handleChange} required />
                   </div>
                 </div>
 
@@ -379,7 +394,7 @@ export default function ReportarPage() {
                     💡 1 par = $20 · 2 o más pares = $17.50 cada par
                   </p>
                 )}
-                {['ropa_accesorios', 'cosmeticos', 'suplementos', 'libros', 'electrodomestico'].includes(form.categoria) && (
+                {['ropa_accesorios', 'cosmeticos', 'perfumeria', 'suplementos', 'libros', 'electrodomestico'].includes(form.categoria) && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
                     💡 Hasta 6 uds y valor ≤ $200: $18 fijo + $2.20/lb · 7+ uds o valor &gt; $200: $6.50/lb (mín 5 lb)
                   </p>
@@ -417,7 +432,7 @@ export default function ReportarPage() {
 
             {/* Descripción */}
             <div>
-              <GlassLabel htmlFor="descripcion">Descripción del producto *</GlassLabel>
+              <GlassLabel htmlFor="descripcion" required>Descripción del producto</GlassLabel>
               <GlassInput
                 id="descripcion" name="descripcion"
                 placeholder="Ej: Zapatillas Nike Air Max talla 10, color negro"
@@ -512,8 +527,9 @@ export default function ReportarPage() {
 
             {/* Bodega destino */}
             <div>
-              <GlassLabel>Ciudad de entrega *</GlassLabel>
+              <GlassLabel required>Ciudad de entrega</GlassLabel>
               <GlassSelect
+                required
                 value={form.bodega_destino}
                 onChange={e => setForm(prev => ({ ...prev, bodega_destino: e.target.value as BodegaDestino }))}
               >
@@ -529,10 +545,10 @@ export default function ReportarPage() {
 
             {/* Dirección de entrega */}
             <div className="space-y-2">
-              <GlassLabel>
-                <span className="flex items-center gap-1.5">
+              <GlassLabel required>
+                <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" style={{ color: '#F5B800' }} />
-                  Dirección de entrega *
+                  Dirección de entrega
                 </span>
               </GlassLabel>
               <GlassSelect

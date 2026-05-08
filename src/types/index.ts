@@ -20,6 +20,7 @@ export type CategoriaProducto =
   | 'electrodomestico'
   | 'juguetes'
   | 'cosmeticos'
+  | 'perfumeria'
   | 'suplementos'
   | 'libros'
   | 'tarifa_especial'
@@ -150,6 +151,7 @@ export const CATEGORIA_LABELS: Record<CategoriaProducto, string> = {
   electrodomestico: 'Electrodoméstico',
   juguetes: 'Juguetes',
   cosmeticos: 'Cosméticos',
+  perfumeria: 'Perfumería',
   suplementos: 'Suplementos',
   libros: 'Libros',
   tarifa_especial: 'Tarifa especial (se calcula cuando se haga consolidación completa)',

@@ -122,7 +122,7 @@ export default function EliminarCajaIconButton({ cajaId, codigo, paquetesCount }
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.2)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.12)')}
               >
-                {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sí, eliminar'}
+                {cargando ? <><Loader2 className="h-4 w-4 animate-spin" /> Eliminando...</> : 'Sí, eliminar'}
               </button>
             </div>
           </div>
