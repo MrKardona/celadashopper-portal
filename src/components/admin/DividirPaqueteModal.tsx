@@ -9,12 +9,14 @@ interface Props {
   descripcionOrigen: string
   pesoLibrasOrigen: number | null
   cantidadOrigen?: number | null
+  valorDeclaradoOrigen?: number | null
 }
 
 interface SubForm {
   descripcion: string
   peso_libras: string
   cantidad: string
+  valor_declarado: string
   notas_internas: string
 }
 
@@ -23,11 +25,12 @@ function subVacio(descripcion: string, index: number): SubForm {
     descripcion: `${descripcion} — División ${index + 1}`,
     peso_libras: '',
     cantidad: '',
+    valor_declarado: '',
     notas_internas: '',
   }
 }
 
-export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, pesoLibrasOrigen, cantidadOrigen }: Props) {
+export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, pesoLibrasOrigen, cantidadOrigen, valorDeclaradoOrigen }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -44,24 +47,29 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
     const MAX_POR_PAQUETE = 6
     const numSubs = Math.ceil(total / MAX_POR_PAQUETE)
     const pesoTotal = pesoLibrasOrigen ?? 0
+    const valorTotal = valorDeclaradoOrigen ?? 0
     const nuevos: SubForm[] = []
     let restantes = total
     for (let i = 0; i < numSubs; i++) {
       const unidadesEste = Math.min(MAX_POR_PAQUETE, restantes)
-      const pesoEste = pesoTotal > 0 ? (unidadesEste / total) * pesoTotal : 0
+      const proporcion = unidadesEste / total
+      const pesoEste = pesoTotal > 0 ? proporcion * pesoTotal : 0
+      const valorEste = valorTotal > 0 ? proporcion * valorTotal : 0
       nuevos.push({
         descripcion: `${descripcionOrigen} — División ${i + 1}`,
         peso_libras: pesoEste > 0 ? pesoEste.toFixed(2) : '',
         cantidad: String(unidadesEste),
+        valor_declarado: valorEste > 0 ? valorEste.toFixed(2) : '',
         notas_internas: '',
       })
       restantes -= unidadesEste
     }
     setSubs(nuevos)
     setSugerencia(
-      `${total} unidades divididas en ${numSubs} paquete${numSubs > 1 ? 's' : ''} de máximo 6 uds` +
-      (pesoTotal > 0 ? `, peso distribuido proporcionalmente` : '') +
-      `. Cada uno aplica tarifa normal ($18 fijo + $2.20/lb).`
+      `${total} unidades → ${numSubs} paquete${numSubs > 1 ? 's' : ''} de máx 6 uds` +
+      (pesoTotal > 0 ? `, peso proporcional` : '') +
+      (valorTotal > 0 ? `, valor declarado proporcional` : '') +
+      `. Tarifa normal ($18 fijo + $2.20/lb).`
     )
   }
 
@@ -79,7 +87,9 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
   }
 
   const pesoTotal = subs.reduce((acc, s) => acc + (parseFloat(s.peso_libras) || 0), 0)
+  const valorTotal = subs.reduce((acc, s) => acc + (parseFloat(s.valor_declarado) || 0), 0)
   const pesoOrigen = pesoLibrasOrigen ?? 0
+  const valorOrigen = valorDeclaradoOrigen ?? 0
 
   async function handleGuardar() {
     setError(null)
@@ -99,6 +109,7 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
             descripcion: s.descripcion.trim(),
             peso_libras: s.peso_libras ? parseFloat(s.peso_libras) : null,
             cantidad: s.cantidad ? parseInt(s.cantidad) : null,
+            valor_declarado: s.valor_declarado ? parseFloat(s.valor_declarado) : null,
             notas_internas: s.notas_internas.trim() || null,
           })),
         }),
@@ -158,20 +169,30 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
               </p>
             </div>
 
-            {/* Indicador de peso */}
-            {pesoOrigen > 0 && (
-              <div className="mx-5 mt-3 flex items-center gap-2">
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Peso origen: <strong className="text-white/60">{pesoOrigen} lb</strong>
-                </span>
-                {pesoTotal > 0 && (
-                  <>
-                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
-                    <span className="text-xs" style={{ color: pesoTotal > pesoOrigen + 0.1 ? '#f87171' : 'rgba(52,211,153,0.8)' }}>
-                      Distribuido: {pesoTotal.toFixed(2)} lb
-                      {pesoTotal > pesoOrigen + 0.1 && ' ⚠️ excede origen'}
-                    </span>
-                  </>
+            {/* Indicadores de origen */}
+            {(pesoOrigen > 0 || valorOrigen > 0) && (
+              <div className="mx-5 mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                {pesoOrigen > 0 && (
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Peso origen: <strong className="text-white/60">{pesoOrigen} lb</strong>
+                    {pesoTotal > 0 && (
+                      <span className="ml-2" style={{ color: pesoTotal > pesoOrigen + 0.1 ? '#f87171' : 'rgba(52,211,153,0.8)' }}>
+                        → {pesoTotal.toFixed(2)} lb distribuidos
+                        {pesoTotal > pesoOrigen + 0.1 && ' ⚠️'}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {valorOrigen > 0 && (
+                  <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Valor origen: <strong className="text-white/60">${valorOrigen.toFixed(2)}</strong>
+                    {valorTotal > 0 && (
+                      <span className="ml-2" style={{ color: valorTotal > valorOrigen + 0.1 ? '#f87171' : 'rgba(52,211,153,0.8)' }}>
+                        → ${valorTotal.toFixed(2)} distribuidos
+                        {valorTotal > valorOrigen + 0.1 && ' ⚠️'}
+                      </span>
+                    )}
+                  </span>
                 )}
               </div>
             )}
@@ -252,6 +273,28 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
                         value={s.cantidad}
                         onChange={e => actualizar(i, 'cantidad', e.target.value)}
                         placeholder="0"
+                        className="w-full rounded-lg px-3 py-2 text-sm text-white outline-none"
+                        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      />
+                    </div>
+
+                    {/* Valor declarado */}
+                    <div className="col-span-2">
+                      <label className="text-xs mb-1 block" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        Valor declarado (USD)
+                        {valorOrigen > 0 && (
+                          <span className="ml-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                            — promedio sugerido: ${(valorOrigen / subs.length).toFixed(2)}
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={s.valor_declarado}
+                        onChange={e => actualizar(i, 'valor_declarado', e.target.value)}
+                        placeholder="0.00"
                         className="w-full rounded-lg px-3 py-2 text-sm text-white outline-none"
                         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
                       />

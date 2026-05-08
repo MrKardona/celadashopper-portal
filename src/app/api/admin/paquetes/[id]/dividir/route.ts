@@ -29,6 +29,7 @@ interface SubPaqueteInput {
   descripcion: string
   peso_libras: number | null
   cantidad: number | null
+  valor_declarado?: number | null
   notas_internas?: string | null
 }
 
@@ -78,6 +79,7 @@ export async function POST(
     peso_libras:         sp.peso_libras ?? null,
     peso_facturable:     sp.peso_libras ?? null,
     cantidad:            sp.cantidad ?? null,
+    valor_declarado:     sp.valor_declarado ?? null,
     notas_internas:      sp.notas_internas ?? null,
     paquete_origen_id:   id,
     visible_cliente:     false,

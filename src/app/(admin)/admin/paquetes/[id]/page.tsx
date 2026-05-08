@@ -144,6 +144,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 descripcionOrigen={p.descripcion ?? ''}
                 pesoLibrasOrigen={p.peso_libras ?? null}
                 cantidadOrigen={p.cantidad ?? null}
+                valorDeclaradoOrigen={p.valor_declarado ?? null}
               />
             )}
           </div>
