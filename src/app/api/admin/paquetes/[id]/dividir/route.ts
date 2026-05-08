@@ -96,6 +96,26 @@ export async function POST(
     return NextResponse.json({ error: errInsert.message }, { status: 500 })
   }
 
+  // Copiar fotos del padre a cada sub-paquete para que hereden la miniatura
+  const { data: fotosOrigen } = await admin
+    .from('fotos_paquetes')
+    .select('url, storage_path, descripcion')
+    .eq('paquete_id', id)
+    .order('created_at', { ascending: true })
+
+  if (fotosOrigen && fotosOrigen.length > 0 && creados && creados.length > 0) {
+    const insertsfotos = creados.flatMap(sub =>
+      fotosOrigen.map(f => ({
+        paquete_id: sub.id,
+        url: f.url,
+        storage_path: f.storage_path,
+        descripcion: f.descripcion ?? null,
+        created_at: ahora,
+      }))
+    )
+    await admin.from('fotos_paquetes').insert(insertsfotos)
+  }
+
   // Marcar el paquete origen como dividido:
   // - estado → en_consolidacion para que no aparezca en sugerir armado ni listas de recepción
   // - notas_internas con el registro de la división
