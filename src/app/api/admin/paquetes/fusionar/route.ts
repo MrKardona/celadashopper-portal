@@ -81,13 +81,18 @@ export async function POST(req: NextRequest) {
   const ahora = new Date().toISOString()
   const notaFusion = `[Fusionado con ${deleteIds.length} paquete${deleteIds.length !== 1 ? 's' : ''} el ${ahora.split('T')[0]}]`
 
-  // Reasignar fotos de los paquetes absorbidos al sobreviviente
-  // (antes de borrarlos para no perder las imágenes)
+  // Reasignar fotos y notificaciones al sobreviviente antes de borrar
   if (deleteIds.length > 0) {
-    await admin
-      .from('fotos_paquetes')
-      .update({ paquete_id: survivor.id })
-      .in('paquete_id', deleteIds)
+    await Promise.all([
+      admin
+        .from('fotos_paquetes')
+        .update({ paquete_id: survivor.id })
+        .in('paquete_id', deleteIds),
+      admin
+        .from('notificaciones')
+        .update({ paquete_id: survivor.id })
+        .in('paquete_id', deleteIds),
+    ])
   }
 
   // Actualizar el paquete sobreviviente
