@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Box, MapPin, Package, CheckCircle2, Loader2, RefreshCw } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { fechaHoraCorta, fechaCorta } from '@/lib/fecha'
 
 const tw = 'rgba(255,255,255,'
 
@@ -174,11 +173,11 @@ export default function HistorialRecibidasColombia({ refreshKey = 0 }: Props) {
 
                 <div className="text-right text-[11px] flex-shrink-0 whitespace-nowrap" style={{ color: `${tw}0.35)` }}>
                   {caja.fecha_recepcion_colombia && (
-                    <p>Recibida {format(new Date(caja.fecha_recepcion_colombia), "d MMM, HH:mm", { locale: es })}</p>
+                    <p>Recibida {fechaHoraCorta(caja.fecha_recepcion_colombia)}</p>
                   )}
                   {caja.fecha_despacho && (
                     <p style={{ color: `${tw}0.25)` }}>
-                      Salió {format(new Date(caja.fecha_despacho), "d MMM", { locale: es })}
+                      Salió {fechaCorta(caja.fecha_despacho)}
                     </p>
                   )}
                 </div>

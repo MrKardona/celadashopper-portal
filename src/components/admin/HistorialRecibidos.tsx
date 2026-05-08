@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Pencil, Save, X, CheckCircle2, Loader2, Camera } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { soloHora } from '@/lib/fecha'
 
 const tw = 'rgba(255,255,255,'
 
@@ -145,7 +144,7 @@ function FilaPaquete({
     onGuardar({ peso_libras: pesoNum, tracking_usaco: trackingUsaco.trim() || null, descripcion })
   }
 
-  const horaCorta = format(new Date(paquete.fecha_recepcion_usa), 'HH:mm', { locale: es })
+  const horaCorta = soloHora(paquete.fecha_recepcion_usa)
 
   if (editando) {
     return (

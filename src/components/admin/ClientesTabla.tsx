@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Users, Pencil, X, Save, Loader2, AlertCircle, CheckCircle, MapPin, Trash2 } from 'lucide-react'
+import { fechaCorta } from '@/lib/fecha'
 
 const tw = 'rgba(255,255,255,'
 
@@ -107,7 +108,7 @@ export default function ClientesTabla({ clientes, paquetesMap }: Props) {
                       </Link>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs" style={{ color: `${tw}0.35)` }}>
-                      {new Date(c.created_at).toLocaleDateString('es-CO')}
+                      {fechaCorta(c.created_at)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span

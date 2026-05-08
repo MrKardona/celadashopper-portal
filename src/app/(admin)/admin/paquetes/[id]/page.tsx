@@ -2,8 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, MapPin, Scale, DollarSign, Camera, FileText } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { fechaHora } from '@/lib/fecha'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
@@ -105,8 +104,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
     .eq('categoria', p.categoria).eq('activo', true)
     .order('prioridad', { ascending: true }).limit(1).maybeSingle()
 
-  const fechaFmt = (d: string | null) =>
-    d ? format(new Date(d), "d MMM yyyy, HH:mm", { locale: es }) : '—'
+  const fechaFmt = (d: string | null) => fechaHora(d)
 
   return (
     <div className="space-y-6 max-w-4xl">

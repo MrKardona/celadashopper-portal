@@ -6,8 +6,7 @@ import {
   ESTADO_LABELS, CATEGORIA_LABELS,
   type EstadoPaquete, type CategoriaProducto
 } from '@/types'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { fechaHoraLarga } from '@/lib/fecha'
 import { FadeUp, FadeUpScroll } from '@/components/portal/AnimateIn'
 
 const ESTADOS_ORDEN: EstadoPaquete[] = [
@@ -212,7 +211,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
                       <p className="text-xs mt-0.5" style={{ color: `${tw}0.5)` }}>{evento.descripcion}</p>
                     )}
                     <p className="text-xs mt-0.5" style={{ color: `${tw}0.3)` }}>
-                      {format(new Date(evento.created_at), "d 'de' MMMM, h:mm a", { locale: es })}
+                      {fechaHoraLarga(evento.created_at)}
                     </p>
                   </div>
                 </div>

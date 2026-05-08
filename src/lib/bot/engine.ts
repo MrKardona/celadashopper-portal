@@ -5,6 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { BOT_CONFIG, ESTADO_TEXTO } from './config'
+import { fechaCorta } from '@/lib/fecha'
 
 // ── Tipos ─────────────────────────────────────────────────────
 
@@ -321,7 +322,7 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
       return
     }
     const listaPaquetes = paquetes.map(p =>
-      `• ${p.tracking_casilla} — ${p.tienda} | ${ESTADO_TEXTO[p.estado] ?? p.estado} | ${p.factura_pagada ? 'Pagado ✅' : `$${p.costo_servicio} USD pendiente`} | Actualizado: ${new Date(p.updated_at).toLocaleDateString('es-CO')}`
+      `• ${p.tracking_casilla} — ${p.tienda} | ${ESTADO_TEXTO[p.estado] ?? p.estado} | ${p.factura_pagada ? 'Pagado ✅' : `$${p.costo_servicio} USD pendiente`} | Actualizado: ${fechaCorta(p.updated_at)}`
     ).join('\n')
     const respuesta = await generarRespuesta(texto, nombreCliente,
       `DATOS DE PAQUETES DEL CLIENTE (muéstralos claramente):\n${listaPaquetes}`)

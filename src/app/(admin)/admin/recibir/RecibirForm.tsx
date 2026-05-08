@@ -10,6 +10,7 @@ import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import HistorialRecibidos from '@/components/admin/HistorialRecibidos'
 import BuscadorClienteInline, { type ClienteSugerido } from '@/components/admin/BuscadorClienteInline'
+import { horaActualBogota } from '@/lib/fecha'
 
 interface PaqueteEncontrado {
   id: string
@@ -457,7 +458,7 @@ export default function RecibirForm() {
         tracking: paquete.tracking_casilla ?? tracking,
         cliente: paquete.perfiles?.nombre_completo ?? '—',
         peso: parseFloat(peso),
-        hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        hora: horaActualBogota(),
       }
       setUltimoRecibido(nuevo)
       setRecibidosHoy(prev => [nuevo, ...prev.slice(0, 29)])
@@ -608,7 +609,7 @@ export default function RecibirForm() {
         tracking: data.tracking_casilla ?? 'S/N',
         cliente: clienteManual?.nombre_completo ?? '⏳ Sin asignar',
         peso: parseFloat(formManual.peso),
-        hora: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        hora: horaActualBogota(),
         sinAsignar: !clienteManual,
       }
       setUltimoRecibido(nuevo)

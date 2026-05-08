@@ -1,5 +1,6 @@
 // src/lib/email/plantillas.ts
 // Plantillas HTML de emails transaccionales para CeladaShopper.
+import { fechaLarga } from '@/lib/fecha'
 
 interface TarifaCalculada {
   subtotal_envio: number
@@ -209,9 +210,8 @@ const CATEGORIA_LABELS_EMAIL: Record<string, string> = {
 function formatearFecha(fechaIso?: string): string | undefined {
   if (!fechaIso) return undefined
   try {
-    const d = new Date(fechaIso)
-    if (isNaN(d.getTime())) return undefined
-    return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+    const r = fechaLarga(fechaIso)
+    return r === '—' ? undefined : r
   } catch {
     return undefined
   }

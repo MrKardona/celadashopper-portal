@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { inicioDiaBogota } from '@/lib/fecha'
 
 function getSupabaseAdmin() {
   return createClient(
@@ -28,9 +29,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
   }
 
-  // Paquetes recibidos hoy (UTC midnight)
-  const hoy = new Date()
-  hoy.setUTCHours(0, 0, 0, 0)
+  // Paquetes recibidos hoy (medianoche en Bogotá)
+  const hoy = inicioDiaBogota()
 
   const { data: paquetes } = await admin
     .from('paquetes')
