@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   // Buscar todos los paquetes con ese tracking USACO
   const { data: paquetes, error } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_usaco, descripcion, categoria, peso_libras, estado, cliente_id, bodega_destino')
+    .select('id, tracking_casilla, tracking_usaco, descripcion, categoria, peso_libras, estado, cliente_id, bodega_destino, paquete_origen_id')
     .ilike('tracking_usaco', trackingUsaco)
     .order('created_at', { ascending: true })
 
@@ -71,6 +71,44 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Detectar sub-paquetes con hermanos pendientes en otras cajas
+  // Un sub-paquete "espera hermanos" cuando algún hermano (mismo paquete_origen_id)
+  // NO está en esta caja Y aún no ha llegado a Colombia.
+  const idsEnEstaCaja = new Set(paquetes.map(p => p.id))
+  const origenIds = [...new Set(
+    paquetes.filter(p => p.paquete_origen_id).map(p => p.paquete_origen_id as string)
+  )]
+
+  const esperaHermanosSet = new Set<string>() // IDs de paquetes en esta caja que esperan hermanos
+
+  if (origenIds.length > 0) {
+    const { data: todosHermanos } = await admin
+      .from('paquetes')
+      .select('id, paquete_origen_id, estado')
+      .in('paquete_origen_id', origenIds)
+
+    // Por cada origen, verificar si algún hermano falta en esta caja y no está en Colombia
+    const hermanosPorOrigen = new Map<string, typeof todosHermanos>()
+    for (const h of todosHermanos ?? []) {
+      if (!h.paquete_origen_id) continue
+      if (!hermanosPorOrigen.has(h.paquete_origen_id)) hermanosPorOrigen.set(h.paquete_origen_id, [])
+      hermanosPorOrigen.get(h.paquete_origen_id)!.push(h)
+    }
+
+    for (const [origenId, hermanos] of hermanosPorOrigen) {
+      const hayHermanoPendienteAfuera = hermanos.some(h =>
+        !idsEnEstaCaja.has(h.id) &&
+        !['en_bodega_local', 'en_camino_cliente', 'entregado'].includes(h.estado)
+      )
+      if (hayHermanoPendienteAfuera) {
+        // Marcar todos los sub-paquetes de este origen que estén EN esta caja
+        for (const p of paquetes) {
+          if (p.paquete_origen_id === origenId) esperaHermanosSet.add(p.id)
+        }
+      }
+    }
+  }
+
   // Estadísticas de la caja
   const estados = paquetes.reduce((acc: Record<string, number>, p) => {
     acc[p.estado] = (acc[p.estado] ?? 0) + 1
@@ -93,6 +131,7 @@ export async function GET(req: NextRequest) {
       paquetes: paquetes.map(p => ({
         ...p,
         cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
+        espera_hermanos: esperaHermanosSet.has(p.id),
       })),
     },
   })

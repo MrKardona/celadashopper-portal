@@ -21,6 +21,8 @@ interface PaqueteCaja {
   estado: string
   cliente_id: string | null
   bodega_destino: string
+  paquete_origen_id: string | null
+  espera_hermanos: boolean
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
 }
 
@@ -368,49 +370,67 @@ export default function RecibirColombiaForm() {
             {caja.paquetes.map((p, i) => {
               const yaEnColombia = ['en_bodega_local', 'en_camino_cliente', 'entregado'].includes(p.estado)
               return (
-                <label
-                  key={p.id}
-                  className="flex items-center gap-3 px-5 py-3 text-sm cursor-pointer transition-colors"
-                  style={{
-                    borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined,
-                    opacity: yaEnColombia ? 0.45 : 1,
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.04)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <input
-                    type="checkbox"
-                    checked={seleccionados.has(p.id)}
-                    onChange={() => toggleSeleccion(p.id)}
-                    disabled={yaEnColombia}
-                    className="h-4 w-4 rounded"
-                    style={{ accentColor: '#F5B800' }}
-                  />
-                  <Package className="h-4 w-4 flex-shrink-0" style={{ color: `${tw}0.3)` }} />
-                  <span className="font-mono text-xs font-semibold w-32 truncate" style={{ color: '#F5B800' }}>
-                    {p.tracking_casilla}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm truncate"
-                      style={{ color: !p.cliente ? '#F5B800' : 'white', fontStyle: !p.cliente ? 'italic' : 'normal' }}>
-                      {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
-                      {p.cliente?.numero_casilla && (
-                        <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>({p.cliente.numero_casilla})</span>
-                      )}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>
-                      {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
-                    </p>
-                  </div>
-                  <span className="text-xs whitespace-nowrap" style={{ color: `${tw}0.45)` }}>
-                    <MapPin className="h-3 w-3 inline mr-0.5" />
-                    {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
-                  </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap"
-                    style={estadoBadgeStyle(p.estado)}>
-                    {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
-                  </span>
-                </label>
+                <div key={p.id}>
+                  <label
+                    className="flex items-center gap-3 px-5 py-3 text-sm cursor-pointer transition-colors"
+                    style={{
+                      borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined,
+                      opacity: yaEnColombia ? 0.45 : 1,
+                      ...(p.espera_hermanos ? {
+                        background: 'rgba(239,68,68,0.06)',
+                        boxShadow: 'inset 3px 0 0 rgba(239,68,68,0.7)',
+                      } : {}),
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = p.espera_hermanos ? 'rgba(239,68,68,0.10)' : 'rgba(245,184,0,0.04)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = p.espera_hermanos ? 'rgba(239,68,68,0.06)' : 'transparent')}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={seleccionados.has(p.id)}
+                      onChange={() => toggleSeleccion(p.id)}
+                      disabled={yaEnColombia}
+                      className="h-4 w-4 rounded"
+                      style={{ accentColor: '#F5B800' }}
+                    />
+                    <Package className="h-4 w-4 flex-shrink-0" style={{ color: p.espera_hermanos ? '#f87171' : `${tw}0.3)` }} />
+                    <span className="font-mono text-xs font-semibold w-32 truncate" style={{ color: '#F5B800' }}>
+                      {p.tracking_casilla}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate"
+                        style={{ color: !p.cliente ? '#F5B800' : 'white', fontStyle: !p.cliente ? 'italic' : 'normal' }}>
+                        {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
+                        {p.cliente?.numero_casilla && (
+                          <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>({p.cliente.numero_casilla})</span>
+                        )}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>
+                        {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
+                      </p>
+                    </div>
+                    <span className="text-xs whitespace-nowrap" style={{ color: `${tw}0.45)` }}>
+                      <MapPin className="h-3 w-3 inline mr-0.5" />
+                      {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                    </span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap"
+                      style={estadoBadgeStyle(p.estado)}>
+                      {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
+                    </span>
+                  </label>
+                  {p.espera_hermanos && (
+                    <div
+                      className="flex items-center gap-1.5 px-5 py-1.5 text-[11px] font-semibold"
+                      style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        borderTop: '1px solid rgba(239,68,68,0.15)',
+                        color: '#f87171',
+                      }}
+                    >
+                      <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background: '#f87171' }} />
+                      ⏳ A la espera de más productos — otras partes vienen en otra caja
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>
