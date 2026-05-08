@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   // Obtener todos los paquetes
   const { data: paquetes, error: errFetch } = await admin
     .from('paquetes')
-    .select('id, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_libras, peso_facturable, cantidad, notas_internas, paquete_origen_id')
+    .select('id, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_libras, peso_facturable, cantidad, valor_declarado, notas_internas, paquete_origen_id')
     .in('id', body.ids)
 
   if (errFetch || !paquetes || paquetes.length !== body.ids.length) {
@@ -67,9 +67,10 @@ export async function POST(req: NextRequest) {
   const [survivor, ...toDelete] = paquetes
   const deleteIds = toDelete.map(p => p.id)
 
-  // Peso y cantidad totales
+  // Peso, cantidad y valor declarado totales
   const pesoTotal = paquetes.reduce((acc, p) => acc + (p.peso_libras ?? 0), 0)
   const cantidadTotal = paquetes.reduce((acc, p) => acc + (p.cantidad ?? 1), 0)
+  const valorTotal = paquetes.reduce((acc, p) => acc + (p.valor_declarado ?? 0), 0)
 
   // Estado más avanzado entre los fusionados
   const estadoFinal = paquetes.reduce((best, p) => {
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
       peso_libras: pesoTotal > 0 ? pesoTotal : null,
       peso_facturable: pesoTotal > 0 ? pesoTotal : null,
       cantidad: cantidadTotal,
+      valor_declarado: valorTotal > 0 ? valorTotal : null,
       estado: estadoFinal,
       notas_internas: [survivor.notas_internas, notaFusion].filter(Boolean).join(' · '),
       updated_at: ahora,
