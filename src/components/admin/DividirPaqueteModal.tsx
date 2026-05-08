@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Scissors, Plus, Trash2, Loader2, X, AlertTriangle } from 'lucide-react'
+import { Scissors, Plus, Trash2, Loader2, X, AlertTriangle, Sparkles } from 'lucide-react'
 
 interface Props {
   paqueteId: string
   descripcionOrigen: string
   pesoLibrasOrigen: number | null
+  cantidadOrigen?: number | null
 }
 
 interface SubForm {
@@ -26,15 +27,43 @@ function subVacio(descripcion: string, index: number): SubForm {
   }
 }
 
-export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, pesoLibrasOrigen }: Props) {
+export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, pesoLibrasOrigen, cantidadOrigen }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sugerencia, setSugerencia] = useState<string | null>(null)
   const [subs, setSubs] = useState<SubForm[]>([
     subVacio(descripcionOrigen, 1),
     subVacio(descripcionOrigen, 2),
   ])
+
+  function sugerirDivision() {
+    const total = cantidadOrigen ?? 0
+    if (total < 2) return
+    const MAX_POR_PAQUETE = 6
+    const numSubs = Math.ceil(total / MAX_POR_PAQUETE)
+    const pesoTotal = pesoLibrasOrigen ?? 0
+    const nuevos: SubForm[] = []
+    let restantes = total
+    for (let i = 0; i < numSubs; i++) {
+      const unidadesEste = Math.min(MAX_POR_PAQUETE, restantes)
+      const pesoEste = pesoTotal > 0 ? (unidadesEste / total) * pesoTotal : 0
+      nuevos.push({
+        descripcion: `${descripcionOrigen} — División ${i + 1}`,
+        peso_libras: pesoEste > 0 ? pesoEste.toFixed(2) : '',
+        cantidad: String(unidadesEste),
+        notas_internas: '',
+      })
+      restantes -= unidadesEste
+    }
+    setSubs(nuevos)
+    setSugerencia(
+      `${total} unidades divididas en ${numSubs} paquete${numSubs > 1 ? 's' : ''} de máximo 6 uds` +
+      (pesoTotal > 0 ? `, peso distribuido proporcionalmente` : '') +
+      `. Cada uno aplica tarifa normal ($18 fijo + $2.20/lb).`
+    )
+  }
 
   function agregar() {
     setSubs(prev => [...prev, subVacio(descripcionOrigen, prev.length + 1)])
@@ -143,6 +172,27 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
                       {pesoTotal > pesoOrigen + 0.1 && ' ⚠️ excede origen'}
                     </span>
                   </>
+                )}
+              </div>
+            )}
+
+            {/* Sugerir división óptima */}
+            {cantidadOrigen && cantidadOrigen >= 2 && (
+              <div className="mx-5 mt-3 space-y-2">
+                <button
+                  onClick={sugerirDivision}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                  style={{ background: 'rgba(52,211,153,0.08)', color: 'rgba(52,211,153,0.85)', border: '1px solid rgba(52,211,153,0.2)' }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Sugerir división óptima ({cantidadOrigen} uds → grupos de máx 6)
+                </button>
+                {sugerencia && (
+                  <div className="rounded-xl px-3 py-2.5 flex items-start gap-2"
+                    style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.18)' }}>
+                    <span style={{ color: 'rgba(52,211,153,0.7)', fontSize: 13, lineHeight: 1 }}>✓</span>
+                    <p className="text-xs" style={{ color: 'rgba(52,211,153,0.75)' }}>{sugerencia}</p>
+                  </div>
                 )}
               </div>
             )}

@@ -143,6 +143,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                 paqueteId={id}
                 descripcionOrigen={p.descripcion ?? ''}
                 pesoLibrasOrigen={p.peso_libras ?? null}
+                cantidadOrigen={p.cantidad ?? null}
               />
             )}
           </div>
