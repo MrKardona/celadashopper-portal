@@ -8,8 +8,8 @@ import Link from 'next/link'
 import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type BodegaDestino, type EstadoPaquete } from '@/types'
 
 const TIENDAS_USA = [
-  'Amazon', 'Nike', 'Adidas', 'Shein', 'Sephora',
-  'Fashion Nova', 'Apple Store', 'Best Buy', 'Target', 'Walmart',
+  'Amazon', 'Best Buy', 'Apple Store', 'eBay', 'Walmart',
+  'Adidas', 'Nike', 'ShopSimon', 'Target', 'Sephora',
 ]
 
 const BODEGAS: { value: BodegaDestino; label: string }[] = [

@@ -48,8 +48,8 @@ const BODEGA_LABELS: Record<string, string> = {
 }
 
 const TIENDAS_USA = [
-  'Amazon', 'Nike', 'Adidas', 'Shein', 'Sephora',
-  'Fashion Nova', 'Apple Store', 'Best Buy', 'Target', 'Walmart',
+  'Amazon', 'Best Buy', 'Apple Store', 'eBay', 'Walmart',
+  'Adidas', 'Nike', 'ShopSimon', 'Target', 'Sephora',
 ]
 
 const CATEGORIAS = Object.entries(CATEGORIA_LABELS) as [CategoriaProducto, string][]
