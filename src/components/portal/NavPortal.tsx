@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Package, LayoutDashboard, PlusCircle, LogOut, User } from 'lucide-react'
+import { Package, LayoutDashboard, PlusCircle, LogOut, User, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import type { Perfil } from '@/types'
 
@@ -58,6 +58,22 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            {perfil?.rol === 'admin' && (
+              <a
+                href="/admin"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: 'rgba(245,184,0,0.1)',
+                  border: '1px solid rgba(245,184,0,0.25)',
+                  color: '#F5B800',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.18)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.1)')}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Panel Admin
+              </a>
+            )}
             {perfil?.numero_casilla && (
               <div
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
@@ -103,6 +119,16 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
               {label}
             </a>
           ))}
+          {perfil?.rol === 'admin' && (
+            <a
+              href="/admin"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all"
+              style={{ background: 'rgba(245,184,0,0.1)', border: '1px solid rgba(245,184,0,0.2)', color: '#F5B800' }}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Admin
+            </a>
+          )}
         </nav>
       </div>
     </header>
