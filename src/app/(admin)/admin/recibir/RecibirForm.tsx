@@ -47,6 +47,11 @@ const BODEGA_LABELS: Record<string, string> = {
   barranquilla: 'Barranquilla',
 }
 
+const TIENDAS_USA = [
+  'Amazon', 'Nike', 'Adidas', 'Shein', 'Sephora',
+  'Fashion Nova', 'Apple Store', 'Best Buy', 'Target', 'Walmart',
+]
+
 const CATEGORIAS = Object.entries(CATEGORIA_LABELS) as [CategoriaProducto, string][]
 const BODEGAS = [
   { value: 'medellin', label: 'Medellín' },
@@ -123,6 +128,9 @@ export default function RecibirForm() {
 
   // --- Cámara foto: qué slot y qué contexto (normal | manual) ---
   const [camaraSlot, setCamaraSlot] = useState<{ slot: FotoSlot; ctx: 'normal' | 'manual' } | null>(null)
+
+  // --- Estado: tienda personalizada en modo manual ---
+  const [tiendaOtrosManual, setTiendaOtrosManual] = useState(false)
 
   // --- Estado: modo manual (sin casillero) ---
   const [modoManual, setModoManual] = useState(false)
@@ -397,6 +405,7 @@ export default function RecibirForm() {
     setCondicion('')
     setUltimoRecibido(null)
     setModoManual(false)
+    setTiendaOtrosManual(false)
     setFormManual({ descripcion: '', tienda: '', tracking_courier: '', peso: '', categoria: '', condicion: '', bodega_destino: 'medellin', notas: '', valor_declarado: '', cantidad: 1 })
     setValorDeclarado('')
     setClienteManual(null)
@@ -1335,9 +1344,34 @@ export default function RecibirForm() {
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Tienda <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si se ve)</span></label>
-              <input type="text" value={formManual.tienda}
-                onChange={e => setFormManual(p => ({ ...p, tienda: e.target.value }))}
-                placeholder="Amazon, Nike..." className="glass-input w-full px-3 py-2.5 text-sm" />
+              <select
+                value={tiendaOtrosManual ? 'otros' : formManual.tienda}
+                onChange={e => {
+                  if (e.target.value === 'otros') {
+                    setTiendaOtrosManual(true)
+                    setFormManual(p => ({ ...p, tienda: '' }))
+                  } else {
+                    setTiendaOtrosManual(false)
+                    setFormManual(p => ({ ...p, tienda: e.target.value }))
+                  }
+                }}
+                className="glass-input w-full px-3 py-2.5 text-sm"
+                style={{ colorScheme: 'dark', background: 'rgba(18,18,30,0.97)' }}
+              >
+                <option value="">Seleccionar tienda...</option>
+                {TIENDAS_USA.map(t => <option key={t} value={t}>{t}</option>)}
+                <option value="otros">Otra tienda...</option>
+              </select>
+              {tiendaOtrosManual && (
+                <input
+                  type="text"
+                  value={formManual.tienda}
+                  onChange={e => setFormManual(p => ({ ...p, tienda: e.target.value }))}
+                  placeholder="¿Cuál tienda?"
+                  className="glass-input w-full px-3 py-2.5 text-sm"
+                  autoFocus
+                />
+              )}
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Tracking courier <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si tiene)</span></label>

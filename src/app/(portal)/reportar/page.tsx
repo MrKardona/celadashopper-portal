@@ -7,6 +7,11 @@ import { Package, CheckCircle, AlertCircle, AlertTriangle, MapPin } from 'lucide
 import Link from 'next/link'
 import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type BodegaDestino, type EstadoPaquete } from '@/types'
 
+const TIENDAS_USA = [
+  'Amazon', 'Nike', 'Adidas', 'Shein', 'Sephora',
+  'Fashion Nova', 'Apple Store', 'Best Buy', 'Target', 'Walmart',
+]
+
 const BODEGAS: { value: BodegaDestino; label: string }[] = [
   { value: 'medellin',    label: 'Medellín' },
   { value: 'bogota',      label: 'Bogotá' },
@@ -95,6 +100,8 @@ export default function ReportarPage() {
   const [error, setError]         = useState('')
   const [duplicado, setDuplicado] = useState<Duplicado>(null)
   const [exito, setExito]         = useState<{ tracking: string; match?: boolean } | null>(null)
+
+  const [tiendaOtros, setTiendaOtros] = useState(false)
 
   const [cotizacion, setCotizacion] = useState<{
     subtotal_envio: number; seguro: number; total: number
@@ -250,6 +257,7 @@ export default function ReportarPage() {
                 className="btn-ghost flex-1 py-2.5 text-sm rounded-xl"
                 onClick={() => {
                   setExito(null)
+                  setTiendaOtros(false)
                   setForm({ tienda: '', tracking_origen: '', descripcion: '', categoria: '', condicion: '', cantidad: '1', valor_declarado: '', fecha_compra: '', fecha_estimada_llegada: '', bodega_destino: 'medellin', notas_cliente: '', requiere_consolidacion: false, notas_consolidacion: '' })
                 }}
               >
@@ -296,9 +304,36 @@ export default function ReportarPage() {
 
             {/* Tienda y tipo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <GlassLabel htmlFor="tienda" required>Tienda donde compraste</GlassLabel>
-                <GlassInput id="tienda" name="tienda" placeholder="Amazon, Nike, Shein..." value={form.tienda} onChange={handleChange} required />
+                <GlassSelect
+                  id="tienda"
+                  required={!tiendaOtros}
+                  value={tiendaOtros ? 'otros' : form.tienda}
+                  onChange={e => {
+                    if (e.target.value === 'otros') {
+                      setTiendaOtros(true)
+                      setForm(p => ({ ...p, tienda: '' }))
+                    } else {
+                      setTiendaOtros(false)
+                      setForm(p => ({ ...p, tienda: e.target.value }))
+                    }
+                  }}
+                  placeholder="Seleccionar tienda..."
+                  style={{ colorScheme: 'dark', background: 'rgba(18,18,30,0.97)' }}
+                >
+                  {TIENDAS_USA.map(t => <option key={t} value={t}>{t}</option>)}
+                  <option value="otros">Otra tienda...</option>
+                </GlassSelect>
+                {tiendaOtros && (
+                  <GlassInput
+                    placeholder="¿Cuál tienda?"
+                    value={form.tienda}
+                    onChange={e => setForm(p => ({ ...p, tienda: e.target.value }))}
+                    required
+                    autoFocus
+                  />
+                )}
               </div>
               <div>
                 <GlassLabel required>Tipo de producto</GlassLabel>
