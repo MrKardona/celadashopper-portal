@@ -114,7 +114,7 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
   const puedenFusionarse = selected.size >= 2 && clienteIdsSeleccionados.length === 1
 
   function abrirFusion() {
-    const desc = selectedPaquetes.map(p => p.descripcion).filter(Boolean).join(' + ')
+    const desc = selectedPaquetes.map(p => p.descripcion).filter(Boolean).join(' / ')
     setFusionDesc(desc)
     setFusionError('')
     setFusionando(true)

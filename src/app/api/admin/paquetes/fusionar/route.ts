@@ -81,6 +81,15 @@ export async function POST(req: NextRequest) {
   const ahora = new Date().toISOString()
   const notaFusion = `[Fusionado con ${deleteIds.length} paquete${deleteIds.length !== 1 ? 's' : ''} el ${ahora.split('T')[0]}]`
 
+  // Reasignar fotos de los paquetes absorbidos al sobreviviente
+  // (antes de borrarlos para no perder las imágenes)
+  if (deleteIds.length > 0) {
+    await admin
+      .from('fotos_paquetes')
+      .update({ paquete_id: survivor.id })
+      .in('paquete_id', deleteIds)
+  }
+
   // Actualizar el paquete sobreviviente
   const { error: errUpdate } = await admin
     .from('paquetes')
@@ -99,7 +108,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: errUpdate.message }, { status: 500 })
   }
 
-  // Eliminar los paquetes absorbidos
+  // Eliminar los paquetes absorbidos (sus fotos ya apuntan al sobreviviente)
   const { error: errDelete } = await admin
     .from('paquetes')
     .delete()
