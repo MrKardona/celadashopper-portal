@@ -96,10 +96,14 @@ export async function POST(
     return NextResponse.json({ error: errInsert.message }, { status: 500 })
   }
 
-  // Marcar el paquete origen como dividido en notas internas
+  // Marcar el paquete origen como dividido:
+  // - estado → en_consolidacion para que no aparezca en sugerir armado ni listas de recepción
+  // - notas_internas con el registro de la división
+  // Cuando todos los sub-paquetes lleguen a Colombia se reactivará el padre y se notificará al cliente
   await admin
     .from('paquetes')
     .update({
+      estado: 'en_consolidacion',
       notas_internas: [
         origen.notas_internas,
         `[Dividido en ${body.sub_paquetes.length} sub-paquetes el ${ahora.split('T')[0]}]`,

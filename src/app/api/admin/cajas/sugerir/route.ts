@@ -126,7 +126,23 @@ export async function GET(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const lista = paquetes ?? []
+  const candidatos = paquetes ?? []
+
+  // Excluir paquetes padre que ya fueron divididos:
+  // son aquellos cuyo id aparece como paquete_origen_id en sub-paquetes existentes
+  let padresDivididos = new Set<string>()
+  if (candidatos.length > 0) {
+    const ids = candidatos.map(p => p.id)
+    const { data: hijos } = await admin
+      .from('paquetes')
+      .select('paquete_origen_id')
+      .in('paquete_origen_id', ids)
+    for (const h of hijos ?? []) {
+      if (h.paquete_origen_id) padresDivididos.add(h.paquete_origen_id)
+    }
+  }
+
+  const lista = candidatos.filter(p => !padresDivididos.has(p.id))
 
   // Cargar nombres de clientes
   const clienteIds = [...new Set(lista.map(p => p.cliente_id).filter(Boolean))] as string[]
