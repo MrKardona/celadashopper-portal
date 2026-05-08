@@ -13,6 +13,7 @@ import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
 import ClienteEditInline from '@/components/admin/ClienteEditInline'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 import DividirPaqueteModal from '@/components/admin/DividirPaqueteModal'
+import EliminarDivisionButton from '@/components/admin/EliminarDivisionButton'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 
 function getSupabaseAdmin() {
@@ -267,6 +268,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                         style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
                         Ver →
                       </a>
+                      <EliminarDivisionButton subPaqueteId={sp.id} />
                     </div>
                   </div>
                 ))}
