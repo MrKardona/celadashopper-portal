@@ -40,7 +40,7 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
 
   function sugerirDivision() {
     const total = cantidadOrigen ?? 0
-    if (total < 2) return
+    if (total <= 6) return
     const MAX_POR_PAQUETE = 6
     const numSubs = Math.ceil(total / MAX_POR_PAQUETE)
     const pesoTotal = pesoLibrasOrigen ?? 0
@@ -177,7 +177,7 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
             )}
 
             {/* Sugerir división óptima */}
-            {cantidadOrigen && cantidadOrigen >= 2 && (
+            {cantidadOrigen && cantidadOrigen > 6 && (
               <div className="mx-5 mt-3 space-y-2">
                 <button
                   onClick={sugerirDivision}
