@@ -46,6 +46,7 @@ export interface PaqueteCaja {
   estado: string
   bodega_destino: string
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
+  foto_url?: string | null
 }
 
 export interface CajaDetalle {
@@ -406,12 +407,24 @@ export default function CajaDetalleForm({
         ) : (
           <div className="max-h-[480px] overflow-y-auto">
             {paquetes.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 px-5 py-3 text-sm group"
+              <div key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm group"
                 style={{ borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined }}
                 onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <Package className="h-4 w-4 flex-shrink-0" style={{ color: `${tw}0.3)` }} />
-                <span className="font-mono text-xs font-semibold w-32 truncate" style={{ color: '#F5B800' }}>
+                {p.foto_url ? (
+                  <img
+                    src={p.foto_url}
+                    alt={p.descripcion}
+                    className="flex-shrink-0 rounded object-cover"
+                    style={{ width: 36, height: 36, border: `1px solid ${tw}0.1)` }}
+                  />
+                ) : (
+                  <span className="flex-shrink-0 flex items-center justify-center rounded"
+                    style={{ width: 36, height: 36, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
+                    <Package className="h-4 w-4" style={{ color: `${tw}0.25)` }} />
+                  </span>
+                )}
+                <span className="font-mono text-xs font-semibold w-28 truncate flex-shrink-0" style={{ color: '#F5B800' }}>
                   {p.tracking_casilla}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -905,6 +918,7 @@ interface PaqueteDisponible {
   estado: string
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
   caja_actual: { id: string; codigo_interno: string } | null
+  foto_url: string | null
 }
 
 type FiltroEstado = 'todos' | 'recibido_usa' | 'listo_envio' | 'en_consolidacion'
@@ -1058,14 +1072,27 @@ function PaquetesDisponibles({
               ? Math.floor((Date.now() - new Date(p.fecha_recepcion_usa).getTime()) / 86_400_000)
               : null
             return (
-              <div key={p.id} className="flex items-center gap-3 px-5 py-2.5 text-sm"
+              <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm"
                 style={{
                   borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined,
                   borderLeft: `3px solid ${borderLeftColor}`,
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                <Package className="h-4 w-4 flex-shrink-0" style={{ color: bodegaDistinta ? '#fbbf24' : `${tw}0.3)` }} />
+                {/* Miniatura segunda foto */}
+                {p.foto_url ? (
+                  <img
+                    src={p.foto_url}
+                    alt={p.descripcion}
+                    className="flex-shrink-0 rounded object-cover"
+                    style={{ width: 40, height: 40, border: `1px solid ${tw}0.1)` }}
+                  />
+                ) : (
+                  <span className="flex-shrink-0 flex items-center justify-center rounded"
+                    style={{ width: 40, height: 40, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
+                    <Package className="h-4 w-4" style={{ color: bodegaDistinta ? '#fbbf24' : `${tw}0.25)` }} />
+                  </span>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm truncate ${p.cliente ? 'font-medium text-white' : ''}`}
                     style={!p.cliente ? { color: '#fbbf24', fontStyle: 'italic', fontWeight: 500 } : undefined}>

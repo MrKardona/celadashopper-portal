@@ -68,9 +68,29 @@ export async function GET(_req: NextRequest, { params }: Props) {
     }
   }
 
+  // Segunda foto de cada paquete
+  const paqueteIds = (paquetes ?? []).map(p => p.id)
+  const fotosMap: Record<string, string> = {}
+  if (paqueteIds.length > 0) {
+    const { data: fotos } = await admin
+      .from('fotos_paquetes')
+      .select('paquete_id, url')
+      .in('paquete_id', paqueteIds)
+      .order('created_at', { ascending: true })
+    const acum: Record<string, string[]> = {}
+    for (const f of fotos ?? []) {
+      if (!acum[f.paquete_id]) acum[f.paquete_id] = []
+      acum[f.paquete_id].push(f.url)
+    }
+    for (const [pid, urls] of Object.entries(acum)) {
+      fotosMap[pid] = urls[1] ?? urls[0]
+    }
+  }
+
   const paquetesConCliente = (paquetes ?? []).map(p => ({
     ...p,
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
+    foto_url: fotosMap[p.id] ?? null,
   }))
 
   const pesoSuma = (paquetes ?? []).reduce((s, p) => s + Number(p.peso_libras ?? 0), 0)

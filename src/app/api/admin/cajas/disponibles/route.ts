@@ -116,6 +116,25 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Cargar segunda foto de cada paquete (foto del contenido)
+  const paqueteIds = paquetes.map(p => p.id)
+  const fotosMap: Record<string, string> = {}
+  if (paqueteIds.length > 0) {
+    const { data: fotos } = await admin
+      .from('fotos_paquetes')
+      .select('paquete_id, url')
+      .in('paquete_id', paqueteIds)
+      .order('created_at', { ascending: true })
+    const acum: Record<string, string[]> = {}
+    for (const f of fotos ?? []) {
+      if (!acum[f.paquete_id]) acum[f.paquete_id] = []
+      acum[f.paquete_id].push(f.url)
+    }
+    for (const [id, urls] of Object.entries(acum)) {
+      fotosMap[id] = urls[1] ?? urls[0]
+    }
+  }
+
   // Conteos por estado (con o sin caja según incluirOtras)
   const conteoPorEstado: Record<string, number> = {}
   for (const e of ['recibido_usa', 'listo_envio', 'en_consolidacion']) {
@@ -140,6 +159,7 @@ export async function GET(req: NextRequest) {
     caja_actual: p.caja_id && cajasMap[p.caja_id]
       ? { id: p.caja_id, codigo_interno: cajasMap[p.caja_id].codigo_interno }
       : null,
+    foto_url: fotosMap[p.id] ?? null,
   }))
 
   return NextResponse.json({

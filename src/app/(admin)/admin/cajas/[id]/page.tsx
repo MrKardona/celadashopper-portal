@@ -48,6 +48,25 @@ export default async function CajaDetallePage({ params }: Props) {
     }
   }
 
+  // Segunda foto de cada paquete (foto del contenido)
+  const paqueteIds = (paquetes ?? []).map(p => p.id)
+  const fotosMap: Record<string, string> = {}
+  if (paqueteIds.length > 0) {
+    const { data: fotos } = await supabase
+      .from('fotos_paquetes')
+      .select('paquete_id, url')
+      .in('paquete_id', paqueteIds)
+      .order('created_at', { ascending: true })
+    const acum: Record<string, string[]> = {}
+    for (const f of fotos ?? []) {
+      if (!acum[f.paquete_id]) acum[f.paquete_id] = []
+      acum[f.paquete_id].push(f.url)
+    }
+    for (const [id, urls] of Object.entries(acum)) {
+      fotosMap[id] = urls[1] ?? urls[0]
+    }
+  }
+
   const paquetesConCliente: PaqueteCaja[] = (paquetes ?? []).map(p => ({
     id: p.id,
     tracking_casilla: p.tracking_casilla,
@@ -58,6 +77,7 @@ export default async function CajaDetallePage({ params }: Props) {
     estado: p.estado,
     bodega_destino: p.bodega_destino,
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
+    foto_url: fotosMap[p.id] ?? null,
   }))
 
   const cajaDetalle: CajaDetalle = {
