@@ -4,26 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Sparkles, X, Loader2, Box, Package, AlertCircle, CheckCircle2,
-  DollarSign, MapPin, User,
+  DollarSign, MapPin,
 } from 'lucide-react'
 
 const tw = 'rgba(255,255,255,'
 
-// Genera un color de fondo OKLCH para el avatar según el nombre
-function colorAvatar(nombre: string | null): string {
-  if (!nombre) return 'oklch(0.35 0.04 270)'
-  let hash = 0
-  for (let i = 0; i < nombre.length; i++) hash = nombre.charCodeAt(i) + ((hash << 5) - hash)
-  const hue = Math.abs(hash) % 360
-  return `oklch(0.4 0.12 ${hue})`
-}
-
-function iniciales(nombre: string | null): string {
-  if (!nombre) return '?'
-  const partes = nombre.trim().split(/\s+/)
-  if (partes.length === 1) return partes[0][0].toUpperCase()
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
-}
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín',
@@ -38,6 +23,7 @@ interface PaqueteSugerencia {
   valor_declarado: number
   peso_libras: number | null
   cliente_nombre: string | null
+  foto_url: string | null
 }
 
 interface PaqueteSinValor {
@@ -45,6 +31,7 @@ interface PaqueteSinValor {
   tracking_casilla: string | null
   descripcion: string
   cliente_nombre: string | null
+  foto_url: string | null
 }
 
 interface CajaSugerida {
@@ -374,24 +361,20 @@ export default function SugerirArmadoButton() {
                                   {caja.paquetes.map((p, pi) => (
                                     <li key={p.id} className="px-4 py-2 text-xs flex items-center gap-2.5"
                                       style={{ borderTop: pi > 0 ? `1px solid ${tw}0.04)` : undefined }}>
-                                      {/* Avatar de iniciales */}
-                                      {p.cliente_nombre ? (
-                                        <span
-                                          className="flex-shrink-0 flex items-center justify-center rounded-full text-white font-bold"
-                                          style={{
-                                            width: 24, height: 24, fontSize: 9,
-                                            background: colorAvatar(p.cliente_nombre),
-                                            letterSpacing: '0.03em',
-                                          }}
-                                        >
-                                          {iniciales(p.cliente_nombre)}
-                                        </span>
+                                      {/* Miniatura del producto */}
+                                      {p.foto_url ? (
+                                        <img
+                                          src={p.foto_url}
+                                          alt={p.descripcion}
+                                          className="flex-shrink-0 rounded object-cover"
+                                          style={{ width: 28, height: 28, border: `1px solid ${tw}0.1)` }}
+                                        />
                                       ) : (
                                         <span
-                                          className="flex-shrink-0 flex items-center justify-center rounded-full"
-                                          style={{ width: 24, height: 24, background: 'rgba(245,184,0,0.12)', border: '1px solid rgba(245,184,0,0.3)' }}
+                                          className="flex-shrink-0 flex items-center justify-center rounded"
+                                          style={{ width: 28, height: 28, background: `${tw}0.05)`, border: `1px solid ${tw}0.08)` }}
                                         >
-                                          <User className="h-3 w-3" style={{ color: '#F5B800' }} />
+                                          <Package className="h-3.5 w-3.5" style={{ color: `${tw}0.25)` }} />
                                         </span>
                                       )}
                                       {/* Nombre cliente */}
@@ -440,15 +423,18 @@ export default function SugerirArmadoButton() {
                               <ul className="mt-2 space-y-1">
                                 {info.sin_valor.slice(0, 5).map(p => (
                                   <li key={p.id} className="text-[11px] flex items-center gap-2 truncate" style={{ color: `${tw}0.45)` }}>
-                                    {p.cliente_nombre ? (
-                                      <span
-                                        className="flex-shrink-0 flex items-center justify-center rounded-full text-white font-bold"
-                                        style={{ width: 16, height: 16, fontSize: 7, background: colorAvatar(p.cliente_nombre) }}
-                                      >
-                                        {iniciales(p.cliente_nombre)}
-                                      </span>
+                                    {p.foto_url ? (
+                                      <img
+                                        src={p.foto_url}
+                                        alt=""
+                                        className="flex-shrink-0 rounded object-cover"
+                                        style={{ width: 16, height: 16, border: `1px solid ${tw}0.1)` }}
+                                      />
                                     ) : (
-                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: `${tw}0.2)` }} />
+                                      <span className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
+                                        style={{ background: `${tw}0.05)`, border: `1px solid ${tw}0.08)` }}>
+                                        <Package className="h-2 w-2" style={{ color: `${tw}0.2)` }} />
+                                      </span>
                                     )}
                                     <span className="font-medium" style={{ color: `${tw}0.6)` }}>{p.cliente_nombre ?? '—'}</span>
                                     <span className="truncate">{p.descripcion}</span>

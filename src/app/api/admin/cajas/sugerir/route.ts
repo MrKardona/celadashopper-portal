@@ -38,6 +38,7 @@ interface PaqueteSugerencia {
   valor_declarado: number
   peso_libras: number | null
   cliente_nombre: string | null
+  foto_url: string | null
 }
 
 interface PaqueteSinValor {
@@ -45,6 +46,7 @@ interface PaqueteSinValor {
   tracking_casilla: string | null
   descripcion: string
   cliente_nombre: string | null
+  foto_url: string | null
 }
 
 interface CajaSugerida {
@@ -135,12 +137,28 @@ export async function GET(req: NextRequest) {
     for (const p of perfiles ?? []) nombresMap[p.id] = p.nombre_completo
   }
 
+  // Cargar primera foto de cada paquete
+  const paqueteIds = lista.map(p => p.id)
+  const fotosMap: Record<string, string> = {}
+  if (paqueteIds.length > 0) {
+    const { data: fotos } = await admin
+      .from('fotos_paquetes')
+      .select('paquete_id, url')
+      .in('paquete_id', paqueteIds)
+      .order('created_at', { ascending: true })
+    // Solo guardamos la primera foto por paquete
+    for (const f of fotos ?? []) {
+      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+    }
+  }
+
   // Separar: con valor declarado > 0  vs  sin valor
   const conValor: Record<string, PaqueteSugerencia[]> = {}
   const sinValor: Record<string, PaqueteSinValor[]> = {}
 
   for (const p of lista) {
     const clienteNombre = p.cliente_id ? (nombresMap[p.cliente_id] ?? null) : null
+    const fotoUrl = fotosMap[p.id] ?? null
     const bodega = p.bodega_destino as string
     const valor = typeof p.valor_declarado === 'number'
       ? p.valor_declarado
@@ -156,6 +174,7 @@ export async function GET(req: NextRequest) {
         peso_libras: typeof p.peso_libras === 'number' ? p.peso_libras
           : (p.peso_libras != null ? parseFloat(String(p.peso_libras)) : null),
         cliente_nombre: clienteNombre,
+        foto_url: fotoUrl,
       })
     } else {
       if (!sinValor[bodega]) sinValor[bodega] = []
@@ -164,6 +183,7 @@ export async function GET(req: NextRequest) {
         tracking_casilla: p.tracking_casilla,
         descripcion: p.descripcion,
         cliente_nombre: clienteNombre,
+        foto_url: fotoUrl,
       })
     }
   }
