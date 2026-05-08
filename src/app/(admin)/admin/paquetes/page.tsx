@@ -24,12 +24,12 @@ const BODEGA_LABELS: Record<string, string> = {
 const tw = 'rgba(255,255,255,'
 
 interface Props {
-  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string; consolidacion?: string }>
+  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string; consolidacion?: string; cliente_id?: string }>
 }
 
 export default async function AdminPaquetesPage({ searchParams }: Props) {
   const params = await searchParams
-  const { estado, bodega, q, asignacion, consolidacion } = params
+  const { estado, bodega, q, asignacion, consolidacion, cliente_id } = params
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,7 +45,8 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   if (estado) q1 = q1.eq('estado', estado)
   if (bodega) q1 = q1.eq('bodega_destino', bodega)
-  if (asignacion === 'sin_asignar') q1 = q1.is('cliente_id', null)
+  if (cliente_id) q1 = q1.eq('cliente_id', cliente_id)
+  else if (asignacion === 'sin_asignar') q1 = q1.is('cliente_id', null)
   else if (asignacion === 'asignados') q1 = q1.not('cliente_id', 'is', null)
   if (consolidacion === 'requiere') q1 = q1.eq('requiere_consolidacion', true)
   else if (consolidacion === 'despachable') q1 = q1.eq('requiere_consolidacion', false)
@@ -89,13 +90,29 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   const selectClass = "glass-input text-sm px-3 py-2 rounded-xl"
 
+  // Si hay filtro por cliente, obtener su nombre para mostrarlo
+  let nombreCliente: string | null = null
+  if (cliente_id) {
+    const perfilFiltrado = Object.values(perfilesMap).find((_, i) => Object.keys(perfilesMap)[i] === cliente_id)
+      ?? (await supabase.from('perfiles').select('nombre_completo, numero_casilla').eq('id', cliente_id).single()).data
+    if (perfilFiltrado) nombreCliente = `${perfilFiltrado.nombre_completo} · ${perfilFiltrado.numero_casilla}`
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Paquetes</h1>
-          <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>{filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>
+            {filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}
+            {nombreCliente && <span style={{ color: '#F5B800' }}> · {nombreCliente}</span>}
+          </p>
         </div>
+        {cliente_id && (
+          <Link href="/admin/clientes" className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ color: `${tw}0.6)`, border: `1px solid ${tw}0.12)` }}>
+            ← Volver a clientes
+          </Link>
+        )}
       </div>
 
       {/* Filtros */}
@@ -128,7 +145,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
           <option value="despachable">🚀 Listo para despachar</option>
         </select>
         <button type="submit" className="btn-gold px-4 py-2 rounded-xl text-sm font-semibold">Filtrar</button>
-        {(estado || bodega || q || asignacion || consolidacion) && (
+        {(estado || bodega || q || asignacion || consolidacion || cliente_id) && (
           <Link href="/admin/paquetes" className="px-4 py-2 text-sm rounded-xl font-medium transition-all" style={{ color: `${tw}0.55)`, border: `1px solid ${tw}0.12)` }}>Limpiar</Link>
         )}
       </form>

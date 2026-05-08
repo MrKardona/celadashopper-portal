@@ -94,11 +94,16 @@ export default function ClientesTabla({ clientes, paquetesMap }: Props) {
                     <td className="px-4 py-3 hidden lg:table-cell text-xs capitalize" style={{ color: `${tw}0.45)` }}>{c.ciudad ?? '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <Link
-                        href={`/admin/paquetes?q=${encodeURIComponent(c.nombre_completo)}`}
-                        className="inline-flex items-center gap-1 hover:underline"
+                        href={`/admin/paquetes?cliente_id=${c.id}`}
+                        className="inline-flex items-center gap-1.5 hover:underline"
+                        title={`${stats.activos} activos · ${stats.total} total`}
                       >
-                        <span className="font-bold text-white">{stats.activos}</span>
-                        <span className="text-xs" style={{ color: `${tw}0.35)` }}>/ {stats.total}</span>
+                        <span className="font-bold text-white">{stats.total}</span>
+                        {stats.activos > 0 && (
+                          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(245,184,0,0.15)', color: '#F5B800' }}>
+                            {stats.activos} activos
+                          </span>
+                        )}
                       </Link>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-xs" style={{ color: `${tw}0.35)` }}>
