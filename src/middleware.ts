@@ -72,7 +72,9 @@ export async function middleware(request: NextRequest) {
     }
 
     // Admin en /dashboard → mandarlo a su área
-    if (pathname === '/dashboard' && rol === 'admin') {
+    // (excepto si viene con ?as=client, que significa "quiero ver el portal como cliente")
+    const asClient = request.nextUrl.searchParams.get('as') === 'client'
+    if (pathname === '/dashboard' && rol === 'admin' && !asClient) {
       return NextResponse.redirect(new URL('/admin/paquetes', request.url))
     }
     if (pathname === '/dashboard' && rol === 'agente_usa') {
