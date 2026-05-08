@@ -1247,6 +1247,21 @@ export default function RecibirForm() {
             }
           </p>
           <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Categoría <span style={{ color: '#f87171' }}>*</span></label>
+              <select
+                value={formManual.categoria}
+                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1, condicion: '' }))}
+                required
+                className="glass-input w-full px-3 py-2.5 text-sm"
+                style={{ colorScheme: 'dark', background: 'rgba(18,18,30,0.97)' }}
+              >
+                <option value="">Seleccionar...</option>
+                {CATEGORIAS.map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </div>
             {!SIN_PESO_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Peso en libras <span style={{ color: '#f87171' }}>*</span></label>
@@ -1263,20 +1278,6 @@ export default function RecibirForm() {
                 </div>
               </div>
             )}
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Categoría <span style={{ color: '#f87171' }}>*</span></label>
-              <select
-                value={formManual.categoria}
-                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1, condicion: '' }))}
-                required
-                className="glass-input w-full px-3 py-2.5 text-sm"
-              >
-                <option value="">Seleccionar...</option>
-                {CATEGORIAS.map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-            </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
                 Condición <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span>
