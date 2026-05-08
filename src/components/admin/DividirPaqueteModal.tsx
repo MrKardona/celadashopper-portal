@@ -43,8 +43,8 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
 
   function sugerirDivision() {
     const total = cantidadOrigen ?? 0
-    if (total <= 6) return
-    const MAX_POR_PAQUETE = 6
+    if (total <= 5) return
+    const MAX_POR_PAQUETE = 5
     const numSubs = Math.ceil(total / MAX_POR_PAQUETE)
     const pesoTotal = pesoLibrasOrigen ?? 0
     const valorTotal = valorDeclaradoOrigen ?? 0
@@ -66,7 +66,7 @@ export default function DividirPaqueteModal({ paqueteId, descripcionOrigen, peso
     }
     setSubs(nuevos)
     setSugerencia(
-      `${total} unidades → ${numSubs} paquete${numSubs > 1 ? 's' : ''} de máx 6 uds` +
+      `${total} unidades → ${numSubs} paquete${numSubs > 1 ? 's' : ''} de máx 5 uds` +
       (pesoTotal > 0 ? `, peso proporcional` : '') +
       (valorTotal > 0 ? `, valor declarado proporcional` : '') +
       `. Tarifa normal ($18 fijo + $2.20/lb).`
