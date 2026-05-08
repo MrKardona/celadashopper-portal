@@ -9,6 +9,22 @@ import {
 
 const tw = 'rgba(255,255,255,'
 
+// Genera un color de fondo OKLCH para el avatar según el nombre
+function colorAvatar(nombre: string | null): string {
+  if (!nombre) return 'oklch(0.35 0.04 270)'
+  let hash = 0
+  for (let i = 0; i < nombre.length; i++) hash = nombre.charCodeAt(i) + ((hash << 5) - hash)
+  const hue = Math.abs(hash) % 360
+  return `oklch(0.4 0.12 ${hue})`
+}
+
+function iniciales(nombre: string | null): string {
+  if (!nombre) return '?'
+  const partes = nombre.trim().split(/\s+/)
+  if (partes.length === 1) return partes[0][0].toUpperCase()
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+}
+
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín',
   bogota: 'Bogotá',
@@ -356,21 +372,46 @@ export default function SugerirArmadoButton() {
                                 </div>
                                 <ul>
                                   {caja.paquetes.map((p, pi) => (
-                                    <li key={p.id} className="px-4 py-2 text-xs flex items-center gap-3"
+                                    <li key={p.id} className="px-4 py-2 text-xs flex items-center gap-2.5"
                                       style={{ borderTop: pi > 0 ? `1px solid ${tw}0.04)` : undefined }}>
-                                      <Package className="h-3.5 w-3.5 flex-shrink-0" style={{ color: `${tw}0.3)` }} />
-                                      <span className="font-mono w-32 truncate" style={{ color: '#F5B800' }}>
-                                        {p.tracking_casilla ?? '—'}
+                                      {/* Avatar de iniciales */}
+                                      {p.cliente_nombre ? (
+                                        <span
+                                          className="flex-shrink-0 flex items-center justify-center rounded-full text-white font-bold"
+                                          style={{
+                                            width: 24, height: 24, fontSize: 9,
+                                            background: colorAvatar(p.cliente_nombre),
+                                            letterSpacing: '0.03em',
+                                          }}
+                                        >
+                                          {iniciales(p.cliente_nombre)}
+                                        </span>
+                                      ) : (
+                                        <span
+                                          className="flex-shrink-0 flex items-center justify-center rounded-full"
+                                          style={{ width: 24, height: 24, background: 'rgba(245,184,0,0.12)', border: '1px solid rgba(245,184,0,0.3)' }}
+                                        >
+                                          <User className="h-3 w-3" style={{ color: '#F5B800' }} />
+                                        </span>
+                                      )}
+                                      {/* Nombre cliente */}
+                                      <span className="font-medium truncate w-32 flex-shrink-0"
+                                        style={{ color: p.cliente_nombre ? `${tw}0.85)` : '#F5B800' }}>
+                                        {p.cliente_nombre ?? <span style={{ fontStyle: 'italic', color: '#F5B800' }}>Sin cliente</span>}
                                       </span>
-                                      <span className="flex-1 truncate" style={{ color: `${tw}0.65)` }}>
+                                      {/* Descripcion */}
+                                      <span className="flex-1 truncate" style={{ color: `${tw}0.45)` }}>
                                         {p.descripcion}
                                       </span>
-                                      <span className="truncate flex items-center gap-1 max-w-[140px]"
-                                        style={{ color: `${tw}0.4)` }}>
-                                        <User className="h-3 w-3 flex-shrink-0" />
-                                        {p.cliente_nombre ?? <span style={{ color: '#F5B800', fontStyle: 'italic' }}>Sin cliente</span>}
-                                      </span>
-                                      <span className={`font-bold whitespace-nowrap`}
+                                      {/* Tracking como badge secundario */}
+                                      {p.tracking_casilla && (
+                                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
+                                          style={{ background: `${tw}0.05)`, color: `${tw}0.3)`, border: `1px solid ${tw}0.08)` }}>
+                                          {p.tracking_casilla}
+                                        </span>
+                                      )}
+                                      {/* Valor */}
+                                      <span className="font-bold whitespace-nowrap flex-shrink-0"
                                         style={{ color: p.valor_declarado > maxValor ? '#F5B800' : 'white' }}>
                                         ${p.valor_declarado.toFixed(2)}
                                       </span>
@@ -396,11 +437,22 @@ export default function SugerirArmadoButton() {
                               <p className="mt-0.5" style={{ color: `${tw}0.5)` }}>
                                 Asígnales un valor en <span className="font-mono">/admin/recibir</span> para incluirlos en el cálculo, o agrégalos manualmente a una caja.
                               </p>
-                              <ul className="mt-2 space-y-0.5">
+                              <ul className="mt-2 space-y-1">
                                 {info.sin_valor.slice(0, 5).map(p => (
-                                  <li key={p.id} className="text-[11px] truncate" style={{ color: `${tw}0.45)` }}>
-                                    • <span className="font-mono">{p.tracking_casilla}</span> — {p.descripcion}
-                                    {p.cliente_nombre && <span style={{ color: `${tw}0.35)` }}> ({p.cliente_nombre})</span>}
+                                  <li key={p.id} className="text-[11px] flex items-center gap-2 truncate" style={{ color: `${tw}0.45)` }}>
+                                    {p.cliente_nombre ? (
+                                      <span
+                                        className="flex-shrink-0 flex items-center justify-center rounded-full text-white font-bold"
+                                        style={{ width: 16, height: 16, fontSize: 7, background: colorAvatar(p.cliente_nombre) }}
+                                      >
+                                        {iniciales(p.cliente_nombre)}
+                                      </span>
+                                    ) : (
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: `${tw}0.2)` }} />
+                                    )}
+                                    <span className="font-medium" style={{ color: `${tw}0.6)` }}>{p.cliente_nombre ?? '—'}</span>
+                                    <span className="truncate">{p.descripcion}</span>
+                                    {p.tracking_casilla && <span className="font-mono flex-shrink-0" style={{ color: `${tw}0.3)` }}>{p.tracking_casilla}</span>}
                                   </li>
                                 ))}
                                 {info.sin_valor.length > 5 && (
