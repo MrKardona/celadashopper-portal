@@ -214,6 +214,15 @@ function LoginForm() {
       <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
         Te enviaremos un link al correo · Sin contraseña
       </p>
+
+      {/* Tip: mismo navegador */}
+      <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
+        style={{ background: 'rgba(245,184,0,0.06)', border: '1px solid rgba(245,184,0,0.14)' }}>
+        <span className="mt-px flex-shrink-0" style={{ color: '#F5B800' }}>💡</span>
+        <p style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+          Abre el link <strong style={{ color: 'rgba(255,255,255,0.65)' }}>en este mismo navegador</strong>, no desde la app de correo.
+        </p>
+      </div>
     </form>
   )
 }
