@@ -154,8 +154,74 @@ export default function LoginPage() {
 
   return (
     <div className="portal-bg min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+
+      {/* ── Aurora atmosphere ── */}
+      <div className="aurora-blob aurora-blob-1" />
+      <div className="aurora-blob aurora-blob-2" />
+      <div className="aurora-blob aurora-blob-3" />
+
+      {/* ── Orbes existentes ── */}
       <div className="portal-orb-gold" />
       <div className="portal-orb-blue" />
+
+      {/* ── Rutas de importación ── */}
+      <svg
+        className="pointer-events-none fixed inset-0 w-full h-full"
+        style={{ zIndex: 0, opacity: 0.055 }}
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Ruta principal USA → Colombia */}
+        <path
+          d="M 1260 70 Q 950 360 310 740"
+          stroke="rgba(245,184,0,1)"
+          strokeWidth="1.3"
+          fill="none"
+          strokeDasharray="7 11"
+          style={{ animation: 'route-dash-1 24s linear infinite' }}
+        />
+        {/* Ruta secundaria */}
+        <path
+          d="M 1390 220 Q 1080 450 640 810"
+          stroke="rgba(140,170,255,1)"
+          strokeWidth="1"
+          fill="none"
+          strokeDasharray="4 13"
+          style={{ animation: 'route-dash-2 32s linear infinite', animationDelay: '10s' }}
+        />
+        {/* Punto origen USA */}
+        <circle cx="1260" cy="70" r="5" fill="rgba(245,184,0,0.9)" />
+        <circle cx="1260" cy="70" r="10" fill="none" stroke="rgba(245,184,0,0.4)" strokeWidth="1" />
+        <circle cx="1390" cy="220" r="3.5" fill="rgba(140,170,255,0.8)" />
+        {/* Punto destino Colombia */}
+        <circle cx="310" cy="740" r="5" fill="rgba(245,184,0,0.9)" />
+        <circle cx="640" cy="810" r="3.5" fill="rgba(140,170,255,0.8)" />
+      </svg>
+
+      {/* ── Avión de carga ── */}
+      <svg
+        className="login-plane"
+        width="96"
+        height="40"
+        viewBox="0 0 96 40"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Fuselaje */}
+        <ellipse cx="48" cy="20" rx="38" ry="5" fill="white" />
+        {/* Alas principales */}
+        <path d="M 52 20 L 30 5 L 65 18 L 30 35 Z" fill="white" />
+        {/* Cola horizontal */}
+        <path d="M 13 20 L 4 14 L 14 18 Z" fill="white" />
+        <path d="M 13 20 L 4 26 L 14 22 Z" fill="white" />
+        {/* Cola vertical */}
+        <path d="M 13 20 L 7 11 L 14 19" fill="white" />
+        {/* Motores */}
+        <ellipse cx="43" cy="13" rx="6" ry="2.2" fill="rgba(255,255,255,0.7)" />
+        <ellipse cx="43" cy="27" rx="6" ry="2.2" fill="rgba(255,255,255,0.7)" />
+        {/* Nariz / cabina */}
+        <ellipse cx="85" cy="20" rx="4" ry="3" fill="rgba(255,255,255,0.6)" />
+      </svg>
 
       <div className="relative z-10 w-full max-w-md space-y-8">
 

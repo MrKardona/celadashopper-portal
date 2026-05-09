@@ -343,3 +343,72 @@ select.glass-input option {
 .portal-bg ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
 .portal-bg ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
 .portal-bg ::-webkit-scrollbar-thumb:hover { background: rgba(245,184,0,0.3); }
+
+/* ── Aurora atmosphere ──────────────────────────────────────────── */
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%       { transform: translate(-65px, 85px) scale(1.14) rotate(7deg); }
+  66%       { transform: translate(75px, -48px) scale(0.9) rotate(-5deg); }
+}
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  42%       { transform: translate(95px, -68px) scale(1.22) rotate(-9deg); }
+  78%       { transform: translate(-48px, 58px) scale(0.87) rotate(6deg); }
+}
+@keyframes aurora-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(52px, 78px) scale(1.28); }
+}
+.aurora-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+.aurora-blob-1 {
+  width: 55vw; height: 38vh;
+  top: -6%; left: 2%;
+  background: radial-gradient(ellipse, rgba(55, 35, 185, 0.22) 0%, transparent 65%);
+  animation: aurora-drift-1 22s ease-in-out infinite;
+}
+.aurora-blob-2 {
+  width: 48vw; height: 42vh;
+  top: 18%; right: -6%;
+  background: radial-gradient(ellipse, rgba(18, 95, 160, 0.17) 0%, transparent 65%);
+  animation: aurora-drift-2 29s ease-in-out infinite;
+}
+.aurora-blob-3 {
+  width: 44vw; height: 32vh;
+  bottom: -4%; left: 18%;
+  background: radial-gradient(ellipse, rgba(90, 18, 148, 0.15) 0%, transparent 65%);
+  animation: aurora-drift-3 36s ease-in-out infinite;
+}
+
+/* ── Cargo plane (importaciones) ────────────────────────────────── */
+@keyframes plane-cross {
+  0%      { transform: translate(-110px, 0) rotate(-4deg); opacity: 0; }
+  7%, 93% { opacity: 0.07; }
+  100%    { transform: translate(calc(100vw + 110px), -55px) rotate(-4deg); opacity: 0; }
+}
+.login-plane {
+  position: fixed;
+  bottom: 30%;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  animation: plane-cross 32s linear infinite;
+  animation-delay: 5s;
+}
+
+/* ── Shipping route dash ─────────────────────────────────────────── */
+@keyframes route-dash-1 {
+  from { stroke-dashoffset: 800; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes route-dash-2 {
+  from { stroke-dashoffset: 650; }
+  to   { stroke-dashoffset: 0; }
+}
