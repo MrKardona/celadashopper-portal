@@ -16,6 +16,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.1",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.4.4",
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.22.0",
