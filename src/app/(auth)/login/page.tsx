@@ -9,6 +9,75 @@ import { enviarMagicLink } from './actions'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
+// Componente ruta animada USA → Colombia
+function RouteAnimada({ tw }: { tw: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 mt-1">
+      {/* Banderas + avión */}
+      <div className="flex items-center gap-2">
+        {/* 🇺🇸 con pulso suave */}
+        <motion.span
+          className="text-2xl leading-none select-none"
+          animate={{ scale: [1, 1.12, 1], filter: ['drop-shadow(0 0 0px transparent)', 'drop-shadow(0 0 6px rgba(255,255,255,0.25))', 'drop-shadow(0 0 0px transparent)'] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        >🇺🇸</motion.span>
+
+        {/* Pista + avión animado */}
+        <div className="relative w-24 h-5 flex-shrink-0">
+          {/* Línea de pista */}
+          <div
+            className="absolute top-1/2 left-0 right-0 -mt-px h-px"
+            style={{ background: `linear-gradient(90deg, transparent, ${tw}0.22), transparent)` }}
+          />
+          {/* Puntos de pista */}
+          {[20, 40, 60].map(pos => (
+            <motion.div
+              key={pos}
+              className="absolute top-1/2 -mt-px w-0.5 h-0.5 rounded-full"
+              style={{ left: pos, background: `${tw}0.15)` }}
+              animate={{ opacity: [0.15, 0.5, 0.15] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: pos / 100, ease: 'easeInOut' }}
+            />
+          ))}
+          {/* Avión volando */}
+          <motion.span
+            className="absolute text-xs select-none"
+            style={{ top: '50%', marginTop: -7, left: -4 }}
+            animate={{
+              x: [0, 48, 96],
+              y: [0, -6, 0],
+            }}
+            transition={{
+              duration: 2.2,
+              ease: 'easeInOut',
+              repeat: Infinity,
+              repeatDelay: 0.7,
+              times: [0, 0.5, 1],
+            }}
+          >✈</motion.span>
+        </div>
+
+        {/* 🇨🇴 con pulso offset */}
+        <motion.span
+          className="text-2xl leading-none select-none"
+          animate={{ scale: [1, 1.12, 1], filter: ['drop-shadow(0 0 0px transparent)', 'drop-shadow(0 0 6px rgba(255,220,60,0.3))', 'drop-shadow(0 0 0px transparent)'] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
+        >🇨🇴</motion.span>
+      </div>
+
+      {/* Tagline */}
+      <motion.p
+        className="text-xs font-medium uppercase"
+        style={{ color: `${tw}0.32)`, letterSpacing: '0.18em' }}
+        animate={{ opacity: [0.32, 0.55, 0.32] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        Servicio internacional de casillero
+      </motion.p>
+    </div>
+  )
+}
+
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 22 },
   animate: { opacity: 1, y: 0 },
@@ -245,25 +314,8 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col items-center gap-2"
           >
-            {/* Ruta USA → Colombia */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl leading-none">🇺🇸</span>
-              <span className="flex items-center gap-0.5" style={{ color: `${tw}0.18)` }}>
-                <span className="w-5 h-px block" style={{ background: `${tw}0.18)` }} />
-                <span style={{ color: `${tw}0.35)`, fontSize: 13 }}>✈</span>
-                <span className="w-5 h-px block" style={{ background: `${tw}0.18)` }} />
-              </span>
-              <span className="text-2xl leading-none">🇨🇴</span>
-            </div>
-            {/* Tagline */}
-            <p
-              className="text-xs font-medium tracking-widest uppercase"
-              style={{ color: `${tw}0.35)`, letterSpacing: '0.18em' }}
-            >
-              Servicio internacional de casillero
-            </p>
+            <RouteAnimada tw={tw} />
           </motion.div>
         </motion.div>
 
