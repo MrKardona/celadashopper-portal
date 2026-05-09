@@ -23,7 +23,7 @@ function RouteAnimada({ tw }: { tw: string }) {
         >🇺🇸</motion.span>
 
         {/* Pista + avión animado */}
-        <div className="relative w-24 h-5 flex-shrink-0">
+        <div className="relative w-28 h-5 flex-shrink-0">
           {/* Línea de pista */}
           <div
             className="absolute top-1/2 left-0 right-0 -mt-px h-px"
@@ -44,7 +44,7 @@ function RouteAnimada({ tw }: { tw: string }) {
             className="absolute text-xs select-none"
             style={{ top: '50%', marginTop: -7, left: -4 }}
             animate={{
-              x: [0, 48, 96],
+              x: [0, 56, 112],
               y: [0, -6, 0],
             }}
             transition={{
@@ -54,7 +54,7 @@ function RouteAnimada({ tw }: { tw: string }) {
               repeatDelay: 0.7,
               times: [0, 0.5, 1],
             }}
-          >✈</motion.span>
+          >✈📦</motion.span>
         </div>
 
         {/* 🇨🇴 con pulso offset */}
