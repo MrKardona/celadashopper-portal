@@ -241,15 +241,30 @@ export default function LoginPage() {
               style={{ objectFit: 'contain' }}
             />
           </motion.div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-sm"
-            style={{ color: `${tw}0.4)` }}
+            className="flex flex-col items-center gap-2"
           >
-            Portal de clientes
-          </motion.p>
+            {/* Ruta USA → Colombia */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl leading-none">🇺🇸</span>
+              <span className="flex items-center gap-0.5" style={{ color: `${tw}0.18)` }}>
+                <span className="w-5 h-px block" style={{ background: `${tw}0.18)` }} />
+                <span style={{ color: `${tw}0.35)`, fontSize: 13 }}>✈</span>
+                <span className="w-5 h-px block" style={{ background: `${tw}0.18)` }} />
+              </span>
+              <span className="text-2xl leading-none">🇨🇴</span>
+            </div>
+            {/* Tagline */}
+            <p
+              className="text-xs font-medium tracking-widest uppercase"
+              style={{ color: `${tw}0.35)`, letterSpacing: '0.18em' }}
+            >
+              Servicio internacional de casillero
+            </p>
+          </motion.div>
         </motion.div>
 
         {/* Card glass */}
