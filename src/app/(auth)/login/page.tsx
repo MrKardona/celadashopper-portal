@@ -167,7 +167,7 @@ export default function LoginPage() {
       {/* ── Rutas de importación ── */}
       <svg
         className="pointer-events-none fixed inset-0 w-full h-full"
-        style={{ zIndex: 0, opacity: 0.055 }}
+        style={{ zIndex: 0, opacity: 0.15 }}
         viewBox="0 0 1440 900"
         preserveAspectRatio="xMidYMid slice"
         xmlns="http://www.w3.org/2000/svg"

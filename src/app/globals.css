@@ -362,34 +362,34 @@ select.glass-input option {
 .aurora-blob {
   position: fixed;
   border-radius: 50%;
-  filter: blur(90px);
+  filter: blur(70px);
   pointer-events: none;
   z-index: 0;
   will-change: transform;
 }
 .aurora-blob-1 {
-  width: 55vw; height: 38vh;
-  top: -6%; left: 2%;
-  background: radial-gradient(ellipse, rgba(55, 35, 185, 0.22) 0%, transparent 65%);
+  width: 60vw; height: 45vh;
+  top: -8%; left: 0%;
+  background: radial-gradient(ellipse, rgba(55, 35, 185, 0.55) 0%, transparent 65%);
   animation: aurora-drift-1 22s ease-in-out infinite;
 }
 .aurora-blob-2 {
-  width: 48vw; height: 42vh;
-  top: 18%; right: -6%;
-  background: radial-gradient(ellipse, rgba(18, 95, 160, 0.17) 0%, transparent 65%);
+  width: 52vw; height: 48vh;
+  top: 15%; right: -8%;
+  background: radial-gradient(ellipse, rgba(18, 95, 160, 0.45) 0%, transparent 65%);
   animation: aurora-drift-2 29s ease-in-out infinite;
 }
 .aurora-blob-3 {
-  width: 44vw; height: 32vh;
-  bottom: -4%; left: 18%;
-  background: radial-gradient(ellipse, rgba(90, 18, 148, 0.15) 0%, transparent 65%);
+  width: 48vw; height: 36vh;
+  bottom: -6%; left: 14%;
+  background: radial-gradient(ellipse, rgba(90, 18, 148, 0.40) 0%, transparent 65%);
   animation: aurora-drift-3 36s ease-in-out infinite;
 }
 
 /* ── Cargo plane (importaciones) ────────────────────────────────── */
 @keyframes plane-cross {
   0%      { transform: translate(-110px, 0) rotate(-4deg); opacity: 0; }
-  7%, 93% { opacity: 0.07; }
+  7%, 93% { opacity: 0.18; }
   100%    { transform: translate(calc(100vw + 110px), -55px) rotate(-4deg); opacity: 0; }
 }
 .login-plane {
