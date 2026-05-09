@@ -54,7 +54,7 @@ function RouteAnimada({ tw }: { tw: string }) {
               repeatDelay: 0.7,
               times: [0, 0.5, 1],
             }}
-          >✈📦</motion.span>
+          >📦</motion.span>
         </div>
 
         {/* 🇨🇴 con pulso offset */}
