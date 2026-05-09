@@ -233,11 +233,12 @@ export default function LoginPage() {
             transition={{ duration: 0.6, delay: 0.05, ease }}
           >
             <Image
-              src="/celada-logo.svg"
+              src="/celada-logo-new.png"
               alt="Celada Personal Shopper"
-              width={180}
-              height={52}
+              width={220}
+              height={80}
               priority
+              style={{ objectFit: 'contain' }}
             />
           </motion.div>
           <motion.p

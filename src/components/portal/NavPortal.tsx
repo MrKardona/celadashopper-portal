@@ -31,14 +31,15 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="flex items-center justify-between h-16">
 
-          {/* Logo */}
-          <a href="/dashboard" className="flex items-center gap-2 shrink-0">
+          {/* Logo — vuelve al inicio (redirige según sesión) */}
+          <a href="/" className="flex items-center gap-2 shrink-0">
             <Image
-              src="/celada-logo.svg"
+              src="/celada-logo-new.png"
               alt="Celada Personal Shopper"
-              width={130}
-              height={38}
+              width={120}
+              height={44}
               priority
+              style={{ objectFit: 'contain' }}
             />
           </a>
 
