@@ -301,14 +301,16 @@ export default function LoginPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.05, ease }}
           >
-            <Image
-              src="/celada-logo-new.png"
-              alt="Celada Personal Shopper"
-              width={220}
-              height={80}
-              priority
-              style={{ objectFit: 'contain' }}
-            />
+            <a href="/" aria-label="Ir al inicio">
+              <Image
+                src="/celada-logo-new.png"
+                alt="Celada Personal Shopper"
+                width={220}
+                height={80}
+                priority
+                style={{ objectFit: 'contain', cursor: 'pointer' }}
+              />
+            </a>
           </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 6 }}
