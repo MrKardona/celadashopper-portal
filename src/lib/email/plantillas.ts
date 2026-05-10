@@ -368,10 +368,17 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya salió de Miami rumbo a Colombia.
     </p>
     ${trackerProgreso('en_transito')}
+    ${vars.tracking_usaco ? `
+    <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:10px;padding:16px 20px;margin:20px 0;">
+      <p style="color:#92400e;font-size:11px;margin:0 0 6px 0;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;">🚛 Guía de transporte (USACO)</p>
+      <p style="color:#1c1917;font-size:20px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:1px;">${vars.tracking_usaco}</p>
+      <p style="color:#78716c;font-size:11px;margin:6px 0 0 0;">Usa este número para rastrear el paquete en la transportadora local.</p>
+    </div>
+    ` : ''}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
-        ${vars.tracking_origen ? bloqueDatos('🚚 Guía con que llegó', vars.tracking_origen) : ''}
+        ${vars.tracking_origen ? bloqueDatos('🚚 Guía con que llegó a Miami', vars.tracking_origen) : ''}
         ${vars.bodega ? bloqueDatos('📍 Ciudad destino', vars.bodega) : ''}
         ${bloqueDatos('🔖 Número CeladaShopper', vars.tracking)}
       </table>
@@ -396,13 +403,19 @@ export function plantillaPaqueteListoRecoger(vars: VariablesPlantilla): { subjec
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> ya llegó a nuestra bodega ${vars.bodega ? `en ${vars.bodega}` : 'local'}.
     </p>
     ${trackerProgreso('en_bodega_local')}
+    ${vars.tracking_usaco ? `
+    <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:10px;padding:16px 20px;margin:20px 0;">
+      <p style="color:#92400e;font-size:11px;margin:0 0 6px 0;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;">🚛 Guía de transporte (USACO)</p>
+      <p style="color:#1c1917;font-size:20px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:1px;">${vars.tracking_usaco}</p>
+    </div>
+    ` : ''}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}
         ${vars.peso ? bloqueDatos('⚖️ Peso', vars.peso) : ''}
         ${vars.costo ? bloqueDatos('💰 Costo del servicio', vars.costo) : ''}
         ${vars.bodega ? bloqueDatos('📍 Bodega', vars.bodega) : ''}
-        ${bloqueDatos('🔖 Tracking', vars.tracking)}
+        ${bloqueDatos('🔖 Número CeladaShopper', vars.tracking)}
       </table>
     </div>
     <p style="color:#44403c;font-size:14px;line-height:1.6;margin:0 0 24px 0;">
@@ -499,6 +512,12 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
       ¡Hola ${vars.nombre}! Tu paquete <strong>${vars.descripcion}</strong> tiene una nueva actualización: <strong>${label}</strong>.
     </p>
     ${trackerProgreso(estado)}
+    ${vars.tracking_usaco ? `
+    <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:10px;padding:16px 20px;margin:20px 0;">
+      <p style="color:#92400e;font-size:11px;margin:0 0 6px 0;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;">🚛 Guía de transporte (USACO)</p>
+      <p style="color:#1c1917;font-size:20px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:1px;">${vars.tracking_usaco}</p>
+    </div>
+    ` : ''}
     <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:20px;margin:20px 0;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         ${bloqueDatos('📦 Producto', vars.descripcion)}

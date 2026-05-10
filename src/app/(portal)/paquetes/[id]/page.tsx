@@ -8,6 +8,7 @@ import {
 } from '@/types'
 import { fechaHoraLarga } from '@/lib/fecha'
 import { FadeUp, FadeUpScroll } from '@/components/portal/AnimateIn'
+import { FotoGaleria } from '@/components/portal/FotoGaleria'
 
 const ESTADOS_ORDEN: EstadoPaquete[] = [
   'reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio',
@@ -118,21 +119,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
             <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
               <h2 className="font-semibold text-white">📷 Fotos del paquete</h2>
             </div>
-            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {paquete.fotos_paquetes.map((foto: any) => (
-                <a key={foto.id} href={foto.url} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={foto.url}
-                    alt={foto.descripcion ?? 'Foto del paquete'}
-                    className="w-full aspect-square object-cover rounded-xl hover:opacity-80 transition-opacity"
-                    style={{ border: `1px solid ${tw}0.08)` }}
-                  />
-                  {foto.descripcion && (
-                    <p className="text-xs mt-1 text-center capitalize" style={{ color: `${tw}0.4)` }}>{foto.descripcion}</p>
-                  )}
-                </a>
-              ))}
-            </div>
+            <FotoGaleria fotos={paquete.fotos_paquetes} />
           </div>
         </FadeUpScroll>
       )}
