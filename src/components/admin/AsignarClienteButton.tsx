@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, X, UserCheck, Loader2, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react'
+import { Search, X, UserCheck, Loader2, CheckCircle, AlertCircle, MessageCircle, Navigation } from 'lucide-react'
+import { getBodegaParaCiudad, BODEGA_LABELS } from '@/lib/routing'
 
 const tw = 'rgba(255,255,255,'
 
@@ -21,10 +22,11 @@ interface Props {
   descripcion: string
   clienteActual?: { nombre: string; casilla: string | null } | null
   variante?: 'primary' | 'subtle'
+  categoriaActual?: string | null
 }
 
 export default function AsignarClienteButton({
-  paqueteId, trackingCasilla, descripcion, clienteActual, variante = 'primary',
+  paqueteId, trackingCasilla, descripcion, clienteActual, variante = 'primary', categoriaActual,
 }: Props) {
   const [abierto, setAbierto] = useState(false)
 
@@ -45,6 +47,7 @@ export default function AsignarClienteButton({
             trackingCasilla={trackingCasilla}
             descripcion={descripcion}
             clienteActual={clienteActual}
+            categoriaActual={categoriaActual}
             onClose={() => setAbierto(false)}
           />
         )}
@@ -77,6 +80,7 @@ export default function AsignarClienteButton({
           trackingCasilla={trackingCasilla}
           descripcion={descripcion}
           clienteActual={clienteActual}
+          categoriaActual={categoriaActual}
           onClose={() => setAbierto(false)}
         />
       )}
@@ -85,12 +89,13 @@ export default function AsignarClienteButton({
 }
 
 function ModalAsignar({
-  paqueteId, trackingCasilla, descripcion, clienteActual, onClose,
+  paqueteId, trackingCasilla, descripcion, clienteActual, categoriaActual, onClose,
 }: {
   paqueteId: string
   trackingCasilla: string
   descripcion: string
   clienteActual?: { nombre: string; casilla: string | null } | null
+  categoriaActual?: string | null
   onClose: () => void
 }) {
   const [query, setQuery] = useState('')
@@ -124,10 +129,11 @@ function ModalAsignar({
     if (!seleccionado) return
     setAsignando(true)
     setResultado(null)
+    const bodegaAutoAsignada = getBodegaParaCiudad(seleccionado.ciudad, categoriaActual)
     const res = await fetch(`/api/admin/paquetes/${paqueteId}/asignar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cliente_id: seleccionado.id, notificar }),
+      body: JSON.stringify({ cliente_id: seleccionado.id, notificar, bodega_destino: bodegaAutoAsignada }),
     })
     const data = await res.json() as {
       ok?: boolean
@@ -295,27 +301,44 @@ function ModalAsignar({
         )}
 
         {/* Cliente seleccionado */}
-        {seleccionado && (
-          <div className="p-4 mx-4 mt-4 rounded-xl"
-            style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.18)' }}>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: 'rgba(245,184,0,0.15)' }}>
-                <UserCheck className="h-5 w-5" style={{ color: '#F5B800' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-white">{seleccionado.nombre_completo}</p>
-                <p className="text-xs" style={{ color: `${tw}0.45)` }}>{seleccionado.email}</p>
-                <div className="flex gap-3 mt-1 text-xs">
-                  <span className="font-mono font-semibold" style={{ color: '#F5B800' }}>{seleccionado.numero_casilla ?? '—'}</span>
-                  {(seleccionado.whatsapp ?? seleccionado.telefono) && (
-                    <span style={{ color: '#34d399' }}>📱 {seleccionado.whatsapp ?? seleccionado.telefono}</span>
-                  )}
+        {seleccionado && (() => {
+          const bodegaAuto = getBodegaParaCiudad(seleccionado.ciudad, categoriaActual)
+          const bodegaLabel = BODEGA_LABELS[bodegaAuto]
+          const esCelular = categoriaActual === 'celular'
+          return (
+            <div className="p-4 mx-4 mt-4 rounded-xl"
+              style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.18)' }}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(245,184,0,0.15)' }}>
+                  <UserCheck className="h-5 w-5" style={{ color: '#F5B800' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-white">{seleccionado.nombre_completo}</p>
+                  <p className="text-xs" style={{ color: `${tw}0.45)` }}>{seleccionado.email}</p>
+                  <div className="flex flex-wrap gap-3 mt-1 text-xs">
+                    <span className="font-mono font-semibold" style={{ color: '#F5B800' }}>{seleccionado.numero_casilla ?? '—'}</span>
+                    {(seleccionado.whatsapp ?? seleccionado.telefono) && (
+                      <span style={{ color: '#34d399' }}>📱 {seleccionado.whatsapp ?? seleccionado.telefono}</span>
+                    )}
+                  </div>
                 </div>
               </div>
+              {/* Ruteo automático */}
+              <div className="mt-3 pt-3 flex items-center gap-2" style={{ borderTop: '1px solid rgba(245,184,0,0.15)' }}>
+                <Navigation className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#F5B800' }} />
+                <span className="text-xs" style={{ color: `${tw}0.5)` }}>
+                  {esCelular
+                    ? <>Bodega asignada automáticamente: <strong style={{ color: '#a5b4fc' }}>📱 Barranquilla (zona franca)</strong></>
+                    : seleccionado.ciudad
+                      ? <>Ciudad cliente: <strong className="text-white">{seleccionado.ciudad}</strong> → bodega <strong style={{ color: '#34d399' }}>{bodegaLabel}</strong></>
+                      : <>Sin ciudad registrada → bodega por defecto: <strong style={{ color: '#F5B800' }}>{bodegaLabel}</strong></>
+                  }
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Checkbox notificar */}
         {seleccionado && (

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle, AlertCircle, Save, MessageSquare, Loader2, Calculator } from 'lucide-react'
+import { CheckCircle, AlertCircle, Save, MessageSquare, Loader2, Calculator, Navigation } from 'lucide-react'
 import type { EstadoPaquete, BodegaDestino, CategoriaProducto } from '@/types'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
+import { getBodegaParaCiudad, BODEGA_LABELS } from '@/lib/routing'
 
 const tw = 'rgba(255,255,255,'
 
@@ -46,6 +47,7 @@ interface Props {
   valorDeclarado?: number | null
   condicion?: 'nuevo' | 'usado' | null
   cantidad?: number | null
+  ciudadCliente?: string | null
 }
 
 const labelStyle = { color: `${tw}0.7)` }
@@ -56,6 +58,7 @@ export default function PaqueteEditForm({
   pesoLibras, costoServicio, tarifaAplicada,
   trackingUsaco, notasCliente, valorDeclarado,
   condicion: condicionInicial, cantidad: cantidadInicial,
+  ciudadCliente,
 }: Props) {
   const router = useRouter()
 
@@ -126,6 +129,18 @@ export default function PaqueteEditForm({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.peso_libras, form.condicion, form.cantidad, form.categoria, form.valor_declarado])
 
+  // Auto-ruteo: cuando cambia la categoría, recalcular la bodega sugerida
+  const bodegaSugerida = getBodegaParaCiudad(ciudadCliente, form.categoria)
+
+  // Si el admin no ha tocado la bodega manualmente y la sugerida difiere, aplicar auto-ruteo
+  const [bodegaManual, setBodegaManual] = useState(false)
+  useEffect(() => {
+    if (!bodegaManual) {
+      setForm(prev => ({ ...prev, bodega_destino: bodegaSugerida }))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodegaSugerida])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -185,10 +200,34 @@ export default function PaqueteEditForm({
           </select>
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium" style={labelStyle}>Ciudad de entrega</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium" style={labelStyle}>Bodega destino</label>
+            {form.categoria === 'celular' ? (
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
+                style={{ background: 'rgba(99,102,241,0.12)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.25)' }}>
+                📱 Auto: zona franca
+              </span>
+            ) : ciudadCliente && form.bodega_destino === bodegaSugerida ? (
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
+                style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+                <Navigation className="h-2.5 w-2.5" />
+                Auto por ciudad
+              </span>
+            ) : ciudadCliente && form.bodega_destino !== bodegaSugerida ? (
+              <button
+                type="button"
+                onClick={() => { setForm(prev => ({ ...prev, bodega_destino: bodegaSugerida })); setBodegaManual(false) }}
+                className="text-[11px] px-2 py-0.5 rounded-full font-medium transition-all"
+                style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}
+                title="Aplicar ruteo automático"
+              >
+                ↩ Sugerido: {BODEGA_LABELS[bodegaSugerida]}
+              </button>
+            ) : null}
+          </div>
           <select
             value={form.bodega_destino}
-            onChange={e => setForm(prev => ({ ...prev, bodega_destino: e.target.value as BodegaDestino }))}
+            onChange={e => { setForm(prev => ({ ...prev, bodega_destino: e.target.value as BodegaDestino })); setBodegaManual(true) }}
             className={inputClass}
           >
             {BODEGAS.map(b => (

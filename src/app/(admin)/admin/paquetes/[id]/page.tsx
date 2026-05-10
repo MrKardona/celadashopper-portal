@@ -334,7 +334,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                       Este paquete aún no tiene cliente. Asígnalo manualmente.
                     </p>
                   </div>
-                  <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'} clienteActual={null} variante="primary" />
+                  <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'} clienteActual={null} variante="primary" categoriaActual={p.categoria} />
                 </>
               ) : (
                 <>
@@ -384,7 +384,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                     <PruebaEmailButton emailSugerido={perfil.email} nombreSugerido={perfil.nombre_completo} />
                     <PruebaWhatsappButton telefonoSugerido={perfil.whatsapp ?? perfil.telefono ?? null} />
                     <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'}
-                      clienteActual={{ nombre: perfil.nombre_completo, casilla: perfil.numero_casilla }} variante="subtle" />
+                      clienteActual={{ nombre: perfil.nombre_completo, casilla: perfil.numero_casilla }} variante="subtle" categoriaActual={p.categoria} />
                   </div>
 
                   <div className="pt-3" style={{ borderTop: `1px solid ${tw}0.06)` }}>
@@ -450,6 +450,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
               pesoLibras={p.peso_libras} pesoFacturable={p.peso_facturable} costoServicio={p.costo_servicio}
               tarifaAplicada={p.tarifa_aplicada} trackingUsaco={p.tracking_usaco} notasCliente={p.notas_cliente}
               valorDeclarado={p.valor_declarado} condicion={p.condicion ?? null} cantidad={p.cantidad ?? 1}
+              ciudadCliente={perfil?.ciudad ?? null}
             />
           </GlassSection>
 

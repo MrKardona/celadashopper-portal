@@ -66,9 +66,10 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
   }
 
-  const body = await req.json() as { cliente_id?: string; notificar?: boolean }
+  const body = await req.json() as { cliente_id?: string; notificar?: boolean; bodega_destino?: string }
   const clienteId = body.cliente_id?.trim()
   const debeNotificar = body.notificar !== false
+  const bodegaAutoAsignada = body.bodega_destino
 
   if (!clienteId) {
     return NextResponse.json({ error: 'cliente_id requerido' }, { status: 400 })
@@ -98,13 +99,17 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   const eraReasignacion = paquete.cliente_id !== null && paquete.cliente_id !== clienteId
 
-  // Actualizar paquete
+  // Actualizar paquete — incluir bodega_destino si viene calculada
+  const updatePayload: Record<string, unknown> = {
+    cliente_id: clienteId,
+    updated_at: new Date().toISOString(),
+  }
+  if (bodegaAutoAsignada && ['medellin', 'bogota', 'barranquilla'].includes(bodegaAutoAsignada)) {
+    updatePayload.bodega_destino = bodegaAutoAsignada
+  }
   const { error: updateErr } = await admin
     .from('paquetes')
-    .update({
-      cliente_id: clienteId,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', id)
 
   if (updateErr) {
