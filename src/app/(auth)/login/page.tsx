@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { MailCheck, Send, Lock, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { enviarMagicLink, iniciarSesionAdmin, recuperarContrasenaAdmin } from './actions'
+import { enviarMagicLink, iniciarSesionAdmin } from './actions'
 import { createClient } from '@/lib/supabase/client'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
@@ -170,22 +170,30 @@ function LoginForm() {
   }
 
   // ── Recuperación de contraseña (sub-modo admin) ───────────────────────────
+  // Llamada directa al cliente de Supabase desde el browser para evitar que
+  // el Server Action haga un re-render y resetee el estado del componente.
   async function handleRecuperar(e: React.FormEvent) {
     e.preventDefault()
     if (submitting.current) return
     submitting.current = true
     setLoading(true); setError('')
-    await recuperarContrasenaAdmin(adminEmail)
+    const supabase = createClient()
+    await supabase.auth.resetPasswordForEmail(
+      adminEmail.trim().toLowerCase(),
+      { redirectTo: `${window.location.origin}/api/auth/callback?next=/nueva-contrasena` },
+    )
+    // Siempre mostramos el campo de código (no revelamos si el email existe)
     setSubModo('codigo')
     setCodigoRecuperar('')
-    setLoading(false); submitting.current = false
+    setLoading(false)
+    submitting.current = false
   }
 
   async function handleVerificarCodigo(e: React.FormEvent) {
     e.preventDefault()
     if (submitting.current) return
     const codigo = codigoRecuperar.trim()
-    if (codigo.length < 6) { setError('Ingresa el código de 6 dígitos que llegó al correo.'); return }
+    if (codigo.length < 6) { setError('Ingresa el código que llegó al correo.'); return }
     submitting.current = true
     setLoading(true); setError('')
     const supabase = createClient()
