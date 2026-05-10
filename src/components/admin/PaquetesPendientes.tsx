@@ -144,7 +144,7 @@ export default function PaquetesPendientes({ refreshKey = 0, onSelectTracking }:
               </p>
             </div>
           ) : (
-            <div className="divide-y" style={{ maxHeight: 320, overflowY: 'auto', divideColor: `${tw}0.05)` }}>
+            <div className="divide-y divide-white/5" style={{ maxHeight: 320, overflowY: 'auto' }}>
               {paquetes.map(p => (
                 <FilaPendiente
                   key={p.id}
