@@ -53,6 +53,7 @@ interface PaqueteRow {
 interface Props {
   paquetes: PaqueteRow[]
   error?: string | null
+  consolidacionMap?: Record<string, number>
 }
 
 function FotoThumb({ url }: { url: string }) {
@@ -90,7 +91,7 @@ function FotoThumb({ url }: { url: string }) {
   )
 }
 
-export default function PaquetesTablaClient({ paquetes, error }: Props) {
+export default function PaquetesTablaClient({ paquetes, error, consolidacionMap = {} }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
@@ -416,7 +417,15 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
                           {p.cliente ? (
                             <>
                               <p className="font-medium text-white truncate max-w-[140px]">{p.cliente.nombre_completo}</p>
-                              <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>{p.cliente.numero_casilla}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <p className="text-xs" style={{ color: `${tw}0.35)` }}>{p.cliente.numero_casilla}</p>
+                                {p.cliente_id && (consolidacionMap[p.cliente_id] ?? 0) >= 2 && (
+                                  <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded leading-none"
+                                    style={{ background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+                                    📦 {consolidacionMap[p.cliente_id]} en bodega
+                                  </span>
+                                )}
+                              </div>
                             </>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"

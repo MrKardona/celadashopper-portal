@@ -57,12 +57,19 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   const paqueteIds = lista.map(p => p.id)
   const clienteIds = [...new Set(lista.map(p => p.cliente_id).filter(Boolean))]
 
-  const [perfilesRes, fotosRes] = await Promise.all([
+  const [perfilesRes, fotosRes, consolidacionUsaRes] = await Promise.all([
     clienteIds.length > 0
       ? supabase.from('perfiles').select('id, nombre_completo, numero_casilla').in('id', clienteIds)
       : Promise.resolve({ data: [] }),
     paqueteIds.length > 0
       ? supabase.from('fotos_paquetes').select('paquete_id, url').in('paquete_id', paqueteIds).order('created_at')
+      : Promise.resolve({ data: [] }),
+    clienteIds.length > 0
+      ? supabase
+          .from('paquetes')
+          .select('cliente_id')
+          .in('estado', ['recibido_usa', 'en_consolidacion', 'listo_envio'])
+          .in('cliente_id', clienteIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -72,6 +79,13 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   const fotosMap: Record<string, string> = {}
   for (const f of (fotosRes.data ?? []) as { paquete_id: string; url: string }[]) {
     if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+  }
+
+  // Build consolidacionMap: cliente_id → count of packages in US states
+  const consolidacionMap: Record<string, number> = {}
+  for (const row of (consolidacionUsaRes.data ?? []) as { cliente_id: string | null }[]) {
+    if (!row.cliente_id) continue
+    consolidacionMap[row.cliente_id] = (consolidacionMap[row.cliente_id] ?? 0) + 1
   }
 
   const filtrados = q
@@ -153,6 +167,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
       <PaquetesTablaClient
         paquetes={paquetesConCliente}
         error={errPaq?.message ?? null}
+        consolidacionMap={consolidacionMap}
       />
     </div>
   )

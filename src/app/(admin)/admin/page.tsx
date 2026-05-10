@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList, ScanBarcode, Box, ArrowRight } from 'lucide-react'
+import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList, ScanBarcode, Box, ArrowRight, Layers } from 'lucide-react'
 import Link from 'next/link'
 import { ESTADO_LABELS } from '@/types'
 import DashboardCharts from '@/components/admin/DashboardCharts'
@@ -37,7 +37,7 @@ export default async function AdminDashboard() {
   const [
     conteoRes, recientesRes, alertasRes, clientesRes,
     entregadosTotalRes, entregadosMesRes, recepcionesUsaRes, devueltosTotalRes,
-    cajasActivasRes,
+    cajasActivasRes, consolidacionRes,
   ] = await Promise.all([
     supabase.from('paquetes').select('estado').not('estado', 'in', '("entregado","devuelto")'),
     supabase.from('paquetes').select('id, tracking_casilla, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(8),
@@ -48,6 +48,11 @@ export default async function AdminDashboard() {
     supabase.from('paquetes').select('fecha_recepcion_usa').gte('fecha_recepcion_usa', hace14Dias).not('fecha_recepcion_usa', 'is', null),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'devuelto'),
     supabase.from('cajas_consolidacion').select('id', { count: 'exact', head: true }).in('estado', ['abierta', 'cerrada', 'despachada']),
+    supabase
+      .from('paquetes')
+      .select('cliente_id')
+      .in('estado', ['recibido_usa', 'en_consolidacion', 'listo_envio'])
+      .not('cliente_id', 'is', null),
   ])
 
   const paquetes        = conteoRes.data ?? []
@@ -59,6 +64,15 @@ export default async function AdminDashboard() {
   const recepcionesUsa  = recepcionesUsaRes.data ?? []
   const totalDevueltos  = devueltosTotalRes.count ?? 0
   const cajasActivas    = cajasActivasRes.count ?? 0
+
+  // Count clients with 2+ packages in US states
+  const consolidacionRows = consolidacionRes.data ?? []
+  const consolidacionCounts: Record<string, number> = {}
+  for (const row of consolidacionRows) {
+    if (!row.cliente_id) continue
+    consolidacionCounts[row.cliente_id] = (consolidacionCounts[row.cliente_id] ?? 0) + 1
+  }
+  const consolidacionClientes = Object.values(consolidacionCounts).filter(n => n >= 2).length
 
   const clienteIds = [...new Set([
     ...recientes.map(p => p.cliente_id),
@@ -151,6 +165,29 @@ export default async function AdminDashboard() {
             })}
           </div>
         </div>
+      )}
+
+      {/* ── Consolidación alert ────────────────────────────────── */}
+      {consolidacionClientes > 0 && (
+        <Link href="/admin/consolidacion"
+          className="glass-card p-4 flex items-center gap-4 group hover:border-purple-500/30 transition-all"
+          style={{ borderColor: 'rgba(168,85,247,0.22)', background: 'rgba(168,85,247,0.04)' }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(168,85,247,0.15)' }}>
+            <Layers className="h-5 w-5" style={{ color: '#c084fc' }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-white text-sm">
+              {consolidacionClientes === 1
+                ? '1 cliente con varios paquetes en Miami'
+                : `${consolidacionClientes} clientes con varios paquetes en Miami`}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: `${tw}0.38)` }}>
+              Podrían enviarse juntos en la misma caja
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ color: '#c084fc' }} />
+        </Link>
       )}
 
       {/* ── Acciones del día ───────────────────────────────────── */}
