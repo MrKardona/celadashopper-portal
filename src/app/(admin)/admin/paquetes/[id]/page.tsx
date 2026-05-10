@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, MapPin, Scale, DollarSign, Camera, FileText } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Package, MapPin, Scale, DollarSign, Camera, FileText } from 'lucide-react'
 import { fechaHora } from '@/lib/fecha'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
@@ -84,26 +84,25 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
   const eventos = eventosRes.data ?? []
   const subPaquetes = subPaquetesRes.data ?? []
 
-  let perfil: {
+  const [perfilRes, tarifaRes, tarifaRangoRes, prevRes, nextRes] = await Promise.all([
+    p.cliente_id
+      ? supabase.from('perfiles').select('nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, direccion, barrio, referencia').eq('id', p.cliente_id).single()
+      : Promise.resolve({ data: null }),
+    supabase.from('categorias_tarifas').select('tarifa_por_libra, precio_fijo, tarifa_tipo, descripcion, seguro_porcentaje').eq('categoria', p.categoria).maybeSingle(),
+    supabase.from('tarifas_rangos').select('tarifa_por_libra, precio_por_unidad, cargo_fijo, seguro_porcentaje, notas').eq('categoria', p.categoria).eq('activo', true).order('prioridad', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('paquetes').select('id, tracking_origen, tracking_casilla').gt('created_at', p.created_at).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('paquetes').select('id, tracking_origen, tracking_casilla').lt('created_at', p.created_at).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+  ])
+
+  const perfil = perfilRes.data as {
     nombre_completo: string; numero_casilla: string; email: string
     whatsapp: string | null; telefono: string | null; ciudad: string | null
     direccion: string | null; barrio: string | null; referencia: string | null
-  } | null = null
-  if (p.cliente_id) {
-    const { data } = await supabase.from('perfiles')
-      .select('nombre_completo, numero_casilla, email, whatsapp, telefono, ciudad, direccion, barrio, referencia')
-      .eq('id', p.cliente_id).single()
-    perfil = data
-  }
-
-  const { data: tarifa } = await supabase.from('categorias_tarifas')
-    .select('tarifa_por_libra, precio_fijo, tarifa_tipo, descripcion, seguro_porcentaje')
-    .eq('categoria', p.categoria).maybeSingle()
-
-  const { data: tarifaRango } = await supabase.from('tarifas_rangos')
-    .select('tarifa_por_libra, precio_por_unidad, cargo_fijo, seguro_porcentaje, notas')
-    .eq('categoria', p.categoria).eq('activo', true)
-    .order('prioridad', { ascending: true }).limit(1).maybeSingle()
+  } | null
+  const tarifa = tarifaRes.data
+  const tarifaRango = tarifaRangoRes.data
+  const prevPaquete = prevRes.data  // más reciente (arriba en la lista)
+  const nextPaquete = nextRes.data  // más antiguo (abajo en la lista)
 
   const fechaFmt = (d: string | null) => fechaHora(d)
 
@@ -151,6 +150,38 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
               />
             )}
           </div>
+        </div>
+
+        {/* Navegación prev/next */}
+        <div className="flex items-center gap-1 mt-0.5 flex-shrink-0">
+          {prevPaquete ? (
+            <Link
+              href={`/admin/paquetes/${prevPaquete.id}`}
+              title={`Anterior: ${prevPaquete.tracking_origen ?? prevPaquete.tracking_casilla}`}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-white/10"
+              style={{ color: `${tw}0.5)`, border: `1px solid ${tw}0.1)` }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ color: `${tw}0.15)`, border: `1px solid ${tw}0.06)` }}>
+              <ChevronLeft className="h-4 w-4" />
+            </span>
+          )}
+          {nextPaquete ? (
+            <Link
+              href={`/admin/paquetes/${nextPaquete.id}`}
+              title={`Siguiente: ${nextPaquete.tracking_origen ?? nextPaquete.tracking_casilla}`}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:bg-white/10"
+              style={{ color: `${tw}0.5)`, border: `1px solid ${tw}0.1)` }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : (
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ color: `${tw}0.15)`, border: `1px solid ${tw}0.06)` }}>
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
         </div>
       </div>
 

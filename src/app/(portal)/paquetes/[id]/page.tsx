@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, MapPin, DollarSign, Scale } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Package, MapPin, DollarSign, Scale } from 'lucide-react'
 import {
   ESTADO_LABELS, CATEGORIA_LABELS,
   type EstadoPaquete, type CategoriaProducto
@@ -49,6 +49,16 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
   paquete.fotos_paquetes  = fotosRes.data ?? []
   paquete.eventos_paquete = eventosRes.data ?? []
 
+  // Prev / next navigation (solo paquetes del mismo cliente, visibles)
+  const [prevRes, nextRes] = await Promise.all([
+    supabase.from('paquetes').select('id, descripcion').eq('cliente_id', user!.id).eq('visible_cliente', true)
+      .gt('created_at', paquete.created_at).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('paquetes').select('id, descripcion').eq('cliente_id', user!.id).eq('visible_cliente', true)
+      .lt('created_at', paquete.created_at).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+  ])
+  const prevPaquete = prevRes.data
+  const nextPaquete = nextRes.data
+
   const estadoActualIdx = ESTADOS_ORDEN.indexOf(paquete.estado as EstadoPaquete)
   const esProblema      = ['retenido', 'devuelto'].includes(paquete.estado)
   const badge           = ESTADO_BADGE[paquete.estado] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' }
@@ -69,6 +79,40 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-white truncate">{paquete.descripcion}</h1>
             <p className="text-sm" style={{ color: `${tw}0.45)` }}>{paquete.tienda}</p>
+          </div>
+
+          {/* Navegación prev/next */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {prevPaquete ? (
+              <Link
+                href={`/paquetes/${prevPaquete.id}`}
+                title={prevPaquete.descripcion ?? 'Paquete anterior'}
+                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <ChevronLeft className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
+              </Link>
+            ) : (
+              <span className="flex items-center justify-center w-9 h-9 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <ChevronLeft className="h-4 w-4" style={{ color: `${tw}0.2)` }} />
+              </span>
+            )}
+            {nextPaquete ? (
+              <Link
+                href={`/paquetes/${nextPaquete.id}`}
+                title={nextPaquete.descripcion ?? 'Paquete siguiente'}
+                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <ChevronRight className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
+              </Link>
+            ) : (
+              <span className="flex items-center justify-center w-9 h-9 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <ChevronRight className="h-4 w-4" style={{ color: `${tw}0.2)` }} />
+              </span>
+            )}
           </div>
         </div>
       </FadeUp>
