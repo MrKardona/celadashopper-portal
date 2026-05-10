@@ -248,6 +248,22 @@ export default function RecibirForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [foto1.url, foto2.url, paquete])
 
+  // Cuando el paquete ya está identificado y el agente sube fotos al slot "manual"
+  // (sección de arriba), transferirlas automáticamente a foto1/foto2 para que se
+  // guarden con la recepción y el OCR normal se dispare.
+  useEffect(() => {
+    if (!paquete) return
+    if (fotoManual1.url && !foto1.url) {
+      setFoto1({ ...fotoManual1 })
+      setFotoManual1({ preview: null, url: null, subiendo: false })
+    }
+    if (fotoManual2.url && !foto2.url) {
+      setFoto2({ ...fotoManual2 })
+      setFotoManual2({ preview: null, url: null, subiendo: false })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paquete, fotoManual1.url, fotoManual2.url])
+
   // Auto-analizar con IA en cuanto ambas fotos del scanner están subidas.
   // Si el usuario reemplaza una foto después de un análisis previo, se limpia
   // el resultado anterior y se vuelve a analizar automáticamente.
@@ -1105,131 +1121,127 @@ export default function RecibirForm() {
           </div>
         )}
 
-        {/* ── Fotos integradas para identificación automática ── */}
+        {/* ── Fotos del paquete / Identificación con 2 fotos ── */}
         <div className="space-y-3 pt-1">
-          {/* Separador */}
+          {/* Separador — label cambia según si el paquete ya fue encontrado */}
           <div className="flex items-center gap-3">
             <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.28)', letterSpacing: '0.14em' }}>
-              o identifica con 2 fotos
+              {paquete ? 'fotos del paquete' : 'o identifica con 2 fotos'}
             </span>
             <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
           </div>
 
           <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.32)' }}>
-            📸 Foto del empaque (guía visible) + foto del contenido → la IA extrae tracking y datos automáticamente
+            {paquete
+              ? '📸 Foto del empaque (con la guía visible) + foto del contenido — se enviarán al cliente'
+              : '📸 Foto del empaque (guía visible) + foto del contenido → la IA extrae tracking y datos automáticamente'}
           </p>
 
-          {/* Cámara en vivo para fotos */}
-          <CamaraVivo context="manual" />
+          {/* Cámara en vivo — cuando paquete ya encontrado usa contexto normal */}
+          <CamaraVivo context={paquete ? 'normal' : 'manual'} />
 
-          {/* Slots de foto */}
+          {/* Slots de foto — redirige a foto1/foto2 si ya hay paquete */}
           {!camaraSlot && (
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
-                <SlotFoto slot={1} context="manual" accent="amber" />
-              </div>
-              <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
-                <SlotFoto slot={2} context="manual" accent="amber" />
-              </div>
+              {paquete ? (
+                <>
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <SlotFoto slot={1} context="normal" accent="orange" />
+                  </div>
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <SlotFoto slot={2} context="normal" accent="orange" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
+                    <SlotFoto slot={1} context="manual" accent="amber" />
+                  </div>
+                  <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
+                    <SlotFoto slot={2} context="manual" accent="amber" />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {/* Estado: analizando */}
-          {analizandoOCR && (
-            <div className="flex items-center gap-3 rounded-xl px-4 py-3"
-              style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
-              <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" style={{ color: '#c084fc' }} />
-              <span className="text-sm font-medium" style={{ color: '#c084fc' }}>Analizando fotos con IA...</span>
-            </div>
-          )}
-
-          {/* Resultado del análisis */}
-          {ocrResultado && !analizandoOCR && !ocrError && (
-            <div className="rounded-xl px-3 py-2.5 space-y-2"
-              style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }}>
-
-              {/* Header */}
-              <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#c084fc' }}>
-                <CheckCircle2 className="h-3.5 w-3.5" /> Análisis completado
-                <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>
-                  · etiqueta: <span style={{ color: ocrResultado.confianza_etiqueta === 'alta' ? '#34d399' : ocrResultado.confianza_etiqueta === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_etiqueta}</span>
-                  {' '}· contenido: <span style={{ color: ocrResultado.confianza_contenido === 'alta' ? '#34d399' : ocrResultado.confianza_contenido === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_contenido}</span>
-                </span>
-              </div>
-
-              {/* Tracking extraído — siempre visible si existe */}
-              {ocrResultado.tracking_extraido && (
-                <div className="rounded-lg px-3 py-2"
-                  style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#F5B800' }}>
-                    Tracking detectado en la etiqueta
-                  </p>
-                  <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>
-                    {ocrResultado.tracking_extraido}
-                  </p>
+          {/* — Flujo identificación (solo cuando NO hay paquete encontrado) — */}
+          {!paquete && (
+            <>
+              {/* Estado: analizando */}
+              {analizandoOCR && (
+                <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+                  style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                  <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" style={{ color: '#c084fc' }} />
+                  <span className="text-sm font-medium" style={{ color: '#c084fc' }}>Analizando fotos con IA...</span>
                 </div>
               )}
 
-              {/* Casilla extraída — si existe y no hubo tracking */}
-              {ocrResultado.casilla_extraida && !ocrResultado.tracking_extraido && (
-                <div className="rounded-lg px-3 py-2"
-                  style={{ background: 'rgba(99,130,255,0.08)', border: '1px solid rgba(99,130,255,0.2)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#8899ff' }}>
-                    Casillero detectado
-                  </p>
-                  <p className="font-mono text-sm font-bold" style={{ color: '#8899ff' }}>
-                    {ocrResultado.casilla_extraida}
-                  </p>
+              {/* Resultado del análisis */}
+              {ocrResultado && !analizandoOCR && !ocrError && (
+                <div className="rounded-xl px-3 py-2.5 space-y-2"
+                  style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }}>
+                  <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#c084fc' }}>
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Análisis completado
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>
+                      · etiqueta: <span style={{ color: ocrResultado.confianza_etiqueta === 'alta' ? '#34d399' : ocrResultado.confianza_etiqueta === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_etiqueta}</span>
+                      {' '}· contenido: <span style={{ color: ocrResultado.confianza_contenido === 'alta' ? '#34d399' : ocrResultado.confianza_contenido === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_contenido}</span>
+                    </span>
+                  </div>
+                  {ocrResultado.tracking_extraido && (
+                    <div className="rounded-lg px-3 py-2"
+                      style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#F5B800' }}>Tracking detectado en la etiqueta</p>
+                      <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>{ocrResultado.tracking_extraido}</p>
+                    </div>
+                  )}
+                  {ocrResultado.casilla_extraida && !ocrResultado.tracking_extraido && (
+                    <div className="rounded-lg px-3 py-2"
+                      style={{ background: 'rgba(99,130,255,0.08)', border: '1px solid rgba(99,130,255,0.2)' }}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#8899ff' }}>Casillero detectado</p>
+                      <p className="font-mono text-sm font-bold" style={{ color: '#8899ff' }}>{ocrResultado.casilla_extraida}</p>
+                    </div>
+                  )}
+                  {ocrResultado.auto_busqueda === 'encontrado' && (
+                    <p className="text-xs font-semibold" style={{ color: '#34d399' }}>✓ Paquete encontrado — completa los datos debajo y confirma</p>
+                  )}
+                  {ocrResultado.auto_busqueda === 'no_encontrado' && (
+                    <p className="text-xs" style={{ color: '#F5B800' }}>⚠ El tracking no coincide con paquetes reportados — completa el formulario debajo</p>
+                  )}
+                  {!ocrResultado.tracking_extraido && !ocrResultado.casilla_extraida && (
+                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>No se detectó tracking ni casillero en la etiqueta</p>
+                  )}
+                  {ocrResultado.notas && (
+                    <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>Nota IA: {ocrResultado.notas}</p>
+                  )}
                 </div>
               )}
 
-              {/* Resultado de la búsqueda automática */}
-              {ocrResultado.auto_busqueda === 'encontrado' && (
-                <p className="text-xs font-semibold" style={{ color: '#34d399' }}>
-                  ✓ Paquete encontrado en el sistema — completa los datos debajo y confirma
-                </p>
+              {/* Error OCR + reintentar */}
+              {ocrError && (
+                <div className="space-y-2">
+                  <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-xs"
+                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+                    <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> {ocrError}
+                  </div>
+                  <button type="button" onClick={analizarConIA} disabled={analizandoOCR}
+                    className="w-full text-xs font-semibold py-2 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-40"
+                    style={{ background: 'rgba(168,85,247,0.1)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+                    <Sparkles className="h-3.5 w-3.5" /> Reintentar análisis
+                  </button>
+                </div>
               )}
-              {ocrResultado.auto_busqueda === 'no_encontrado' && (
-                <p className="text-xs" style={{ color: '#F5B800' }}>
-                  ⚠ El tracking no coincide con paquetes reportados — completa el formulario debajo
-                </p>
-              )}
-              {!ocrResultado.tracking_extraido && !ocrResultado.casilla_extraida && (
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  No se detectó tracking ni casillero en la etiqueta
-                </p>
-              )}
-              {ocrResultado.notas && (
-                <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Nota IA: {ocrResultado.notas}
-                </p>
-              )}
-            </div>
-          )}
 
-          {/* Error OCR + reintentar */}
-          {ocrError && (
-            <div className="space-y-2">
-              <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-xs"
-                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> {ocrError}
-              </div>
-              <button type="button" onClick={analizarConIA} disabled={analizandoOCR}
-                className="w-full text-xs font-semibold py-2 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-40"
-                style={{ background: 'rgba(168,85,247,0.1)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
-                <Sparkles className="h-3.5 w-3.5" /> Reintentar análisis
-              </button>
-            </div>
-          )}
-
-          {/* Botón manual por si el auto-análisis no se disparó */}
-          {fotoManual1.url && fotoManual2.url && !analizandoOCR && !ocrResultado && !ocrError && (
-            <button type="button" onClick={analizarConIA}
-              className="w-full text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2"
-              style={{ background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
-              <Sparkles className="h-4 w-4" /> Analizar con IA
-            </button>
+              {/* Botón manual por si el auto-análisis no se disparó */}
+              {fotoManual1.url && fotoManual2.url && !analizandoOCR && !ocrResultado && !ocrError && (
+                <button type="button" onClick={analizarConIA}
+                  className="w-full text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2"
+                  style={{ background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+                  <Sparkles className="h-4 w-4" /> Analizar con IA
+                </button>
+              )}
+            </>
           )}
         </div>
 
