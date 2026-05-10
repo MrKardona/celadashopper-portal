@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge } from 'lucide-react'
@@ -53,6 +53,41 @@ interface PaqueteRow {
 interface Props {
   paquetes: PaqueteRow[]
   error?: string | null
+}
+
+function FotoThumb({ url }: { url: string }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [open])
+  return (
+    <>
+      <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(true) }}
+        className="flex-shrink-0 group relative">
+        <img src={url} alt="" className="h-9 w-9 rounded-md object-cover border border-white/10 group-hover:opacity-80 transition-opacity" />
+        <div className="absolute inset-0 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity">
+          <Camera className="h-3.5 w-3.5 text-white" />
+        </div>
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setOpen(false)}>
+          <button onClick={() => setOpen(false)}
+            className="absolute top-4 right-4 flex items-center justify-center w-10 h-10 rounded-full"
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}>
+            <X className="h-5 w-5 text-white" />
+          </button>
+          <img src={url} alt="" onClick={e => e.stopPropagation()}
+            className="max-h-[85vh] max-w-[90vw] object-contain rounded-2xl"
+            style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
+        </div>
+      )}
+    </>
+  )
 }
 
 export default function PaquetesTablaClient({ paquetes, error }: Props) {
@@ -343,12 +378,7 @@ export default function PaquetesTablaClient({ paquetes, error }: Props) {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {p.fotoUrl ? (
-                            <a href={p.fotoUrl} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 group relative">
-                              <img src={p.fotoUrl} alt="" className="h-9 w-9 rounded-md object-cover border border-white/10 group-hover:opacity-80 transition-opacity" />
-                              <div className="absolute inset-0 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity">
-                                <Camera className="h-3.5 w-3.5 text-white" />
-                              </div>
-                            </a>
+                            <FotoThumb url={p.fotoUrl} />
                           ) : (
                             <div className="h-9 w-9 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: `${tw}0.05)`, border: `1px solid ${tw}0.08)` }}>
                               <Camera className="h-4 w-4" style={{ color: `${tw}0.2)` }} />

@@ -9,7 +9,7 @@ interface Foto {
   descripcion?: string | null
 }
 
-export function FotoGaleria({ fotos }: { fotos: Foto[] }) {
+export function FotoGaleria({ fotos, cols = 3 }: { fotos: Foto[]; cols?: 2 | 3 | 4 }) {
   const [idx, setIdx] = useState<number | null>(null)
 
   const close = useCallback(() => setIdx(null), [])
@@ -42,7 +42,7 @@ export function FotoGaleria({ fotos }: { fotos: Foto[] }) {
   return (
     <>
       {/* Grid de fotos */}
-      <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className={`p-4 grid gap-3 ${cols === 4 ? 'grid-cols-3 sm:grid-cols-4' : cols === 2 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-3'}`}>
         {fotos.map((foto, i) => (
           <button
             key={foto.id}

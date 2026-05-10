@@ -8,6 +8,7 @@ import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
 import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
 import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
+import { FotoGaleria } from '@/components/portal/FotoGaleria'
 import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
 import ClienteEditInline from '@/components/admin/ClienteEditInline'
 import FacturaBadge from '@/components/admin/FacturaBadge'
@@ -194,15 +195,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
           {/* Fotos */}
           {fotos.length > 0 && (
             <GlassSection icon={Camera} title={`Fotos (${fotos.length})`}>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {fotos.map(f => (
-                  <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer"
-                    className="aspect-square rounded-xl overflow-hidden hover:opacity-80 transition-opacity"
-                    style={{ border: `1px solid ${tw}0.1)` }}>
-                    <img src={f.url} alt={f.descripcion ?? 'Foto'} className="w-full h-full object-cover" />
-                  </a>
-                ))}
-              </div>
+              <FotoGaleria fotos={fotos.map(f => ({ id: f.id, url: f.url, descripcion: f.descripcion }))} cols={4} />
             </GlassSection>
           )}
 
