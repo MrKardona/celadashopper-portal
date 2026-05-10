@@ -9,6 +9,7 @@ import {
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import HistorialRecibidos from '@/components/admin/HistorialRecibidos'
+import PaquetesPendientes from '@/components/admin/PaquetesPendientes'
 import BuscadorClienteInline, { type ClienteSugerido } from '@/components/admin/BuscadorClienteInline'
 import { horaActualBogota } from '@/lib/fecha'
 
@@ -621,6 +622,15 @@ export default function RecibirForm() {
     }
   }
 
+  // ── Seleccionar paquete desde la lista de pendientes ──────────────────────
+  function seleccionarPendiente(trackingPendiente: string) {
+    limpiar()
+    setTracking(trackingPendiente)
+    buscarPaquete(trackingPendiente)
+    // Scroll suave hacia el scanner
+    setTimeout(() => inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100)
+  }
+
   const yaRecibido = paquete && ['recibido_usa', 'en_consolidacion', 'listo_envio',
     'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'].includes(paquete.estado)
 
@@ -779,6 +789,12 @@ export default function RecibirForm() {
       {/* Canvas oculto compartido para captura de cámara — siempre en el DOM
           para que capturarFoto() funcione aun con la vista de cámara activa. */}
       <canvas ref={canvasFotoRef} className="hidden" />
+
+      {/* ── Paquetes reportados pendientes de recibir ── */}
+      <PaquetesPendientes
+        refreshKey={historialKey}
+        onSelectTracking={seleccionarPendiente}
+      />
 
       {/* Notificación de éxito */}
       {ultimoRecibido && (
@@ -1515,8 +1531,17 @@ export default function RecibirForm() {
         </form>
       )}
 
-      {/* Historial persistente con edición inline */}
-      <HistorialRecibidos refreshKey={historialKey} />
+      {/* ── Historial de paquetes recibidos hoy ── */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.2)', letterSpacing: '0.15em' }}>
+            Historial de hoy
+          </span>
+          <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+        </div>
+        <HistorialRecibidos refreshKey={historialKey} />
+      </div>
     </div>
   )
 }
