@@ -202,18 +202,15 @@ export default function PaqueteEditForm({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium" style={labelStyle}>Bodega destino</label>
-            {form.categoria === 'celular' ? (
+            {form.bodega_destino === bodegaSugerida ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
-                style={{ background: 'rgba(99,102,241,0.12)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.25)' }}>
-                📱 Auto: zona franca
-              </span>
-            ) : ciudadCliente && form.bodega_destino === bodegaSugerida ? (
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
-                style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+                style={form.categoria === 'celular'
+                  ? { background: 'rgba(99,102,241,0.12)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.25)' }
+                  : { background: 'rgba(52,211,153,0.08)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
                 <Navigation className="h-2.5 w-2.5" />
-                Auto por ciudad
+                {form.categoria === 'celular' ? '📱 Sugerido: Barranquilla' : 'Auto por ciudad'}
               </span>
-            ) : ciudadCliente && form.bodega_destino !== bodegaSugerida ? (
+            ) : (
               <button
                 type="button"
                 onClick={() => { setForm(prev => ({ ...prev, bodega_destino: bodegaSugerida })); setBodegaManual(false) }}
@@ -223,7 +220,7 @@ export default function PaqueteEditForm({
               >
                 ↩ Sugerido: {BODEGA_LABELS[bodegaSugerida]}
               </button>
-            ) : null}
+            )}
           </div>
           <select
             value={form.bodega_destino}
