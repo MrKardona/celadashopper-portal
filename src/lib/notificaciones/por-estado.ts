@@ -48,7 +48,7 @@ const EVENTO_A_TEMPLATE: Record<string, {
   params: (vars: Record<string, string>, paq: PaqRaw) => string[]
 }> = {
   paquete_recibido_usa: {
-    name: 'cs_paquete_recibido',
+    name: 'cs_paquete_recibido_9dalr1',
     // "Hola {{1}}, tu paquete *{{2}}* llego a nuestra bodega en USA\nPeso: {{3}} lb | Costo servicio: ${{4}} USD\n..."
     params: (vars, paq) => [
       vars.nombre,
@@ -58,17 +58,17 @@ const EVENTO_A_TEMPLATE: Record<string, {
     ],
   },
   paquete_en_transito: {
-    name: 'cs_paquete_en_transito',
+    name: 'cs_paquete_en_transito_m7ur7g',
     // "Hola {{1}}, tu paquete *{{2}}* ya esta en camino a Colombia. Tiempo estimado: 5-8 dias habiles..."
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
   paquete_listo_recoger: {
-    name: 'cs_listo_recoger',
+    name: 'cs_listo_recoger_3dpm34',
     // "Hola {{1}}, tu paquete *{{2}}* esta listo para recoger\nen nuestra bodega de {{3}}.\nHorario: lunes a sabado 9am - 6pm"
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete', vars.bodega || 'Medellín'],
   },
   paquete_entregado: {
-    name: 'cs_paquete_entregado',
+    name: 'cs_paquete_entregado_9sr0uh',
     // "Hola {{1}}, tu paquete *{{2}}* fue entregado exitosamente. Revisa el detalle y foto de entrega en tu portal..."
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
@@ -116,7 +116,7 @@ async function enviarMetaTemplate(
         type: 'template',
         template: {
           name: templateName,
-          language: { code: 'es_ES' },
+          language: { code: 'es' },
           components: [
             {
               type: 'body',
