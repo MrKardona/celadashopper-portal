@@ -10,7 +10,7 @@ import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import HistorialRecibidos from '@/components/admin/HistorialRecibidos'
 import PaquetesPendientes from '@/components/admin/PaquetesPendientes'
-import BuscadorClienteInline, { type ClienteSugerido } from '@/components/admin/BuscadorClienteInline'
+import BuscadorClienteInline, { type ClienteSugerido, type PaquetePendienteSimple } from '@/components/admin/BuscadorClienteInline'
 import { horaActualBogota } from '@/lib/fecha'
 
 interface PaqueteEncontrado {
@@ -971,59 +971,124 @@ export default function RecibirForm() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold" style={{ color: '#8899ff' }}>
                     {clientesSugeridos.length === 1
-                      ? 'Este usuario ya está registrado en el sistema'
-                      : `${clientesSugeridos.length} usuarios coinciden con la búsqueda`}
+                      ? 'Cliente encontrado en el sistema'
+                      : `${clientesSugeridos.length} clientes coinciden con la búsqueda`}
                   </p>
                   <p className="text-xs mt-1" style={{ color: 'rgba(136,153,255,0.7)' }}>
-                    No hay un paquete con ese tracking, pero el dato coincide con un cliente. Puedes recibir el paquete asignándolo directamente.
+                    Selecciona un paquete pendiente para recibirlo, o haz click en el cliente para registrar uno nuevo.
                   </p>
                 </div>
               </div>
-              <div className="space-y-2">
-                {clientesSugeridos.map(c => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      setClienteManual(c)
-                      setClientesSugeridos([])
-                      setErrorBusqueda('')
-                      setModoManual(true)
-                    }}
-                    className="w-full text-left rounded-xl p-3 transition-all"
-                    style={{ background: 'rgba(99,130,255,0.06)', border: '1px solid rgba(99,130,255,0.15)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.14)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.06)')}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(99,130,255,0.15)' }}>
-                        <span className="font-bold text-sm" style={{ color: '#8899ff' }}>
-                          {c.nombre_completo?.[0]?.toUpperCase() ?? '?'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{c.nombre_completo}</p>
-                        <p className="text-[11px] flex items-center gap-2 flex-wrap" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                          <span className="font-mono" style={{ color: '#F5B800' }}>{c.numero_casilla ?? 'sin casillero'}</span>
-                          <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
-                          <span className="truncate">{c.email}</span>
-                          {(c.whatsapp || c.telefono) && (
-                            <>
-                              <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
-                              <span>{c.whatsapp ?? c.telefono}</span>
-                            </>
+
+              <div className="space-y-3">
+                {clientesSugeridos.map(c => {
+                  const pendientes = c.paquetes_pendientes ?? []
+                  return (
+                    <div key={c.id} className="rounded-xl overflow-hidden"
+                      style={{ background: 'rgba(99,130,255,0.04)', border: '1px solid rgba(99,130,255,0.15)' }}>
+
+                      {/* Cabecera del cliente */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClienteManual(c)
+                          setClientesSugeridos([])
+                          setErrorBusqueda('')
+                          setModoManual(true)
+                        }}
+                        className="w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors"
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,130,255,0.1)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: 'rgba(99,130,255,0.18)' }}>
+                          <span className="font-bold text-xs" style={{ color: '#8899ff' }}>
+                            {c.nombre_completo?.[0]?.toUpperCase() ?? '?'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white truncate">{c.nombre_completo}</p>
+                          <p className="text-[11px] flex items-center gap-1.5 flex-wrap" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                            <span className="font-mono" style={{ color: '#F5B800' }}>{c.numero_casilla ?? 'sin casillero'}</span>
+                            <span style={{ color: 'rgba(255,255,255,0.18)' }}>·</span>
+                            <span className="truncate">{c.email}</span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {pendientes.length === 0 && (
+                            <ClipboardList className="h-3.5 w-3.5" style={{ color: 'rgba(136,153,255,0.5)' }} />
                           )}
-                        </p>
-                      </div>
-                      <ClipboardList className="h-4 w-4 flex-shrink-0" style={{ color: '#8899ff' }} />
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                            style={pendientes.length > 0
+                              ? { background: 'rgba(245,184,0,0.15)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }
+                              : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            {pendientes.length > 0 ? `${pendientes.length} pendiente${pendientes.length > 1 ? 's' : ''}` : 'sin pendientes'}
+                          </span>
+                        </div>
+                      </button>
+
+                      {/* Paquetes pendientes del cliente */}
+                      {pendientes.length > 0 && (
+                        <div style={{ borderTop: '1px solid rgba(99,130,255,0.12)' }}>
+                          {pendientes.map((p: PaquetePendienteSimple) => {
+                            const trkDisplay = p.tracking_casilla ?? p.tracking_origen ?? ''
+                            return (
+                              <div key={p.id}
+                                className="flex items-center gap-3 px-3 py-2.5 transition-colors"
+                                style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+                              >
+                                {/* Info paquete */}
+                                <Package className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'rgba(245,184,0,0.5)' }} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-white truncate">{p.descripcion}</p>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    {trkDisplay && (
+                                      <span className="font-mono text-[10px]" style={{ color: '#F5B800' }}>{trkDisplay}</span>
+                                    )}
+                                    <span style={{ color: 'rgba(255,255,255,0.18)' }}>·</span>
+                                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{p.tienda}</span>
+                                    <span style={{ color: 'rgba(255,255,255,0.18)' }}>·</span>
+                                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                      {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                                    </span>
+                                  </div>
+                                </div>
+                                {/* Botón recibir */}
+                                {trkDisplay && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setClientesSugeridos([])
+                                      setErrorBusqueda('')
+                                      setTracking(trkDisplay)
+                                      buscarPaquete(trkDisplay)
+                                    }}
+                                    className="flex-shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.22)')}
+                                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,184,0,0.12)')}
+                                  >
+                                    Recibir →
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Si no tiene pendientes — mensaje */}
+                      {pendientes.length === 0 && (
+                        <div className="px-3 pb-2.5" style={{ borderTop: '1px solid rgba(99,130,255,0.1)' }}>
+                          <p className="text-[10px] pt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                            Este cliente no tiene paquetes reportados pendientes de recepción. Haz click arriba para registrar uno manualmente.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
-              <p className="text-[11px]" style={{ color: 'rgba(136,153,255,0.6)' }}>
-                💡 Click en un cliente para iniciar la recepción manual con ese cliente preseleccionado.
-              </p>
             </div>
           </div>
         )}

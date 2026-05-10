@@ -5,6 +5,16 @@ import { Search, X, Loader2, User, Phone } from 'lucide-react'
 
 const tw = 'rgba(255,255,255,'
 
+export interface PaquetePendienteSimple {
+  id: string
+  tracking_casilla: string | null
+  tracking_origen: string | null
+  descripcion: string
+  tienda: string
+  bodega_destino: string
+  created_at: string
+}
+
 export interface ClienteSugerido {
   id: string
   nombre_completo: string
@@ -13,6 +23,7 @@ export interface ClienteSugerido {
   whatsapp: string | null
   telefono: string | null
   ciudad: string | null
+  paquetes_pendientes?: PaquetePendienteSimple[]
 }
 
 interface Props {

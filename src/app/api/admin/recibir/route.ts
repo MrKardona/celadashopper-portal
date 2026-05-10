@@ -91,9 +91,30 @@ export async function GET(req: NextRequest) {
       .limit(5)
 
     if (clientes && clientes.length > 0) {
+      // Adjuntar paquetes en estado 'reportado' de cada cliente encontrado
+      const clienteIds = clientes.map(c => c.id)
+      const { data: paquetesPendientes } = await admin
+        .from('paquetes')
+        .select('id, tracking_casilla, tracking_origen, descripcion, tienda, bodega_destino, cliente_id, created_at')
+        .in('cliente_id', clienteIds)
+        .eq('estado', 'reportado')
+        .order('created_at', { ascending: false })
+        .limit(30)
+
+      const byCliente: Record<string, typeof paquetesPendientes> = {}
+      for (const p of paquetesPendientes ?? []) {
+        if (!byCliente[p.cliente_id!]) byCliente[p.cliente_id!] = []
+        byCliente[p.cliente_id!]!.push(p)
+      }
+
+      const clientesConPaquetes = clientes.map(c => ({
+        ...c,
+        paquetes_pendientes: byCliente[c.id] ?? [],
+      }))
+
       return NextResponse.json({
         error: 'Paquete no encontrado',
-        clientes,
+        clientes: clientesConPaquetes,
       }, { status: 404 })
     }
 
