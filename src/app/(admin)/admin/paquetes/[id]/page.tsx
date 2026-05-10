@@ -118,7 +118,10 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-white font-mono">{p.tracking_casilla}</h1>
+            <h1 className="text-xl font-bold text-white font-mono">{p.tracking_origen ?? p.tracking_casilla}</h1>
+            {p.tracking_origen && p.tracking_casilla && (
+              <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.28)' }}>{p.tracking_casilla}</span>
+            )}
             {(() => { const s = ESTADO_DARK[p.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' }; return (
               <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
                 {ESTADO_LABELS[p.estado as keyof typeof ESTADO_LABELS] ?? p.estado}

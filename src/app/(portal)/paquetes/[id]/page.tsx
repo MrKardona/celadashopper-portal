@@ -81,7 +81,9 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
               style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
               {ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado}
             </span>
-            <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>{paquete.tracking_casilla}</span>
+            {paquete.tracking_origen && (
+              <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>{paquete.tracking_origen}</span>
+            )}
           </div>
 
           {!esProblema && (
@@ -135,10 +137,6 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
             <InfoRow icon={<Package className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
               label="Categoría" value={CATEGORIA_LABELS[paquete.categoria as CategoriaProducto]} />
 
-            {paquete.tracking_origen && (
-              <InfoRow icon={<Package className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
-                label="Tracking original" value={paquete.tracking_origen} mono />
-            )}
 
             {paquete.tracking_usaco && (
               <div className="flex items-start gap-3 p-3 rounded-xl"

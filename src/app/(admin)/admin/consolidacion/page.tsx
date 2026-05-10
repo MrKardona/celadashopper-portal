@@ -30,6 +30,7 @@ const US_ESTADOS = ['recibido_usa', 'en_consolidacion', 'listo_envio']
 interface PaqueteUS {
   id: string
   tracking_casilla: string | null
+  tracking_origen: string | null
   cliente_id: string | null
   descripcion: string | null
   estado: string
@@ -68,7 +69,7 @@ export default async function ConsolidacionPage() {
 
   const { data: paquetesRaw } = await supabase
     .from('paquetes')
-    .select('id, tracking_casilla, cliente_id, descripcion, estado, bodega_destino, peso_libras, peso_facturable, created_at')
+    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, estado, bodega_destino, peso_libras, peso_facturable, created_at')
     .in('estado', US_ESTADOS)
     .not('cliente_id', 'is', null)
     .order('created_at', { ascending: true })
@@ -303,7 +304,7 @@ function GrupoCard({ grupo, bodegaGrupo }: { grupo: GrupoCliente; bodegaGrupo: G
                 </span>
                 {/* Tracking */}
                 <span className="font-mono text-xs flex-shrink-0" style={{ color: `${tw}0.5)` }}>
-                  {p.tracking_casilla ?? '—'}
+                  {p.tracking_origen ?? p.tracking_casilla ?? '—'}
                 </span>
                 {/* Description */}
                 <span className="text-sm truncate flex-1" style={{ color: `${tw}0.75)` }}>

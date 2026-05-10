@@ -40,8 +40,8 @@ export default async function AdminDashboard() {
     cajasActivasRes, consolidacionRes,
   ] = await Promise.all([
     supabase.from('paquetes').select('estado').not('estado', 'in', '("entregado","devuelto")'),
-    supabase.from('paquetes').select('id, tracking_casilla, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(8),
-    supabase.from('paquetes').select('id, tracking_casilla, descripcion, estado, cliente_id, updated_at').not('estado', 'in', '("entregado","devuelto")').lt('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order('updated_at', { ascending: true }).limit(5),
+    supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(8),
+    supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, updated_at').not('estado', 'in', '("entregado","devuelto")').lt('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order('updated_at', { ascending: true }).limit(5),
     supabase.from('perfiles').select('id', { count: 'exact', head: true }).eq('rol', 'cliente').eq('activo', true),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'entregado'),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'entregado').gte('updated_at', hace30Dias),
@@ -150,7 +150,7 @@ export default async function AdminDashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
                     <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
-                      {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
+                      {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'}{(p.tracking_origen ?? p.tracking_casilla) ? ` · ${p.tracking_origen ?? p.tracking_casilla}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 ml-3 flex-shrink-0">
@@ -331,7 +331,7 @@ export default async function AdminDashboard() {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
                 <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
-                  {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'} · {p.tracking_casilla}
+                  {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'}{(p.tracking_origen ?? p.tracking_casilla) ? ` · ${p.tracking_origen ?? p.tracking_casilla}` : ''}
                 </p>
               </div>
               <span

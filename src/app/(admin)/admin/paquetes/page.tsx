@@ -39,7 +39,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at')
+    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at')
     .order('created_at', { ascending: false })
     .limit(200)
 

@@ -177,10 +177,10 @@ export default async function DashboardPage() {
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs" style={{ color: `${tw}0.4)` }}>{paquete.tienda}</span>
-                        {paquete.tracking_casilla && (
+                        {paquete.tracking_origen && (
                           <>
                             <span style={{ color: `${tw}0.2)` }}>·</span>
-                            <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>{paquete.tracking_casilla}</span>
+                            <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>{paquete.tracking_origen}</span>
                           </>
                         )}
                       </div>

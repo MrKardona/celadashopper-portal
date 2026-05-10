@@ -201,9 +201,11 @@ function PaqueteCard({ paquete }: { paquete: any }) {
 
               {/* Aguja (guía de transporte) */}
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                <span className="text-[11px] font-mono" style={{ color: `${tw}0.3)` }}>
-                  📦 {paquete.tracking_casilla}
-                </span>
+                {paquete.tracking_origen && (
+                  <span className="text-[11px] font-mono" style={{ color: `${tw}0.3)` }}>
+                    📦 {paquete.tracking_origen}
+                  </span>
+                )}
                 {paquete.tracking_usaco && (
                   <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded"
                     style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>

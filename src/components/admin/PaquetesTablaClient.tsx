@@ -30,6 +30,7 @@ const tw = 'rgba(255,255,255,'
 interface PaqueteRow {
   id: string
   tracking_casilla: string | null
+  tracking_origen: string | null
   cliente_id: string | null
   descripcion: string | null
   tienda: string | null
@@ -440,6 +441,11 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                         <Link href={`/admin/paquetes/${p.id}`} className="block">
                           <p className="truncate max-w-[180px]" style={{ color: `${tw}0.8)` }}>{p.descripcion}</p>
                           <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>{p.tienda}</p>
+                          {(p.tracking_origen ?? p.tracking_casilla) && (
+                            <p className="text-[11px] font-mono mt-0.5" style={{ color: `${tw}0.28)` }}>
+                              {p.tracking_origen ?? p.tracking_casilla}
+                            </p>
+                          )}
                         </Link>
                       </td>
 

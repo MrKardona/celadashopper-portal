@@ -23,7 +23,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
 
   let q = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega')
+    .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega')
     .eq('estado', 'en_bodega_local')
     .order('fecha_llegada_colombia', { ascending: true })
 
@@ -98,7 +98,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>{p.tracking_casilla}</p>
+                      <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>{p.tracking_origen ?? p.tracking_casilla}</p>
                       <Link href={`/admin/paquetes/${p.id}`}
                         className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium transition-all hover:opacity-80"
                         style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }}>
