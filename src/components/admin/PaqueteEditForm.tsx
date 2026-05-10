@@ -132,8 +132,12 @@ export default function PaqueteEditForm({
   // Auto-ruteo: cuando cambia la categoría, recalcular la bodega sugerida
   const bodegaSugerida = getBodegaParaCiudad(ciudadCliente, form.categoria)
 
-  // Si el admin no ha tocado la bodega manualmente y la sugerida difiere, aplicar auto-ruteo
-  const [bodegaManual, setBodegaManual] = useState(false)
+  // Si la bodega guardada en BD ya difiere de la sugerida, asumimos que fue manual.
+  // Esto evita que el efecto sobreescriba el valor guardado al cargar el formulario.
+  const [bodegaManual, setBodegaManual] = useState(
+    () => bodega !== getBodegaParaCiudad(ciudadCliente, categoria)
+  )
+
   useEffect(() => {
     if (!bodegaManual) {
       setForm(prev => ({ ...prev, bodega_destino: bodegaSugerida }))
