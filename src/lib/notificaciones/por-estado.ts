@@ -116,7 +116,7 @@ async function enviarMetaTemplate(
         type: 'template',
         template: {
           name: templateName,
-          language: { code: 'es' },
+          language: { code: 'es_ES' },
           components: [
             {
               type: 'body',
