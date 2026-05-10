@@ -200,6 +200,14 @@ export default function RecibirForm() {
     }
   }, [])
 
+  // Auto-analizar con IA en cuanto ambas fotos del scanner están subidas
+  useEffect(() => {
+    if (fotoManual1.url && fotoManual2.url && !paquete && !analizandoOCR && !ocrResultado) {
+      analizarConIA()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fotoManual1.url, fotoManual2.url])
+
   // ── Scanner de código de barras ──────────────────────────────────────────
   async function iniciarScanner() {
     setErrorCamara('')
@@ -568,6 +576,11 @@ export default function RecibirForm() {
         notas: data.etiqueta.notas,
         auto_busqueda: autoBusqueda,
       })
+
+      // Si no se encontró el paquete por tracking, mostrar formulario manual
+      if (autoBusqueda !== 'encontrado') {
+        setModoManual(true)
+      }
     } catch (err) {
       setOcrError(err instanceof Error ? err.message : 'Error de red')
     } finally {
@@ -792,17 +805,9 @@ export default function RecibirForm() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Canvas oculto compartido para captura de cámara — siempre en el DOM
-          para que capturarFoto() funcione aun con la vista de cámara activa. */}
       <canvas ref={canvasFotoRef} className="hidden" />
 
-      {/* ── Paquetes reportados pendientes de recibir ── */}
-      <PaquetesPendientes
-        refreshKey={historialKey}
-        onSelectTracking={seleccionarPendiente}
-      />
-
-      {/* Notificación de éxito */}
+      {/* ── Notificación de éxito ── */}
       {ultimoRecibido && (
         <div className="flex items-start gap-3 rounded-xl p-4 border animate-in fade-in slide-in-from-top-2 duration-300"
           style={ultimoRecibido.sinAsignar
@@ -825,34 +830,7 @@ export default function RecibirForm() {
         </div>
       )}
 
-      {/* Atajo: Recibir por foto (OCR) */}
-      {!paquete && !modoManual && clientesSugeridos.length === 0 && (
-        <div className="rounded-xl p-4 flex items-center justify-between gap-3"
-          style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Sparkles className="h-5 w-5 flex-shrink-0" style={{ color: '#c084fc' }} />
-            <div className="min-w-0">
-              <p className="font-semibold text-sm" style={{ color: '#c084fc' }}>¿No tienes el tracking a la mano?</p>
-              <p className="text-xs truncate" style={{ color: 'rgba(192,132,252,0.7)' }}>
-                Toma o adjunta 2 fotos del paquete y la IA extrae tracking, casillero y descripción.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setModoManual(true)}
-            className="flex-shrink-0 text-sm font-semibold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-colors"
-            style={{ background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.25)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.15)')}
-          >
-            <Camera className="h-4 w-4" />
-            Recibir por foto
-          </button>
-        </div>
-      )}
-
-      {/* Scanner de tracking */}
+      {/* ── Scanner de tracking + fotos integradas (siempre arriba) ── */}
       <div className="glass-card p-5 space-y-4">
         <div className="flex items-center gap-2 font-semibold text-white">
           <ScanBarcode className="h-5 w-5" style={{ color: '#F5B800' }} />
@@ -1001,7 +979,94 @@ export default function RecibirForm() {
           </div>
         )}
 
-        {/* Error: no encontrado */}
+        {/* ── Fotos integradas para identificación automática ── */}
+        <div className="space-y-3 pt-1">
+          {/* Separador */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.28)', letterSpacing: '0.14em' }}>
+              o identifica con 2 fotos
+            </span>
+            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          </div>
+
+          <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.32)' }}>
+            📸 Foto del empaque (guía visible) + foto del contenido → la IA extrae tracking y datos automáticamente
+          </p>
+
+          {/* Cámara en vivo para fotos */}
+          <CamaraVivo context="manual" />
+
+          {/* Slots de foto */}
+          {!camaraSlot && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
+                <SlotFoto slot={1} context="manual" accent="amber" />
+              </div>
+              <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
+                <SlotFoto slot={2} context="manual" accent="amber" />
+              </div>
+            </div>
+          )}
+
+          {/* Estado: analizando */}
+          {analizandoOCR && (
+            <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+              style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
+              <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" style={{ color: '#c084fc' }} />
+              <span className="text-sm font-medium" style={{ color: '#c084fc' }}>Analizando fotos con IA...</span>
+            </div>
+          )}
+
+          {/* Resultado del análisis */}
+          {ocrResultado && !analizandoOCR && !ocrError && (
+            <div className="rounded-xl px-3 py-2.5 space-y-1"
+              style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }}>
+              <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#c084fc' }}>
+                <CheckCircle2 className="h-3.5 w-3.5" /> Análisis completado
+                <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>
+                  · etiqueta: <span style={{ color: ocrResultado.confianza_etiqueta === 'alta' ? '#34d399' : ocrResultado.confianza_etiqueta === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_etiqueta}</span>
+                  {' '}· contenido: <span style={{ color: ocrResultado.confianza_contenido === 'alta' ? '#34d399' : ocrResultado.confianza_contenido === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_contenido}</span>
+                </span>
+              </div>
+              {ocrResultado.auto_busqueda === 'encontrado' && (
+                <p className="text-xs font-semibold" style={{ color: '#34d399' }}>✓ Paquete encontrado — completa los datos debajo y confirma</p>
+              )}
+              {ocrResultado.auto_busqueda === 'no_encontrado' && (
+                <p className="text-xs" style={{ color: '#F5B800' }}>⚠ Tracking no coincide con paquetes reportados — completa el formulario debajo</p>
+              )}
+              {ocrResultado.notas && (
+                <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>Nota IA: {ocrResultado.notas}</p>
+              )}
+            </div>
+          )}
+
+          {/* Error OCR + reintentar */}
+          {ocrError && (
+            <div className="space-y-2">
+              <div className="rounded-xl px-3 py-2 flex items-center gap-2 text-xs"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" /> {ocrError}
+              </div>
+              <button type="button" onClick={analizarConIA} disabled={analizandoOCR}
+                className="w-full text-xs font-semibold py-2 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-40"
+                style={{ background: 'rgba(168,85,247,0.1)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+                <Sparkles className="h-3.5 w-3.5" /> Reintentar análisis
+              </button>
+            </div>
+          )}
+
+          {/* Botón manual por si el auto-análisis no se disparó */}
+          {fotoManual1.url && fotoManual2.url && !analizandoOCR && !ocrResultado && !ocrError && (
+            <button type="button" onClick={analizarConIA}
+              className="w-full text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2"
+              style={{ background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }}>
+              <Sparkles className="h-4 w-4" /> Analizar con IA
+            </button>
+          )}
+        </div>
+
+        {/* ── Error: no encontrado ── */}
         {errorBusqueda && !modoManual && clientesSugeridos.length === 0 && (
           <div className="space-y-3">
             <div className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm"
@@ -1433,85 +1498,6 @@ export default function RecibirForm() {
             </div>
           </div>
 
-          {/* ── Fotos modo manual ── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4" style={{ color: '#F5B800' }} />
-              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                Fotos del paquete <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(muy útil para identificarlo)</span>
-              </span>
-            </div>
-
-            <CamaraVivo context="manual" />
-
-            {!camaraSlot && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
-                  <SlotFoto slot={1} context="manual" accent="amber" />
-                </div>
-                <div className="rounded-xl p-3" style={{ background: 'rgba(245,184,0,0.04)', border: '1px solid rgba(245,184,0,0.12)' }}>
-                  <SlotFoto slot={2} context="manual" accent="amber" />
-                </div>
-              </div>
-            )}
-
-            {/* ── Botón Analizar con IA ── */}
-            {fotoManual1.url && fotoManual2.url && !camaraSlot && (
-              <div className="rounded-xl p-3 space-y-2"
-                style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)' }}>
-                <button
-                  type="button" onClick={analizarConIA} disabled={analizandoOCR}
-                  className="w-full font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm disabled:opacity-50"
-                  style={{ background: 'rgba(168,85,247,0.15)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.3)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.25)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(168,85,247,0.15)')}
-                >
-                  {analizandoOCR
-                    ? <><Loader2 className="h-4 w-4 animate-spin" />Analizando con IA...</>
-                    : <><Sparkles className="h-4 w-4" />Analizar fotos con IA</>}
-                </button>
-                <p className="text-[11px] text-center" style={{ color: 'rgba(192,132,252,0.65)' }}>
-                  Extrae tracking, casillero, descripción y categoría automáticamente. Revisa siempre antes de guardar.
-                </p>
-                {ocrError && (
-                  <div className="text-xs rounded-xl px-2.5 py-1.5 flex items-start gap-1.5"
-                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                    <span>{ocrError}</span>
-                  </div>
-                )}
-                {ocrResultado && !ocrError && (
-                  <div className="text-xs rounded-xl px-3 py-2 space-y-1"
-                    style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }}>
-                    <div className="flex items-center gap-2 font-medium" style={{ color: '#c084fc' }}>
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Análisis completo — revisa los campos
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                      <span>Etiqueta: <span style={{ color: ocrResultado.confianza_etiqueta === 'alta' ? '#34d399' : ocrResultado.confianza_etiqueta === 'media' ? '#F5B800' : '#f87171', fontWeight: 600 }}>{ocrResultado.confianza_etiqueta}</span></span>
-                      <span>Contenido: <span style={{ color: ocrResultado.confianza_contenido === 'alta' ? '#34d399' : ocrResultado.confianza_contenido === 'media' ? '#F5B800' : '#f87171', fontWeight: 600 }}>{ocrResultado.confianza_contenido}</span></span>
-                    </div>
-                    {ocrResultado.auto_busqueda === 'encontrado' && (
-                      <p style={{ color: '#34d399', fontWeight: 600 }}>✓ Paquete encontrado por tracking — pasamos al flujo normal</p>
-                    )}
-                    {ocrResultado.auto_busqueda === 'no_encontrado' && (
-                      <p style={{ color: '#F5B800' }}>⚠ Tracking no coincide con un paquete reportado — se guarda como nuevo</p>
-                    )}
-                    {ocrResultado.match_tipo && ocrResultado.auto_busqueda !== 'encontrado' && (
-                      <p style={{ color: '#34d399', fontWeight: 600 }}>✓ Cliente identificado por {ocrResultado.match_tipo === 'tracking' ? 'tracking del courier' : ocrResultado.match_tipo === 'casillero' ? 'número de casilla' : 'nombre'}</p>
-                    )}
-                    {ocrResultado.match_tipo === null && ocrResultado.auto_busqueda !== 'encontrado' && (
-                      <p style={{ color: '#F5B800' }}>⚠ No se identificó cliente — el paquete quedará sin asignar</p>
-                    )}
-                    {ocrResultado.notas && (
-                      <p className="italic" style={{ color: 'rgba(255,255,255,0.45)' }}>Nota IA: {ocrResultado.notas}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
@@ -1537,7 +1523,7 @@ export default function RecibirForm() {
         </form>
       )}
 
-      {/* ── Historial de paquetes recibidos hoy ── */}
+      {/* ── Historial de hoy — justo debajo del scanner ── */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 px-1">
           <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
@@ -1548,6 +1534,12 @@ export default function RecibirForm() {
         </div>
         <HistorialRecibidos refreshKey={historialKey} />
       </div>
+
+      {/* ── Paquetes reportados pendientes — al final ── */}
+      <PaquetesPendientes
+        refreshKey={historialKey}
+        onSelectTracking={seleccionarPendiente}
+      />
     </div>
   )
 }
