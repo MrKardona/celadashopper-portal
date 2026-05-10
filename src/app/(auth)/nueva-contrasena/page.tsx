@@ -32,6 +32,30 @@ function nivelSeguridad(pwd: string): { nivel: number; label: string; colorBar: 
   return               { nivel: 5, label: 'Muy fuerte',  colorBar: '#34d399', colorText: '#34d399' }
 }
 
+function PageWrapper({ children }: { children: React.ReactNode }) {
+  const tw = 'rgba(255,255,255,'
+  return (
+    <div className="portal-bg min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="aurora-blob aurora-blob-1" />
+      <div className="aurora-blob aurora-blob-2" />
+      <div className="aurora-blob aurora-blob-3" />
+      <div className="portal-orb-gold" />
+      <div className="portal-orb-blue" />
+      <div className="relative z-10 w-full max-w-md space-y-8">
+        <motion.div
+          initial={{ opacity: 0, y: -14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease }}
+          className="flex justify-center"
+        >
+          <Image src="/celada-logo-new.png" alt="Celada Personal Shopper" width={200} height={72} priority style={{ objectFit: 'contain' }} />
+        </motion.div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export default function NuevaContrasenaPage() {
   const router = useRouter()
   const [password, setPassword]       = useState('')
@@ -134,31 +158,10 @@ export default function NuevaContrasenaPage() {
     )
   }
 
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="portal-bg min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="aurora-blob aurora-blob-1" />
-      <div className="aurora-blob aurora-blob-2" />
-      <div className="aurora-blob aurora-blob-3" />
-      <div className="portal-orb-gold" />
-      <div className="portal-orb-blue" />
-      <div className="relative z-10 w-full max-w-md space-y-8">
-        <motion.div
-          initial={{ opacity: 0, y: -14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease }}
-          className="flex justify-center"
-        >
-          <Image src="/celada-logo-new.png" alt="Celada Personal Shopper" width={200} height={72} priority style={{ objectFit: 'contain' }} />
-        </motion.div>
-        {children}
-      </div>
-    </div>
-  )
-
   // ── Enlace inválido / expirado ─────────────────────────────────────────────
   if (sesionValida === false) {
     return (
-      <Wrapper>
+      <PageWrapper>
         <motion.div {...fadeUp(0.2)} className="glass-card p-8 text-center space-y-5">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mx-auto"
             style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
@@ -180,14 +183,14 @@ export default function NuevaContrasenaPage() {
             Solicitar nuevo enlace
           </motion.button>
         </motion.div>
-      </Wrapper>
+      </PageWrapper>
     )
   }
 
   // ── Éxito ──────────────────────────────────────────────────────────────────
   if (listo) {
     return (
-      <Wrapper>
+      <PageWrapper>
         <motion.div {...fadeUp(0.2)} className="glass-card p-8 text-center space-y-5">
           <motion.div
             initial={{ scale: 0.7, opacity: 0 }}
@@ -205,13 +208,13 @@ export default function NuevaContrasenaPage() {
             </p>
           </div>
         </motion.div>
-      </Wrapper>
+      </PageWrapper>
     )
   }
 
   // ── Formulario principal ───────────────────────────────────────────────────
   return (
-    <Wrapper>
+    <PageWrapper>
       <motion.div {...fadeUp(0.2)} className="glass-card p-8 space-y-6">
 
         {/* Header */}
@@ -253,20 +256,22 @@ export default function NuevaContrasenaPage() {
               </button>
             </div>
 
-            {/* Indicador de fuerza */}
-            {password.length > 0 && (
-              <div className="space-y-1 pt-0.5">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="h-1 flex-1 rounded-full transition-all duration-300"
-                      style={{ background: i <= seguridad.nivel ? seguridad.colorBar : `${tw}0.1)` }} />
-                  ))}
-                </div>
-                <p className="text-xs font-medium" style={{ color: seguridad.colorText }}>
-                  {seguridad.label}
-                </p>
-              </div>
-            )}
+            {/* Indicador de fuerza — espacio siempre reservado para evitar layout shift */}
+            <div className="space-y-1 pt-0.5" style={{ minHeight: 28 }}>
+              {password.length > 0 && (
+                <>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="h-1 flex-1 rounded-full transition-all duration-300"
+                        style={{ background: i <= seguridad.nivel ? seguridad.colorBar : `${tw}0.1)` }} />
+                    ))}
+                  </div>
+                  <p className="text-xs font-medium" style={{ color: seguridad.colorText }}>
+                    {seguridad.label}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Confirmar contraseña */}
@@ -290,14 +295,17 @@ export default function NuevaContrasenaPage() {
                 {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            {confirmar.length > 0 && (
-              <p className="text-xs flex items-center gap-1"
-                style={{ color: coinciden ? '#34d399' : '#f87171' }}>
-                {coinciden
-                  ? <><CheckCircle className="h-3 w-3" /> Las contraseñas coinciden</>
-                  : <><AlertCircle className="h-3 w-3" /> Las contraseñas no coinciden</>}
-              </p>
-            )}
+            {/* Espacio reservado para evitar layout shift */}
+            <div style={{ minHeight: 18 }}>
+              {confirmar.length > 0 && (
+                <p className="text-xs flex items-center gap-1"
+                  style={{ color: coinciden ? '#34d399' : '#f87171' }}>
+                  {coinciden
+                    ? <><CheckCircle className="h-3 w-3" /> Las contraseñas coinciden</>
+                    : <><AlertCircle className="h-3 w-3" /> Las contraseñas no coinciden</>}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Recomendaciones */}
@@ -347,6 +355,6 @@ export default function NuevaContrasenaPage() {
           ← Volver al login
         </button>
       </motion.div>
-    </Wrapper>
+    </PageWrapper>
   )
 }
