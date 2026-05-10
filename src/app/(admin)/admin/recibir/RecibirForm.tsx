@@ -178,7 +178,7 @@ export default function RecibirForm() {
   useEffect(() => {
     if (paquete) {
       pesoRef.current?.focus()
-      if (paquete.peso_libras) setPeso(String(paquete.peso_libras))
+      if (paquete.peso_libras != null) setPeso(String(paquete.peso_libras))
       if (paquete.valor_declarado != null) setValorDeclarado(String(paquete.valor_declarado))
     }
   }, [paquete])
@@ -426,7 +426,13 @@ export default function RecibirForm() {
   // ── Confirmar recepción ───────────────────────────────────────────────────
   async function handleConfirmar(e: React.FormEvent) {
     e.preventDefault()
-    if (!paquete || !peso) return
+    if (!paquete) return
+    // Para categorías que requieren peso, validar que sea > 0
+    if (!SIN_PESO_CATEGORIAS.has(paquete.categoria) && (!peso || parseFloat(peso) <= 0)) {
+      setErrorBusqueda('Debes ingresar el peso del paquete.')
+      pesoRef.current?.focus()
+      return
+    }
     setGuardando(true)
     try {
       const res = await fetch('/api/admin/recibir', {
@@ -1111,7 +1117,7 @@ export default function RecibirForm() {
                   <input
                     ref={pesoRef}
                     type="number" step="0.1" min="0.1" max="999"
-                    value={peso} onChange={e => setPeso(e.target.value)}
+                    value={peso} onChange={e => { setPeso(e.target.value); setErrorBusqueda('') }}
                     placeholder="0.0" required
                     className="glass-input w-full px-4 py-2.5 text-lg font-bold pr-10"
                   />
