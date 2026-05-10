@@ -1,11 +1,11 @@
 'use client'
 
 import { Suspense, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { MailCheck, Send } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { MailCheck, Send, Lock, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { enviarMagicLink } from './actions'
+import { enviarMagicLink, iniciarSesionAdmin } from './actions'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
@@ -92,44 +92,51 @@ const fadeDown = (delay = 0) => ({
 
 function LoginForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const tw = 'rgba(255,255,255,'
+  const authError = searchParams.get('error')
+
+  // Modo: 'cliente' (magic link) | 'admin' (contraseña)
+  const [modo, setModo] = useState<'cliente' | 'admin'>('cliente')
+
+  // Estado magic link
   const [email, setEmail] = useState('')
   const [enviado, setEnviado] = useState(false)
+
+  // Estado admin
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminPass, setAdminPass] = useState('')
+
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const submitting = useRef(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  // ── Enviar magic link (clientes) ──────────────────────────────────────────
+  async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
     if (submitting.current) return
     submitting.current = true
-    setLoading(true)
-    setError('')
-
-    // Usamos Server Action para que el code_verifier de PKCE se guarde
-    // como cookie HTTP server-side — más confiable en apps de email móvil.
+    setLoading(true); setError('')
     const { error } = await enviarMagicLink(email)
-
-    if (error) {
-      setError(error)
-      setLoading(false)
-      submitting.current = false
-      return
-    }
-
-    setEnviado(true)
-    setLoading(false)
-    submitting.current = false
+    if (error) { setError(error); setLoading(false); submitting.current = false; return }
+    setEnviado(true); setLoading(false); submitting.current = false
   }
 
-  const tw = 'rgba(255,255,255,'
-  const authError = searchParams.get('error')
+  // ── Login con contraseña (admins) ─────────────────────────────────────────
+  async function handleAdminLogin(e: React.FormEvent) {
+    e.preventDefault()
+    if (submitting.current) return
+    submitting.current = true
+    setLoading(true); setError('')
+    const { error } = await iniciarSesionAdmin(adminEmail, adminPass)
+    if (error) { setError(error); setLoading(false); submitting.current = false; return }
+    router.push('/admin')
+  }
 
+  // ── Pantalla "revisa tu correo" ───────────────────────────────────────────
   if (enviado) {
     return (
-      <motion.div
-        {...fadeUp(0)}
-        className="text-center space-y-5 py-4"
-      >
+      <motion.div {...fadeUp(0)} className="text-center space-y-5 py-4">
         <motion.div
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -149,11 +156,8 @@ function LoginForm() {
         </div>
         <p className="text-xs" style={{ color: `${tw}0.35)` }}>
           ¿No lo ves? Revisa la carpeta de spam o{' '}
-          <button
-            onClick={() => { setEnviado(false); submitting.current = false }}
-            className="font-semibold hover:underline"
-            style={{ color: '#F5B800' }}
-          >
+          <button onClick={() => { setEnviado(false); submitting.current = false }}
+            className="font-semibold hover:underline" style={{ color: '#F5B800' }}>
             solicita uno nuevo
           </button>
         </p>
@@ -161,69 +165,168 @@ function LoginForm() {
     )
   }
 
+  // ── Formulario admin (contraseña) ─────────────────────────────────────────
+  if (modo === 'admin') {
+    return (
+      <div className="space-y-4">
+        {/* Header modo admin */}
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs"
+          style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <ShieldCheck className="h-4 w-4 flex-shrink-0" style={{ color: '#a5b4fc' }} />
+          <p style={{ color: 'rgba(255,255,255,0.6)' }}>
+            Acceso de <strong style={{ color: '#a5b4fc' }}>administrador</strong> — se requiere contraseña
+          </p>
+        </div>
+
+        <form onSubmit={handleAdminLogin} className="space-y-3">
+          {authError && (
+            <div className="px-4 py-3 rounded-xl text-sm"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
+              Sesión expirada. Inicia sesión nuevamente.
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="admin-email" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
+              Correo
+            </label>
+            <input
+              id="admin-email"
+              type="email"
+              placeholder="admin@celadashopper.com"
+              autoComplete="email"
+              value={adminEmail}
+              onChange={e => setAdminEmail(e.target.value)}
+              required
+              autoFocus
+              className="glass-input w-full px-4 py-3 text-sm outline-none"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="admin-pass" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
+              Contraseña
+            </label>
+            <input
+              id="admin-pass"
+              type="password"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              value={adminPass}
+              onChange={e => setAdminPass(e.target.value)}
+              required
+              className="glass-input w-full px-4 py-3 text-sm outline-none"
+            />
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm px-3 py-2 rounded-lg"
+              style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              {error}
+            </p>
+          )}
+
+          <motion.button
+            type="submit"
+            disabled={loading}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold"
+            style={{ background: 'rgba(99,102,241,0.9)', color: 'white' }}
+          >
+            {loading ? (
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Ingresando...</>
+            ) : (
+              <><Lock className="h-4 w-4" /> Ingresar como admin</>
+            )}
+          </motion.button>
+        </form>
+
+        <button
+          onClick={() => { setModo('cliente'); setError('') }}
+          className="w-full text-xs text-center pt-1 hover:underline transition-colors"
+          style={{ color: `${tw}0.35)` }}
+        >
+          ← Volver al acceso de cliente
+        </button>
+      </div>
+    )
+  }
+
+  // ── Formulario cliente (magic link) ──────────────────────────────────────
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {authError && (
-        <motion.div {...fadeUp(0)} className="px-4 py-3 rounded-xl text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
-          El link expiró o no es válido. Solicita uno nuevo.
-        </motion.div>
-      )}
-
-      <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
-          Correo electrónico
-        </label>
-        <input
-          id="email"
-          type="email"
-          placeholder="tu@email.com"
-          autoComplete="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-          className="glass-input w-full px-4 py-3 text-sm outline-none"
-        />
-      </div>
-
-      {error && (
-        <p role="alert" aria-live="polite" className="text-sm" style={{ color: '#f87171' }}>{error}</p>
-      )}
-
-      <motion.button
-        type="submit"
-        disabled={loading}
-        whileHover={{ scale: 1.02, boxShadow: '0 0 28px rgba(245,184,0,0.4)' }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.15 }}
-        className="btn-gold w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold"
-      >
-        {loading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-            Enviando...
-          </>
-        ) : (
-          <>
-            <Send className="h-4 w-4" />
-            Enviar link de acceso
-          </>
+    <div className="space-y-4">
+      <form onSubmit={handleMagicLink} className="space-y-4">
+        {authError && (
+          <motion.div {...fadeUp(0)} className="px-4 py-3 rounded-xl text-sm"
+            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }}>
+            El link expiró o no es válido. Solicita uno nuevo.
+          </motion.div>
         )}
-      </motion.button>
 
-      <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
-        Te enviaremos un link al correo · Sin contraseña
-      </p>
+        <div className="space-y-2">
+          <label htmlFor="email" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
+            Correo electrónico
+          </label>
+          <input
+            id="email"
+            type="email"
+            placeholder="tu@email.com"
+            autoComplete="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            className="glass-input w-full px-4 py-3 text-sm outline-none"
+          />
+        </div>
 
-      {/* Tip: mismo navegador */}
-      <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
-        style={{ background: 'rgba(245,184,0,0.06)', border: '1px solid rgba(245,184,0,0.14)' }}>
-        <span className="mt-px flex-shrink-0" style={{ color: '#F5B800' }}>💡</span>
-        <p style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
-          Abre el link <strong style={{ color: 'rgba(255,255,255,0.65)' }}>en este mismo navegador</strong>, no desde la app de correo.
+        {error && (
+          <p role="alert" aria-live="polite" className="text-sm" style={{ color: '#f87171' }}>{error}</p>
+        )}
+
+        <motion.button
+          type="submit"
+          disabled={loading}
+          whileHover={{ scale: 1.02, boxShadow: '0 0 28px rgba(245,184,0,0.4)' }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ duration: 0.15 }}
+          className="btn-gold w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold"
+        >
+          {loading ? (
+            <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />Enviando...</>
+          ) : (
+            <><Send className="h-4 w-4" />Enviar link de acceso</>
+          )}
+        </motion.button>
+
+        <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
+          Te enviaremos un link al correo · Sin contraseña
         </p>
+
+        <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
+          style={{ background: 'rgba(245,184,0,0.06)', border: '1px solid rgba(245,184,0,0.14)' }}>
+          <span className="mt-px flex-shrink-0" style={{ color: '#F5B800' }}>💡</span>
+          <p style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+            Abre el link <strong style={{ color: 'rgba(255,255,255,0.65)' }}>en este mismo navegador</strong>, no desde la app de correo.
+          </p>
+        </div>
+      </form>
+
+      {/* Acceso admin — discreto al fondo */}
+      <div className="pt-2 border-t" style={{ borderColor: `${tw}0.06)` }}>
+        <button
+          onClick={() => { setModo('admin'); setError('') }}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all"
+          style={{ color: `${tw}0.28)` }}
+          onMouseEnter={e => { e.currentTarget.style.color = `${tw}0.5)`; e.currentTarget.style.background = `${tw}0.03)` }}
+          onMouseLeave={e => { e.currentTarget.style.color = `${tw}0.28)`; e.currentTarget.style.background = 'transparent' }}
+        >
+          <Lock className="h-3 w-3" />
+          Acceso administrador
+        </button>
       </div>
-    </form>
+    </div>
   )
 }
 
