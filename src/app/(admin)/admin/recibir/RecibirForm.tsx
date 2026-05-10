@@ -155,9 +155,10 @@ export default function RecibirForm() {
   // Sugerencias de clientes cuando lo ingresado no es un tracking sino un casillero/nombre
   const [clientesSugeridos, setClientesSugeridos] = useState<ClienteSugerido[]>([])
 
-  // --- OCR automático en modo normal (extrae tracking de las fotos del paquete encontrado) ---
-  const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; analizado: boolean }>({ tracking: null, analizado: false })
+  // --- OCR automático en modo normal (extrae tracking + descripción de las fotos del paquete encontrado) ---
+  const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; descripcion: string | null; analizado: boolean }>({ tracking: null, descripcion: null, analizado: false })
   const [analizandoOcrNormal, setAnalizandoOcrNormal] = useState(false)
+  const [descripcionOcr, setDescripcionOcr] = useState('')
 
   // --- OCR con Claude Vision (modo manual) ---
   const [analizandoOCR, setAnalizandoOCR] = useState(false)
@@ -200,6 +201,14 @@ export default function RecibirForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ocrNormal.tracking])
 
+  // Auto-llenar descripción cuando OCR la detecta
+  useEffect(() => {
+    if (ocrNormal.descripcion && !descripcionOcr) {
+      setDescripcionOcr(ocrNormal.descripcion)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocrNormal.descripcion])
+
   useEffect(() => {
     if (modoManual) {
       setFormManual(prev => ({ ...prev, tracking_courier: tracking }))
@@ -232,13 +241,18 @@ export default function RecibirForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fotoEmpaqueUrl: foto1.url, fotoContenidoUrl: foto2.url }),
         })
-        const data = await res.json() as { ok?: boolean; etiqueta?: { tracking_origen: string | null } }
+        const data = await res.json() as {
+          ok?: boolean
+          etiqueta?: { tracking_origen: string | null }
+          contenido?: { descripcion: string | null }
+        }
         setOcrNormal({
-          tracking: (res.ok && data.ok) ? (data.etiqueta?.tracking_origen ?? null) : null,
+          tracking:    (res.ok && data.ok) ? (data.etiqueta?.tracking_origen ?? null) : null,
+          descripcion: (res.ok && data.ok) ? (data.contenido?.descripcion ?? null) : null,
           analizado: true,
         })
       } catch {
-        setOcrNormal({ tracking: null, analizado: true })
+        setOcrNormal({ tracking: null, descripcion: null, analizado: true })
       } finally {
         setAnalizandoOcrNormal(false)
       }
@@ -500,7 +514,8 @@ export default function RecibirForm() {
     setOcrResultado(null)
     setOcrError('')
     setNombreEtiqueta(null)
-    setOcrNormal({ tracking: null, analizado: false })
+    setOcrNormal({ tracking: null, descripcion: null, analizado: false })
+    setDescripcionOcr('')
     detenerCamaraFoto()
     setTimeout(() => inputRef.current?.focus(), 50)
   }
@@ -531,6 +546,7 @@ export default function RecibirForm() {
           cantidad: PER_UNIT_CATEGORIAS.has(paquete.categoria) ? cantidad : 1,
           condicion: condicion || undefined,
           tracking_origen_ocr: trackingCourier.trim() || ocrNormal.tracking || undefined,
+          descripcion_ocr: descripcionOcr.trim() || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -1433,6 +1449,40 @@ export default function RecibirForm() {
                 ))}
               </div>
             </div>
+            {/* Descripción del producto generada por IA */}
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Descripción del producto
+                {analizandoOcrNormal && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: '#c084fc' }}>
+                    <Loader2 className="h-3 w-3 animate-spin" /> Analizando contenido...
+                  </span>
+                )}
+                {ocrNormal.analizado && ocrNormal.descripcion && descripcionOcr === ocrNormal.descripcion && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(192,132,252,0.15)', color: '#c084fc', border: '1px solid rgba(192,132,252,0.3)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> IA
+                  </span>
+                )}
+              </label>
+              <input
+                type="text"
+                value={descripcionOcr}
+                onChange={e => setDescripcionOcr(e.target.value)}
+                placeholder="La IA describirá el contenido al subir las fotos..."
+                className="glass-input w-full px-4 py-2.5 text-sm"
+                style={ocrNormal.descripcion && descripcionOcr === ocrNormal.descripcion
+                  ? { borderColor: 'rgba(192,132,252,0.4)', background: 'rgba(192,132,252,0.04)' }
+                  : {}}
+                autoComplete="off"
+              />
+              {ocrNormal.analizado && !ocrNormal.descripcion && foto1.url && foto2.url && (
+                <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                  No se pudo detectar la descripción — puedes escribirla manualmente
+                </p>
+              )}
+            </div>
+
             {/* Tracking del courier — se llena solo con OCR o el agente lo escribe */}
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>

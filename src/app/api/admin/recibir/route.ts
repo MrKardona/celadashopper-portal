@@ -179,6 +179,8 @@ export async function POST(req: NextRequest) {
     // Tracking del courier detectado por OCR en las fotos (solo Modo A: paquete existente)
     // Se guarda si el paquete no tenía tracking_origen, o si el agente lo confirmó
     tracking_origen_ocr?: string | null
+    // Descripción del producto generada por IA a partir de las fotos
+    descripcion_ocr?: string | null
   }
 
   // Helper: parsea valor_declarado a number > 0 o null. Aceptamos "12.34" y 12.34.
@@ -422,6 +424,11 @@ export async function POST(req: NextRequest) {
   const trackingOcrLimpio = body.tracking_origen_ocr?.trim() || null
   if (trackingOcrLimpio && !paquete.tracking_origen) {
     updates.tracking_origen = trackingOcrLimpio
+  }
+  // Guardar descripción generada por IA (siempre — enriquece los datos del paquete)
+  const descripcionOcrLimpia = body.descripcion_ocr?.trim() || null
+  if (descripcionOcrLimpia) {
+    updates.descripcion = descripcionOcrLimpia
   }
 
   const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
