@@ -39,6 +39,42 @@ const BODEGA_LABELS: Record<string, string> = {
   barranquilla: 'Barranquilla',
 }
 
+// ─── Meta-approved Utility templates (category=Utility, language=es) ─────────
+// Creadas en Kommo → se sincronizan con Meta Business Manager.
+// Solo eventos listados aquí usan type:"template". Los demás siguen en texto libre
+// (válido únicamente dentro de la ventana de 24h de respuesta del cliente).
+type PaqRaw = Record<string, unknown>
+const EVENTO_A_TEMPLATE: Record<string, {
+  name: string
+  params: (vars: Record<string, string>, paq: PaqRaw) => string[]
+}> = {
+  paquete_recibido_usa: {
+    name: 'cs_paquete_recibido',
+    // "Hola {{1}}, tu paquete *{{2}}* llego a nuestra bodega en USA\nPeso: {{3}} lb | Costo servicio: ${{4}} USD\n..."
+    params: (vars, paq) => [
+      vars.nombre,
+      vars.descripcion || 'tu paquete',
+      String(paq.peso_facturable ?? paq.peso_libras ?? 'N/A'),
+      String(paq.costo_servicio ?? 'N/A'),
+    ],
+  },
+  paquete_en_transito: {
+    name: 'cs_paquete_en_transito',
+    // "Hola {{1}}, tu paquete *{{2}}* ya esta en camino a Colombia. Tiempo estimado: 5-8 dias habiles..."
+    params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
+  },
+  paquete_listo_recoger: {
+    name: 'cs_listo_recoger',
+    // "Hola {{1}}, tu paquete *{{2}}* esta listo para recoger\nen nuestra bodega de {{3}}.\nHorario: lunes a sabado 9am - 6pm"
+    params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete', vars.bodega || 'Medellín'],
+  },
+  paquete_entregado: {
+    name: 'cs_paquete_entregado',
+    // "Hola {{1}}, tu paquete *{{2}}* fue entregado exitosamente. Revisa el detalle y foto de entrega en tu portal..."
+    params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
+  },
+}
+
 function rellenarPlantilla(plantilla: string, vars: Record<string, string>): string {
   const filled = plantilla.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
   // Remove lines where an optional variable resolved to empty
@@ -53,7 +89,69 @@ function rellenarPlantilla(plantilla: string, vars: Record<string, string>): str
 let __ultimoMetaInfo: { messageId?: string; destino?: string; statusFinal?: string; rawError?: string } = {}
 export function getUltimoMetaInfo() { return { ...__ultimoMetaInfo } }
 
-// ─── Envío vía Meta directo (preferido) ──────────────────────────────────────
+// ─── Envío de template aprobado vía Meta (TOS-compliant para mensajes proactivos) ─
+async function enviarMetaTemplate(
+  phone: string,
+  templateName: string,
+  params: string[],
+): Promise<boolean> {
+  __ultimoMetaInfo = {}
+  const phoneId = process.env.META_WA_PHONE_ID
+  const token = process.env.META_WA_TOKEN
+  if (!phoneId || !token) {
+    __ultimoMetaInfo = { rawError: 'META_WA_PHONE_ID/TOKEN no configurados' }
+    return false
+  }
+
+  const numero = phone.replace(/\D/g, '')
+  const dest = numero.startsWith('57') ? numero : `57${numero}`
+  __ultimoMetaInfo.destino = dest
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: dest,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: 'es' },
+          components: [
+            {
+              type: 'body',
+              parameters: params.map(p => ({ type: 'text', text: p })),
+            },
+          ],
+        },
+      }),
+    })
+
+    const raw = await res.text()
+    if (!res.ok) {
+      __ultimoMetaInfo.rawError = `Meta template ${res.status}: ${raw.slice(0, 400)}`
+      console.error('[Meta template]', __ultimoMetaInfo.rawError)
+      return false
+    }
+    try {
+      const data = JSON.parse(raw) as {
+        messages?: { id?: string; message_status?: string }[]
+        contacts?: { wa_id?: string }[]
+      }
+      __ultimoMetaInfo.messageId = data.messages?.[0]?.id
+      __ultimoMetaInfo.statusFinal = data.messages?.[0]?.message_status ?? 'accepted'
+    } catch { /* ignorar */ }
+    console.log('[Meta template] OK', templateName, 'msg_id=', __ultimoMetaInfo.messageId)
+    return true
+  } catch (err) {
+    __ultimoMetaInfo.rawError = err instanceof Error ? err.message : String(err)
+    console.error('[Meta template] Error:', err)
+    return false
+  }
+}
+
+// ─── Envío vía Meta directo (texto libre — solo válido en ventana 24h) ────────
 async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolean> {
   __ultimoMetaInfo = {}
   const phoneId = process.env.META_WA_PHONE_ID
@@ -400,34 +498,65 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
       return
     }
 
-    // Mensaje WA: solo si hay plantilla y teléfono
+    // Mensaje WA fallback (texto libre — solo válido en ventana 24h)
     const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : ''
-    const puedeEnviarWa = !!ctx.plantilla && !!ctx.phone
+    // Eventos con template aprobado no requieren plantilla en DB
+    const templateDef = EVENTO_A_TEMPLATE[evento]
+    const puedeEnviarWa = !!ctx.phone && (!!templateDef || !!ctx.plantilla)
 
-    // ── Solo 'recibido_usa' envía foto del paquete ──────────────────────────
-    // Los demás estados (en_consolidacion, en_transito, etc.) van solo texto
+    // Solo recibido_usa adjunta foto del producto
     const enviaFotos = estadoNuevo === 'recibido_usa'
     let fotosEnviadas = 0
     let envioOk = false
     let viaUsada = puedeEnviarWa ? 'meta' : 'sin_whatsapp'
 
-    if (puedeEnviarWa && enviaFotos) {
-      // Buscar fotos asociadas al paquete
+    if (puedeEnviarWa && templateDef) {
+      // Usar template aprobado por Meta — cumple TOS para mensajes proactivos
+      const params = templateDef.params(ctx.vars, ctx.paquete as PaqRaw)
+      const tmplOk = await enviarMetaTemplate(ctx.phone, templateDef.name, params)
+      envioOk = tmplOk
+      viaUsada = tmplOk ? 'meta_template' : 'meta_template_falló'
+
+      // recibido_usa: enviar la foto del contenido como mensaje separado tras el template
+      if (tmplOk && enviaFotos) {
+        const { data: fotos } = await supabase
+          .from('fotos_paquetes')
+          .select('url, descripcion')
+          .eq('paquete_id', paqueteId)
+          .order('created_at', { ascending: true })
+          .limit(5)
+        const fotoContenido = fotos?.find(f =>
+          (f.descripcion ?? '').toLowerCase().includes('contenido')
+        ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
+        if (fotoContenido) {
+          const fotoOk = await enviarImagenMeta(ctx.phone, fotoContenido.url)
+          if (fotoOk) {
+            fotosEnviadas = 1
+            console.log('[notif] Foto contenido enviada tras template OK:', fotoContenido.url)
+          }
+        }
+      }
+
+      // Si el template falla, fallback a Kommo (evitamos texto libre en Meta)
+      if (!envioOk) {
+        try {
+          const fallbackMsg = mensaje || `Actualización de tu paquete ${ctx.vars.descripcion || ''}`
+          const r = await sendProactiveWhatsApp(ctx.phone, fallbackMsg)
+          envioOk = r.enviado
+          viaUsada = `kommo_${r.metodo}_tmpl_fallback`
+        } catch { /* ya logueado en sendProactiveWhatsApp */ }
+      }
+    } else if (puedeEnviarWa && enviaFotos) {
+      // recibido_usa sin template activo: imagen + caption (texto libre)
       const { data: fotos } = await supabase
         .from('fotos_paquetes')
         .select('url, descripcion')
         .eq('paquete_id', paqueteId)
         .order('created_at', { ascending: true })
         .limit(5)
-
-      // Estrategia: UN SOLO MENSAJE con la foto del CONTENIDO + texto como caption.
-      // Identificamos la foto del contenido por su descripción.
-      // Fallback: si no hay foto con "contenido" en descripción, usamos la última
-      // foto subida (que típicamente es la del contenido).
       const fotoContenido = fotos?.find(f =>
         (f.descripcion ?? '').toLowerCase().includes('contenido')
       ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
-
       if (fotoContenido) {
         const ok = await enviarImagenMeta(ctx.phone, fotoContenido.url, mensaje)
         envioOk = ok
@@ -436,20 +565,18 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
           fotosEnviadas = 1
           console.log('[notif] Imagen contenido + caption enviada OK:', fotoContenido.url)
         } else {
-          // Si la imagen falla, mandamos al menos el texto
           console.warn('[notif] Imagen contenido falló, fallback a solo texto')
           const r = await enviarConFallback(ctx.phone, mensaje)
           envioOk = r.enviado
           viaUsada = `${r.via}_fallback_texto`
         }
       } else {
-        // No hay fotos: solo texto
         const r = await enviarConFallback(ctx.phone, mensaje)
         envioOk = r.enviado
         viaUsada = r.via
       }
     } else if (puedeEnviarWa) {
-      // Otros estados: solo texto
+      // Otros estados sin template: texto libre (válido en ventana 24h)
       const r = await enviarConFallback(ctx.phone, mensaje)
       envioOk = r.enviado
       viaUsada = r.via
