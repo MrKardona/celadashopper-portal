@@ -39,6 +39,32 @@ export async function iniciarSesionAdmin(
   return { error: null }
 }
 
+// ── Recuperar contraseña para admins ─────────────────────────────────────────
+export async function recuperarContrasenaAdmin(
+  email: string,
+): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const headersList = await headers()
+
+  const origin =
+    headersList.get('origin') ??
+    headersList.get('referer')?.replace(/\/[^/]*$/, '') ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    'https://portal.celadashopper.com'
+
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    email.trim().toLowerCase(),
+    { redirectTo: `${origin}/api/auth/callback?next=/nueva-contrasena` },
+  )
+
+  if (error) {
+    console.error('[recuperarContrasenaAdmin]', error.message)
+  }
+
+  // Siempre responder OK para no revelar si el email existe
+  return { error: null }
+}
+
 // ── Magic link para usuarios normales ────────────────────────────────────────
 export async function enviarMagicLink(email: string): Promise<{ error: string | null }> {
   const supabase = await createClient()
