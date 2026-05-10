@@ -43,6 +43,17 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
     for (const p of perfiles ?? []) perfilesMap[p.id] = p
   }
 
+  // Detect clients with 2+ packages in Colombia warehouse (same bodega)
+  const paquetesPorCliente: Record<string, typeof lista> = {}
+  for (const p of lista) {
+    if (!p.cliente_id) continue
+    const key = `${p.cliente_id}::${p.bodega_destino ?? ''}`
+    if (!paquetesPorCliente[key]) paquetesPorCliente[key] = []
+    paquetesPorCliente[key].push(p)
+  }
+  const gruposConsolidar = Object.values(paquetesPorCliente).filter(g => g.length >= 2)
+  const clientesConMultiples = new Set(gruposConsolidar.flatMap(g => g.map(p => p.cliente_id).filter(Boolean)))
+
   const ciudades = [...new Set(lista.map(p => p.bodega_destino).filter(Boolean))]
 
   return (
@@ -85,6 +96,39 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
           <p className="text-xs mt-1" style={{ color: `${tw}0.25)` }}>Cuando recibas cajas en Colombia, los paquetes aparecerán aquí</p>
         </div>
       ) : (
+        <>
+        {gruposConsolidar.length > 0 && (
+          <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(52,211,153,0.22)' }}>
+            <div className="px-5 py-3.5 flex items-center gap-2" style={{ background: 'rgba(52,211,153,0.05)', borderBottom: '1px solid rgba(52,211,153,0.12)' }}>
+              <span style={{ color: '#34d399', fontSize: 16 }}>📦</span>
+              <p className="text-sm font-semibold" style={{ color: '#34d399' }}>
+                {gruposConsolidar.length === 1
+                  ? '1 cliente con varios paquetes en bodega — coordinar entrega conjunta'
+                  : `${gruposConsolidar.length} clientes con varios paquetes en bodega — coordinar entrega conjunta`}
+              </p>
+            </div>
+            <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              {gruposConsolidar.map((grupo, i) => {
+                const cli = grupo[0].cliente_id ? perfilesMap[grupo[0].cliente_id] : null
+                const bodega = BODEGA_LABELS[grupo[0].bodega_destino] ?? grupo[0].bodega_destino
+                return (
+                  <div key={i} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{cli?.nombre_completo ?? 'Sin asignar'}</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        {grupo.length} paquetes · {bodega}
+                      </p>
+                    </div>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
+                      Entregar juntos
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {lista.map(p => {
             const cli = p.cliente_id ? perfilesMap[p.cliente_id] : null
@@ -107,6 +151,12 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                       </Link>
                     </div>
                     <p className="text-sm mt-0.5 truncate text-white">{p.descripcion}</p>
+                    {p.cliente_id && clientesConMultiples.has(p.cliente_id) && (
+                      <span className="inline-flex text-[11px] font-semibold px-1.5 py-0.5 rounded mt-1"
+                        style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+                        📦 Entregar con otros paquetes del cliente
+                      </span>
+                    )}
                     <div className="mt-1.5">
                       <FacturaBadge
                         facturaId={p.factura_id ?? null}
@@ -186,6 +236,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
             )
           })}
         </div>
+        </>
       )}
     </div>
   )

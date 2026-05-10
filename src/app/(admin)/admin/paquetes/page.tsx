@@ -62,7 +62,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
       ? supabase.from('perfiles').select('id, nombre_completo, numero_casilla').in('id', clienteIds)
       : Promise.resolve({ data: [] }),
     paqueteIds.length > 0
-      ? supabase.from('fotos_paquetes').select('paquete_id, url').in('paquete_id', paqueteIds).order('created_at')
+      ? supabase.from('fotos_paquetes').select('paquete_id, url, descripcion, created_at').in('paquete_id', paqueteIds).order('created_at')
       : Promise.resolve({ data: [] }),
     clienteIds.length > 0
       ? supabase
@@ -76,9 +76,19 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   const perfilesMap: Record<string, { nombre_completo: string; numero_casilla: string }> =
     Object.fromEntries((perfilesRes.data ?? []).map((p: { id: string; nombre_completo: string; numero_casilla: string }) => [p.id, p]))
 
+  // Group fotos by paquete_id
+  const fotosGrupo: Record<string, { url: string; descripcion?: string | null; created_at: string }[]> = {}
+  for (const f of (fotosRes.data ?? []) as { paquete_id: string; url: string; descripcion?: string | null; created_at: string }[]) {
+    if (!fotosGrupo[f.paquete_id]) fotosGrupo[f.paquete_id] = []
+    fotosGrupo[f.paquete_id].push(f)
+  }
+  // Pick product/content photo for each package
   const fotosMap: Record<string, string> = {}
-  for (const f of (fotosRes.data ?? []) as { paquete_id: string; url: string }[]) {
-    if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+  for (const [pid, fotos] of Object.entries(fotosGrupo)) {
+    const sorted = [...fotos].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    const contenido = sorted.find(f => (f.descripcion ?? '').toLowerCase().includes('contenido'))
+    const thumb = contenido ?? (sorted.length > 1 ? sorted[1] : sorted[0])
+    if (thumb) fotosMap[pid] = thumb.url
   }
 
   // Build consolidacionMap: cliente_id → count of packages in US states

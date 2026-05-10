@@ -60,7 +60,7 @@ export default async function PaquetesPage() {
 
   const { data: paquetes } = await supabase
     .from('paquetes')
-    .select('*, fotos_paquetes(url, created_at)')
+    .select('*, fotos_paquetes(url, created_at, descripcion)')
     .eq('cliente_id', user!.id)
     .eq('visible_cliente', true)
     .order('created_at', { ascending: false })
@@ -136,12 +136,21 @@ export default async function PaquetesPage() {
   )
 }
 
+function fotoProducto(fotos: { url: string; descripcion?: string | null; created_at: string }[]): string | null {
+  if (!fotos || fotos.length === 0) return null
+  const sorted = [...fotos].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  // 1. Photo tagged as "contenido"
+  const contenido = sorted.find(f => (f.descripcion ?? '').toLowerCase().includes('contenido'))
+  if (contenido) return contenido.url
+  // 2. Second photo (typically content)
+  if (sorted.length > 1) return sorted[1].url
+  // 3. Only photo available
+  return sorted[0]?.url ?? null
+}
+
 function PaqueteCard({ paquete }: { paquete: any }) {
-  // Foto: segunda foto (contenido) o primera disponible
-  const fotos   = [...(paquete.fotos_paquetes ?? [])].sort(
-    (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  )
-  const thumbUrl = fotos.length > 1 ? fotos[1].url : fotos[0]?.url ?? null
+  const fotos = [...(paquete.fotos_paquetes ?? [])] as { url: string; descripcion?: string | null; created_at: string }[]
+  const thumbUrl = fotoProducto(fotos)
 
   const paso = PASO_ESTADOS[paquete.estado as string] ?? 0
   const esDevuelto  = paquete.estado === 'devuelto'

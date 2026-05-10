@@ -8,15 +8,19 @@ import { fechaCorta } from '@/lib/fecha'
 const tw = 'rgba(255,255,255,'
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
-  recibido_usa:     { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.3)'  },
-  en_consolidacion: { bg: 'rgba(245,184,0,0.10)',   color: '#F5B800', border: 'rgba(245,184,0,0.25)'  },
-  listo_envio:      { bg: 'rgba(168,85,247,0.12)',  color: '#c084fc', border: 'rgba(168,85,247,0.3)'  },
+  recibido_usa:      { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.3)'  },
+  en_consolidacion:  { bg: 'rgba(245,184,0,0.10)',   color: '#F5B800', border: 'rgba(245,184,0,0.25)'  },
+  listo_envio:       { bg: 'rgba(168,85,247,0.12)',  color: '#c084fc', border: 'rgba(168,85,247,0.3)'  },
+  en_bodega_local:   { bg: 'rgba(99,130,255,0.10)',  color: '#818cf8', border: 'rgba(99,130,255,0.25)' },
+  en_camino_cliente: { bg: 'rgba(132,204,22,0.10)',  color: '#a3e635', border: 'rgba(132,204,22,0.25)' },
 }
 
 const ESTADO_LABELS: Record<string, string> = {
   recibido_usa: 'En Miami',
   en_consolidacion: 'Consolidando',
   listo_envio: 'Listo envío',
+  en_bodega_local: 'En bodega CO',
+  en_camino_cliente: 'En camino',
 }
 
 const BODEGA_LABELS: Record<string, string> = {
@@ -76,8 +80,19 @@ export default async function ConsolidacionPage() {
 
   const paquetes: PaqueteUS[] = (paquetesRaw ?? []) as PaqueteUS[]
 
-  // Gather unique cliente_ids
-  const clienteIds = [...new Set(paquetes.map(p => p.cliente_id).filter((id): id is string => !!id))]
+  const { data: paquetesColRaw } = await supabase
+    .from('paquetes')
+    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, estado, bodega_destino, peso_libras, peso_facturable, created_at')
+    .in('estado', ['en_bodega_local', 'en_camino_cliente'])
+    .not('cliente_id', 'is', null)
+    .order('created_at', { ascending: true })
+
+  const paquetesCol: PaqueteUS[] = (paquetesColRaw ?? []) as PaqueteUS[]
+
+  // Gather unique cliente_ids (US + Colombia)
+  const clienteIdsUS = [...new Set(paquetes.map(p => p.cliente_id).filter((id): id is string => !!id))]
+  const clienteIdsCol = [...new Set(paquetesCol.map(p => p.cliente_id).filter((id): id is string => !!id))]
+  const clienteIds = [...new Set([...clienteIdsUS, ...clienteIdsCol])]
 
   let perfilesMap: Record<string, Perfil> = {}
   if (clienteIds.length > 0) {
@@ -142,6 +157,39 @@ export default async function ConsolidacionPage() {
   // Separate: multi-package (any bodega group with 2+) vs single
   const multiGrupos = grupos.filter(g => g.bodegas.some(b => b.paquetes.length >= 2))
   const soloGrupos  = grupos.filter(g => g.bodegas.every(b => b.paquetes.length < 2))
+
+  // Colombia groups
+  const byClienteCol: Record<string, PaqueteUS[]> = {}
+  for (const p of paquetesCol) {
+    if (!p.cliente_id) continue
+    if (!byClienteCol[p.cliente_id]) byClienteCol[p.cliente_id] = []
+    byClienteCol[p.cliente_id].push(p)
+  }
+
+  const gruposCol: GrupoCliente[] = Object.entries(byClienteCol).map(([clienteId, pkgs]) => {
+    const byBodega: Record<string, PaqueteUS[]> = {}
+    for (const p of pkgs) {
+      const key = p.bodega_destino ?? '__null__'
+      if (!byBodega[key]) byBodega[key] = []
+      byBodega[key].push(p)
+    }
+    const bodegas: GrupoBodega[] = Object.entries(byBodega).map(([bodegaKey, bpkgs]) => {
+      const bodega = bodegaKey === '__null__' ? null : bodegaKey
+      const allHaveWeight = bpkgs.every(p => (p.peso_facturable ?? p.peso_libras) !== null)
+      const pesoTotal = allHaveWeight ? bpkgs.reduce((sum, p) => sum + (p.peso_facturable ?? p.peso_libras ?? 0), 0) : null
+      return { bodega, paquetes: bpkgs, pesoTotal }
+    })
+    bodegas.sort((a, b) => b.paquetes.length - a.paquetes.length)
+    const oldestDate = pkgs.reduce((oldest, p) => (p.created_at < oldest ? p.created_at : oldest), pkgs[0].created_at)
+    return { cliente: perfilesMap[clienteId] ?? null, clienteId, bodegas, totalPaquetes: pkgs.length, oldestDate }
+  })
+
+  gruposCol.sort((a, b) => {
+    if (b.totalPaquetes !== a.totalPaquetes) return b.totalPaquetes - a.totalPaquetes
+    return a.oldestDate.localeCompare(b.oldestDate)
+  })
+
+  const multiGruposCol = gruposCol.filter(g => g.bodegas.some(b => b.paquetes.length >= 2))
 
   return (
     <div className="space-y-6">
@@ -236,21 +284,55 @@ export default async function ConsolidacionPage() {
           </div>
         </details>
       )}
+
+      {/* ── Colombia section ── */}
+      {multiGruposCol.length > 0 && (
+        <div className="space-y-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            🇨🇴 Entregar juntos — Bodega Colombia — {multiGruposCol.length} cliente{multiGruposCol.length !== 1 ? 's' : ''}
+          </h2>
+          {multiGruposCol.map(grupo => (
+            <div key={grupo.clienteId}>
+              {grupo.bodegas.filter(b => b.paquetes.length >= 2).map(bodegaGrupo => (
+                <GrupoCard
+                  key={`col-${grupo.clienteId}-${bodegaGrupo.bodega}`}
+                  grupo={grupo}
+                  bodegaGrupo={bodegaGrupo}
+                  accentColor="green"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
-function GrupoCard({ grupo, bodegaGrupo }: { grupo: GrupoCliente; bodegaGrupo: GrupoBodega }) {
+function GrupoCard({ grupo, bodegaGrupo, accentColor = 'purple' }: { grupo: GrupoCliente; bodegaGrupo: GrupoBodega; accentColor?: 'purple' | 'green' }) {
   const { cliente, clienteId } = grupo
   const { bodega, paquetes, pesoTotal } = bodegaGrupo
   const count = paquetes.length
 
+  const isGreen = accentColor === 'green'
+
+  const cardBorderColor  = isGreen ? 'rgba(52,211,153,0.2)'  : 'rgba(168,85,247,0.2)'
+  const stripGradient    = isGreen
+    ? 'linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(52,211,153,0.2) 100%)'
+    : 'linear-gradient(90deg, rgba(168,85,247,0.7) 0%, rgba(99,130,255,0.4) 100%)'
+  const bodegaBadgeBg    = isGreen ? 'rgba(52,211,153,0.1)'  : 'rgba(168,85,247,0.1)'
+  const bodegaBadgeColor = isGreen ? '#34d399'               : '#c084fc'
+  const bodegaBadgeBorder= isGreen ? 'rgba(52,211,153,0.22)' : 'rgba(168,85,247,0.22)'
+  const secondLinkHref   = isGreen ? '/admin/listos-entrega' : '/admin/cajas'
+  const secondLinkLabel  = isGreen ? 'Ir a listos entrega →' : 'Ir a cajas →'
+  const secondLinkColor  = isGreen ? '#34d399'               : '#c084fc'
+
   return (
     <div className="glass-card overflow-hidden"
-      style={{ borderColor: 'rgba(168,85,247,0.2)' }}>
+      style={{ borderColor: cardBorderColor }}>
       {/* Top accent strip */}
       <div className="h-0.5 w-full"
-        style={{ background: 'linear-gradient(90deg, rgba(168,85,247,0.7) 0%, rgba(99,130,255,0.4) 100%)' }} />
+        style={{ background: stripGradient }} />
 
       <div className="p-5">
         {/* Header row */}
@@ -274,7 +356,7 @@ function GrupoCard({ grupo, bodegaGrupo }: { grupo: GrupoCliente; bodegaGrupo: G
         <div className="flex items-center gap-2 mt-3 flex-wrap">
           {bodega && (
             <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-              style={{ background: 'rgba(168,85,247,0.1)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.22)' }}>
+              style={{ background: bodegaBadgeBg, color: bodegaBadgeColor, border: `1px solid ${bodegaBadgeBorder}` }}>
               {BODEGA_LABELS[bodega] ?? bodega}
             </span>
           )}
@@ -327,10 +409,10 @@ function GrupoCard({ grupo, bodegaGrupo }: { grupo: GrupoCliente; bodegaGrupo: G
             style={{ color: '#F5B800' }}>
             Ver todos sus paquetes →
           </Link>
-          <Link href="/admin/cajas"
+          <Link href={secondLinkHref}
             className="text-sm font-semibold transition-colors hover:opacity-80"
-            style={{ color: '#c084fc' }}>
-            Ir a cajas →
+            style={{ color: secondLinkColor }}>
+            {secondLinkLabel}
           </Link>
         </div>
       </div>
