@@ -1,27 +1,32 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { motion } from 'framer-motion'
+import { KeyRound, CheckCircle, AlertCircle, RotateCcw } from 'lucide-react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Package, ArrowLeft, KeyRound, AlertCircle, Loader2 } from 'lucide-react'
+
+const ease = [0.25, 0.46, 0.45, 0.94] as const
+const tw = 'rgba(255,255,255,'
+
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 22 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.55, delay, ease },
+})
 
 function CodigoForm() {
-  const router = useRouter()
+  const router      = useRouter()
   const searchParams = useSearchParams()
 
-  const [email, setEmail] = useState('')
-  const [codigo, setCodigo] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail]       = useState('')
+  const [codigo, setCodigo]     = useState('')
+  const [loading, setLoading]   = useState(false)
   const [reenviando, setReenviando] = useState(false)
-  const [error, setError] = useState('')
-  const [reenvio, setReenvio] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+  const [error, setError]       = useState('')
+  const [reenvioOk, setReenvioOk] = useState(false)
 
-  // Pre-rellenar email desde el query param si viene
   useEffect(() => {
     const e = searchParams.get('email')
     if (e) setEmail(e)
@@ -32,9 +37,9 @@ function CodigoForm() {
     setLoading(true)
     setError('')
 
-    const codigoLimpio = codigo.replace(/\s/g, '').replace(/\D/g, '')
+    const codigoLimpio = codigo.replace(/\D/g, '')
     if (codigoLimpio.length < 6) {
-      setError('El código debe tener al menos 6 dígitos')
+      setError('El código debe tener al menos 6 dígitos.')
       setLoading(false)
       return
     }
@@ -49,7 +54,6 @@ function CodigoForm() {
     setLoading(false)
 
     if (err) {
-      console.error('[verificar codigo]', err.message)
       const msg = err.message.toLowerCase()
       if (msg.includes('expired') || msg.includes('invalid') || msg.includes('not found')) {
         setError('El código no es válido o ya expiró. Solicita uno nuevo.')
@@ -59,17 +63,14 @@ function CodigoForm() {
       return
     }
 
-    // Sesión creada → ir a cambiar contraseña
     router.push('/nueva-contrasena')
   }
 
   async function handleReenviar() {
-    if (!email.trim()) {
-      setReenvio({ tipo: 'error', texto: 'Escribe tu correo electrónico para reenviar el código.' })
-      return
-    }
+    if (!email.trim()) return
     setReenviando(true)
-    setReenvio(null)
+    setReenvioOk(false)
+    setError('')
 
     const supabase = createClient()
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
@@ -79,125 +80,149 @@ function CodigoForm() {
 
     if (err) {
       const msg = err.message.toLowerCase()
-      if (msg.includes('rate limit') || msg.includes('only request this after') || msg.includes('seconds')) {
-        const segundos = err.message.match(/(\d+)\s*seconds?/i)?.[1] ?? '60'
-        setReenvio({ tipo: 'error', texto: `Espera ${segundos} segundos antes de pedir otro código.` })
+      const seg = err.message.match(/(\d+)\s*seconds?/i)?.[1] ?? '60'
+      if (msg.includes('rate limit') || msg.includes('only request this after')) {
+        setError(`Espera ${seg} segundos antes de pedir otro código.`)
         return
       }
     }
-    setReenvio({ tipo: 'ok', texto: 'Código reenviado. Revisa tu correo (también la carpeta de spam).' })
+    setReenvioOk(true)
+    setTimeout(() => setReenvioOk(false), 5000)
+  }
+
+  // Formatea el código con un espacio en el centro para facilitar lectura
+  function formatearCodigo(val: string) {
+    const digits = val.replace(/\D/g, '').slice(0, 8)
+    if (digits.length > 4) return digits.slice(0, 4) + ' ' + digits.slice(4)
+    return digits
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-orange-50 to-white">
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2 text-orange-600">
-            <Package className="h-8 w-8" />
-            <span className="text-2xl font-bold">CeladaShopper</span>
+    <div className="portal-bg min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="aurora-blob aurora-blob-1" />
+      <div className="aurora-blob aurora-blob-2" />
+      <div className="aurora-blob aurora-blob-3" />
+      <div className="portal-orb-gold" />
+      <div className="portal-orb-blue" />
+
+      <div className="relative z-10 w-full max-w-md space-y-8">
+
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease }}
+          className="flex justify-center"
+        >
+          <a href="/" aria-label="Inicio">
+            <Image
+              src="/celada-logo-new.png"
+              alt="Celada Personal Shopper"
+              width={200}
+              height={72}
+              priority
+              style={{ objectFit: 'contain' }}
+            />
+          </a>
+        </motion.div>
+
+        {/* Card */}
+        <motion.div {...fadeUp(0.2)} className="glass-card p-8 space-y-6">
+
+          {/* Header */}
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 p-2 rounded-xl flex-shrink-0"
+              style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }}>
+              <KeyRound className="h-5 w-5" style={{ color: '#a5b4fc' }} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white">Ingresa el código</h1>
+              <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>
+                Enviamos un código numérico a{' '}
+                <strong className="text-white">{email || 'tu correo'}</strong>. Cópialo aquí.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-gray-500">Portal de clientes</p>
-        </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                <KeyRound className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <CardTitle>Ingresa el código</CardTitle>
-                <CardDescription>Te enviamos un código numérico a tu correo</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleVerificar} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@email.com"
-                  autoComplete="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+          <form onSubmit={handleVerificar} className="space-y-5">
 
-              <div className="space-y-2">
-                <Label htmlFor="codigo">Código del correo</Label>
-                <Input
-                  id="codigo"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={12}
-                  placeholder="12345678"
-                  autoComplete="one-time-code"
-                  value={codigo}
-                  onChange={e => setCodigo(e.target.value.replace(/[^\d\s]/g, ''))}
-                  required
-                  autoFocus
-                  className="text-center text-2xl font-mono tracking-[0.4em]"
-                />
-                <p className="text-xs text-gray-400">Copia el código del correo que te enviamos (6 a 8 dígitos)</p>
-              </div>
-
-              {error && (
-                <div role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full bg-orange-600 hover:bg-orange-700 h-11"
-                disabled={loading || !email.trim() || codigo.replace(/\s/g, '').length < 6}
-              >
-                {loading
-                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Verificando...</>
-                  : 'Verificar código'}
-              </Button>
-            </form>
-
-            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-              <button
-                type="button"
-                onClick={handleReenviar}
-                disabled={reenviando}
-                className="text-sm text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
-              >
-                {reenviando ? 'Reenviando...' : '¿No recibiste el código? Reenviar'}
-              </button>
-
-              {reenvio && (
-                <p className={`text-xs ${reenvio.tipo === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
-                  {reenvio.texto}
-                </p>
-              )}
-
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Volver al inicio de sesión
-              </Link>
+            {/* Input grande para el código */}
+            <div className="space-y-2">
+              <label htmlFor="codigo" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
+                Código de 8 dígitos
+              </label>
+              <input
+                id="codigo"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="0000 0000"
+                value={formatearCodigo(codigo)}
+                onChange={e => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                required
+                autoFocus
+                className="glass-input w-full px-4 py-4 text-center text-3xl font-mono tracking-[0.5em] outline-none"
+                style={{ letterSpacing: '0.45em' }}
+              />
+              <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
+                Revisa tu bandeja de entrada y carpeta de spam
+              </p>
             </div>
 
-            <div className="mt-4 bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-800 space-y-1">
-              <p className="font-semibold">💡 Tips</p>
-              <ul className="list-disc list-inside space-y-0.5 text-blue-700">
-                <li>El código es válido por 1 hora</li>
-                <li>Revisa tu carpeta de spam o correo no deseado</li>
-                <li>Asegúrate de copiar solo los números, sin espacios</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+            {error && (
+              <p role="alert" className="text-sm px-3 py-2 rounded-lg flex items-center gap-2"
+                style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {error}
+              </p>
+            )}
+
+            {reenvioOk && (
+              <p className="text-sm px-3 py-2 rounded-lg flex items-center gap-2"
+                style={{ color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                Código reenviado. Revisa tu correo.
+              </p>
+            )}
+
+            <motion.button
+              type="submit"
+              disabled={loading || codigo.length < 6}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ background: 'rgba(99,102,241,0.9)', color: 'white' }}
+            >
+              {loading
+                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Verificando...</>
+                : <><KeyRound className="h-4 w-4" /> Verificar código</>}
+            </motion.button>
+          </form>
+
+          {/* Reenviar */}
+          <div className="flex flex-col items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleReenviar}
+              disabled={reenviando}
+              className="flex items-center gap-1.5 text-xs hover:underline disabled:opacity-40"
+              style={{ color: `${tw}0.4)` }}
+            >
+              <RotateCcw className={`h-3 w-3 ${reenviando ? 'animate-spin' : ''}`} />
+              {reenviando ? 'Reenviando...' : '¿No llegó el código? Reenviar'}
+            </button>
+
+            <button
+              onClick={() => router.push('/login')}
+              className="text-xs hover:underline transition-colors"
+              style={{ color: `${tw}0.25)` }}
+            >
+              ← Volver al login
+            </button>
+          </div>
+
+        </motion.div>
       </div>
     </div>
   )
