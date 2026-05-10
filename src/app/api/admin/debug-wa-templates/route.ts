@@ -1,57 +1,51 @@
 import { NextResponse } from 'next/server'
 
-// Prueba todos los language codes posibles para encontrar el correcto
-export async function GET(request: Request) {
-  const phoneId = process.env.META_WA_PHONE_ID
+export async function GET() {
   const token = process.env.META_WA_TOKEN
+  const phoneId = process.env.META_WA_PHONE_ID
 
-  if (!phoneId || !token) {
-    return NextResponse.json({ error: 'META_WA_PHONE_ID o META_WA_TOKEN no configurados' }, { status: 500 })
-  }
+  if (!token) return NextResponse.json({ error: 'META_WA_TOKEN no configurado' }, { status: 500 })
 
-  const { searchParams } = new URL(request.url)
-  const phone = searchParams.get('phone') // número a probar, ej: 573225733195
+  // WABA ID obtenido de Meta Business Manager (asset_id=114659381735674)
+  const wabaId = '1584920119301422'
 
-  if (!phone) {
-    return NextResponse.json({
-      instrucciones: 'Agrega ?phone=57XXXXXXXXXX para probar todos los idiomas',
-      ejemplo: '/api/admin/debug-wa-templates?phone=573225733195',
-    })
-  }
-
-  const langCodes = ['es', 'es_ES', 'es_MX', 'es_AR', 'es_US', 'es_LA']
-  const results: Record<string, { status: number; error?: string; ok?: boolean }> = {}
-
-  for (const lang of langCodes) {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: phone,
-        type: 'template',
-        template: {
-          name: 'cs_paquete_en_transito',
-          language: { code: lang },
-          components: [{
-            type: 'body',
-            parameters: [
-              { type: 'text', text: 'Test' },
-              { type: 'text', text: 'Paquete de prueba' },
-            ],
-          }],
-        },
-      }),
-    })
-    const raw = await res.json() as { error?: { message?: string; code?: number } }
-    results[lang] = {
-      status: res.status,
-      ok: res.ok,
-      error: raw.error?.message,
+  try {
+    // 1. Listar templates del WABA
+    const tmplRes = await fetch(
+      `https://graph.facebook.com/v19.0/${wabaId}/message_templates?limit=100&fields=name,language,status,category`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    const tmplData = await tmplRes.json() as {
+      data?: { name: string; language: string; status: string; category: string }[]
+      error?: { message: string; code: number }
     }
-    // Si funcionó, paramos
-    if (res.ok) break
-  }
 
-  return NextResponse.json({ phone, results })
+    if (tmplData.error) {
+      // 2. Si falla con WABA ID, intentar con el phone ID para obtener el WABA correcto
+      const phoneRes = await fetch(
+        `https://graph.facebook.com/v19.0/${phoneId}?fields=verified_name,display_phone_number`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const phoneData = await phoneRes.json()
+      return NextResponse.json({
+        wabaId_tried: wabaId,
+        waba_error: tmplData.error,
+        phone_info: phoneData,
+        META_WA_PHONE_ID: phoneId,
+      })
+    }
+
+    const csTemplates = tmplData.data?.filter(t => t.name.startsWith('cs_')) ?? []
+    const allTemplates = tmplData.data ?? []
+
+    return NextResponse.json({
+      wabaId,
+      META_WA_PHONE_ID: phoneId,
+      total_templates: allTemplates.length,
+      cs_templates: csTemplates,
+      all_template_names: allTemplates.map(t => `${t.name} (${t.language}) [${t.status}]`),
+    })
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
 }
