@@ -6,6 +6,7 @@ import { MailCheck, Send, Lock, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { enviarMagicLink, iniciarSesionAdmin, recuperarContrasenaAdmin } from './actions'
+import { createClient } from '@/lib/supabase/client'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
@@ -98,8 +99,9 @@ function LoginForm() {
 
   // Modo: 'cliente' (magic link) | 'admin' (contraseña)
   const [modo, setModo] = useState<'cliente' | 'admin'>('cliente')
-  // Sub-modo admin: 'login' | 'recuperar' | 'recuperado'
-  const [subModo, setSubModo] = useState<'login' | 'recuperar' | 'recuperado'>('login')
+  // Sub-modo admin: 'login' | 'recuperar' | 'codigo'
+  const [subModo, setSubModo] = useState<'login' | 'recuperar' | 'codigo'>('login')
+  const [codigoRecuperar, setCodigoRecuperar] = useState('')
 
   // Estado magic link
   const [email, setEmail] = useState('')
@@ -174,44 +176,135 @@ function LoginForm() {
     submitting.current = true
     setLoading(true); setError('')
     await recuperarContrasenaAdmin(adminEmail)
-    setSubModo('recuperado')
+    setSubModo('codigo')
+    setCodigoRecuperar('')
     setLoading(false); submitting.current = false
   }
 
+  async function handleVerificarCodigo(e: React.FormEvent) {
+    e.preventDefault()
+    if (submitting.current) return
+    const codigo = codigoRecuperar.trim()
+    if (codigo.length < 6) { setError('Ingresa el código de 6 dígitos que llegó al correo.'); return }
+    submitting.current = true
+    setLoading(true); setError('')
+    const supabase = createClient()
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: adminEmail.trim().toLowerCase(),
+      token: codigo,
+      type: 'recovery',
+    })
+    if (err) {
+      const msg = err.message.toLowerCase()
+      if (msg.includes('expired') || msg.includes('invalid') || msg.includes('otp'))
+        setError('Código incorrecto o expirado. Solicita uno nuevo.')
+      else
+        setError('No se pudo verificar el código. Intenta de nuevo.')
+      setLoading(false); submitting.current = false
+      return
+    }
+    // Sesión establecida → ir a cambiar contraseña
+    router.push('/nueva-contrasena')
+  }
+
   function volverAlAdmin() {
-    setModo('admin'); setSubModo('login'); setError('')
+    setModo('admin'); setSubModo('login'); setError(''); setCodigoRecuperar('')
   }
 
   // ── Formulario admin (contraseña) ─────────────────────────────────────────
   if (modo === 'admin') {
-    // Pantalla "link enviado"
-    if (subModo === 'recuperado') {
+    // Pantalla: ingresar código OTP que llegó al correo
+    if (subModo === 'codigo') {
       return (
-        <motion.div {...fadeUp(0)} className="text-center space-y-5 py-4">
-          <motion.div
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.1 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mx-auto"
-            style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)' }}
-          >
-            <MailCheck className="h-8 w-8" style={{ color: '#a5b4fc' }} />
+        <div className="space-y-4">
+          <motion.div {...fadeUp(0)} className="text-center space-y-3">
+            <motion.div
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.1 }}
+              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mx-auto"
+              style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)' }}
+            >
+              <MailCheck className="h-7 w-7" style={{ color: '#a5b4fc' }} />
+            </motion.div>
+            <div>
+              <p className="text-lg font-bold text-white">Revisa tu correo</p>
+              <p className="text-sm mt-1 leading-relaxed" style={{ color: `${tw}0.5)` }}>
+                Enviamos un código a <strong className="text-white">{adminEmail}</strong>.
+                <br />Cópialo aquí para continuar.
+              </p>
+            </div>
           </motion.div>
-          <div>
-            <p className="text-xl font-bold text-white">Revisa tu correo</p>
-            <p className="text-sm mt-2 leading-relaxed" style={{ color: `${tw}0.55)` }}>
-              Si <strong className="text-white">{adminEmail}</strong> tiene una cuenta,
-              recibirás un link para establecer una nueva contraseña.
-            </p>
-          </div>
-          <button
-            onClick={volverAlAdmin}
-            className="text-xs hover:underline transition-colors"
-            style={{ color: `${tw}0.35)` }}
-          >
-            ← Volver al login
-          </button>
-        </motion.div>
+
+          <form onSubmit={handleVerificarCodigo} className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="codigo-rec" className="text-sm font-medium" style={{ color: `${tw}0.7)` }}>
+                Código de verificación
+              </label>
+              <input
+                id="codigo-rec"
+                type="text"
+                inputMode="numeric"
+                placeholder="123456"
+                maxLength={8}
+                autoComplete="one-time-code"
+                value={codigoRecuperar}
+                onChange={e => {
+                  setCodigoRecuperar(e.target.value.replace(/\D/g, ''))
+                  setError('')
+                }}
+                required
+                autoFocus
+                className="glass-input w-full px-4 py-3 text-2xl font-mono tracking-[0.3em] text-center outline-none"
+              />
+            </div>
+
+            {error && (
+              <p role="alert" className="text-sm px-3 py-2 rounded-lg"
+                style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                {error}
+              </p>
+            )}
+
+            <motion.button
+              type="submit"
+              disabled={loading || codigoRecuperar.length < 6}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold disabled:opacity-40"
+              style={{ background: 'rgba(99,102,241,0.9)', color: 'white' }}
+            >
+              {loading
+                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Verificando...</>
+                : <><Lock className="h-4 w-4" /> Verificar código</>}
+            </motion.button>
+
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={volverAlAdmin}
+                className="text-xs hover:underline transition-colors"
+                style={{ color: `${tw}0.3)` }}
+              >
+                ← Volver al login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubModo('recuperar')
+                  setCodigoRecuperar('')
+                  setError('')
+                  submitting.current = false
+                }}
+                className="text-xs hover:underline transition-colors"
+                style={{ color: '#a5b4fc' }}
+              >
+                Reenviar código
+              </button>
+            </div>
+          </form>
+        </div>
       )
     }
 
@@ -372,7 +465,7 @@ function LoginForm() {
         </form>
 
         <button
-          onClick={() => { setModo('cliente'); setSubModo('login'); setError('') }}
+          onClick={() => { setModo('cliente'); setSubModo('login'); setError(''); setCodigoRecuperar('') }}
           className="w-full text-xs text-center pt-1 hover:underline transition-colors"
           style={{ color: `${tw}0.35)` }}
         >
