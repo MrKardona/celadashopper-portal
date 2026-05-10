@@ -63,7 +63,22 @@ export async function POST(
     return NextResponse.json({ error: 'Este paquete ya es un sub-paquete, no se puede dividir de nuevo' }, { status: 400 })
   }
 
+  // Verificar si el paquete ya tiene sub-paquetes (fue dividido antes)
+  const { data: subsExistentes } = await admin
+    .from('paquetes')
+    .select('id')
+    .eq('paquete_origen_id', id)
+    .limit(1)
+
+  if (subsExistentes && subsExistentes.length > 0) {
+    return NextResponse.json({
+      error: 'Este paquete ya fue dividido anteriormente. Elimina los sub-paquetes existentes antes de volver a dividir.',
+    }, { status: 409 })
+  }
+
   const ahora = new Date().toISOString()
+  // Sufijo único basado en timestamp para evitar colisiones en tracking_casilla
+  const splitSuffix = Date.now().toString(36).slice(-4).toUpperCase()
 
   // Crear sub-paquetes heredando los campos del origen
   const inserts = body.sub_paquetes.map((sp, i) => ({
@@ -73,7 +88,7 @@ export async function POST(
     categoria:           origen.categoria,
     estado:              origen.estado,
     bodega_destino:      origen.bodega_destino,
-    tracking_casilla:    origen.tracking_casilla ? `${origen.tracking_casilla}-D${i + 1}` : null,
+    tracking_casilla:    origen.tracking_casilla ? `${origen.tracking_casilla}-D${i + 1}-${splitSuffix}` : null,
     condicion:           origen.condicion,
     fecha_recepcion_usa: origen.fecha_recepcion_usa,
     peso_libras:         sp.peso_libras ?? null,
