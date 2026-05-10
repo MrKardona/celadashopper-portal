@@ -407,9 +407,10 @@ export default function CajaDetalleForm({
         ) : (
           <div className="max-h-[480px] overflow-y-auto">
             {paquetes.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm group"
+              <div key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm group cursor-pointer"
                 style={{ borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined }}
-                onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
+                onClick={() => router.push(`/admin/paquetes/${p.id}`)}
+                onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 {p.foto_url ? (
                   <img
@@ -468,7 +469,7 @@ export default function CajaDetalleForm({
                 )})()}
                 {editable && (
                   <button
-                    onClick={() => quitarPaquete(p.id)}
+                    onClick={e => { e.stopPropagation(); quitarPaquete(p.id) }}
                     className="opacity-0 group-hover:opacity-100 p-1 rounded transition-colors"
                     style={{ color: `${tw}0.3)` }}
                     onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
