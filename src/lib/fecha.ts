@@ -42,18 +42,17 @@ export function fechaHoraCorta(iso: string | null | undefined): string {
   }).format(new Date(iso))
 }
 
-/** "8 de mayo de 2026, 9:25 p. m." — para portal cliente */
+/** "8 de mayo de 2026 · 21:25" — para portal cliente (24h, sin p.m. raro) */
 export function fechaHoraLarga(iso: string | null | undefined): string {
   if (!iso) return '—'
-  return new Intl.DateTimeFormat('es-CO', {
-    timeZone: TZ,
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(new Date(iso))
+  const d = new Date(iso)
+  const fecha = new Intl.DateTimeFormat('es-CO', {
+    timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric',
+  }).format(d)
+  const hora = new Intl.DateTimeFormat('es-CO', {
+    timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(d)
+  return `${fecha} · ${hora}`
 }
 
 /** "8 de mayo de 2026" — para emails */

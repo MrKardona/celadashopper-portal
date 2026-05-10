@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Package, PlusCircle, ChevronRight } from 'lucide-react'
 import { CATEGORIA_LABELS, type CategoriaProducto } from '@/types'
 import { FadeUp, FadeUpScroll, StaggerGridScroll, StaggerItem } from '@/components/portal/AnimateIn'
+import { fechaCorta } from '@/lib/fecha'
 
 const PASO_ESTADOS: Record<string, number> = {
   reportado: 0,
@@ -59,7 +60,7 @@ export default async function PaquetesPage() {
 
   const { data: paquetes } = await supabase
     .from('paquetes')
-    .select('*, fotos_paquetes(id)')
+    .select('*, fotos_paquetes(url, created_at)')
     .eq('cliente_id', user!.id)
     .eq('visible_cliente', true)
     .order('created_at', { ascending: false })
@@ -136,8 +137,13 @@ export default async function PaquetesPage() {
 }
 
 function PaqueteCard({ paquete }: { paquete: any }) {
-  const tienesFotos = paquete.fotos_paquetes?.length > 0
-  const paso        = PASO_ESTADOS[paquete.estado as string] ?? 0
+  // Foto: segunda foto (contenido) o primera disponible
+  const fotos   = [...(paquete.fotos_paquetes ?? [])].sort(
+    (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
+  const thumbUrl = fotos.length > 1 ? fotos[1].url : fotos[0]?.url ?? null
+
+  const paso = PASO_ESTADOS[paquete.estado as string] ?? 0
   const esDevuelto  = paquete.estado === 'devuelto'
   const esRetenido  = paquete.estado === 'retenido'
 
@@ -164,18 +170,12 @@ function PaqueteCard({ paquete }: { paquete: any }) {
         <div className="px-4 pt-3 pb-4">
 
           {/* Cabecera */}
-          <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex items-start gap-3 mb-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-semibold text-white leading-snug group-hover:text-yellow-300 transition-colors">
                   {paquete.descripcion}
                 </p>
-                {tienesFotos && (
-                  <span className="text-[11px] px-1.5 py-0.5 rounded-full shrink-0 font-medium"
-                    style={{ background: 'rgba(99,130,255,0.15)', color: '#8899ff', border: '1px solid rgba(99,130,255,0.25)' }}>
-                    📷 Fotos
-                  </span>
-                )}
                 {esRetenido && (
                   <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold shrink-0"
                     style={{ background: 'rgba(245,184,0,0.15)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}>
@@ -189,15 +189,48 @@ function PaqueteCard({ paquete }: { paquete: any }) {
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5 text-xs flex-wrap" style={{ color: `${tw}0.4)` }}>
+
+              {/* Tienda · categoría · fecha */}
+              <div className="flex items-center gap-1.5 mt-0.5 text-xs flex-wrap" style={{ color: `${tw}0.38)` }}>
                 {paquete.tienda && <><span>{paquete.tienda}</span><span>·</span></>}
                 <span>{CATEGORIA_LABELS[paquete.categoria as CategoriaProducto] ?? paquete.categoria}</span>
-                <span>·</span>
-                <span className="font-mono">{paquete.tracking_casilla}</span>
+                {paquete.fecha_recepcion_usa && (
+                  <><span>·</span><span>{fechaCorta(paquete.fecha_recepcion_usa)}</span></>
+                )}
+              </div>
+
+              {/* Aguja (guía de transporte) */}
+              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                <span className="text-[11px] font-mono" style={{ color: `${tw}0.3)` }}>
+                  📦 {paquete.tracking_casilla}
+                </span>
+                {paquete.tracking_usaco && (
+                  <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
+                    🚛 USACO · {paquete.tracking_usaco}
+                  </span>
+                )}
               </div>
             </div>
-            <ChevronRight className="h-5 w-5 flex-shrink-0 mt-0.5 transition-colors group-hover:text-yellow-300"
-              style={{ color: `${tw}0.2)` }} />
+
+            {/* Thumbnail + chevron */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {thumbUrl ? (
+                <img
+                  src={thumbUrl}
+                  alt={paquete.descripcion}
+                  className="rounded-xl object-cover flex-shrink-0"
+                  style={{ width: 52, height: 52, border: `1px solid ${tw}0.1)` }}
+                />
+              ) : (
+                <div className="rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ width: 52, height: 52, background: `${tw}0.04)`, border: `1px solid ${tw}0.07)` }}>
+                  <Package className="h-5 w-5" style={{ color: `${tw}0.15)` }} />
+                </div>
+              )}
+              <ChevronRight className="h-5 w-5 transition-colors group-hover:text-yellow-300"
+                style={{ color: `${tw}0.2)` }} />
+            </div>
           </div>
 
           {/* Tracker */}

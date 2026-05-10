@@ -154,8 +154,14 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
             )}
 
             {paquete.tracking_usaco && (
-              <InfoRow icon={<Package className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
-                label="Tracking USACO" value={paquete.tracking_usaco} mono />
+              <div className="flex items-start gap-3 p-3 rounded-xl"
+                style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.18)' }}>
+                <span className="text-base mt-0.5">🚛</span>
+                <div>
+                  <dt className="text-xs font-medium" style={{ color: '#F5B800' }}>Aguja de transporte · USACO</dt>
+                  <dd className="text-sm font-mono font-semibold text-white mt-0.5">{paquete.tracking_usaco}</dd>
+                </div>
+              </div>
             )}
 
             <InfoRow icon={<MapPin className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
