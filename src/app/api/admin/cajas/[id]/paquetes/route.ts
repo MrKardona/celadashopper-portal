@@ -51,9 +51,6 @@ export async function POST(req: NextRequest, { params }: Props) {
     .maybeSingle()
 
   if (!caja) return NextResponse.json({ error: 'Caja no encontrada' }, { status: 404 })
-  if (caja.estado !== 'abierta') {
-    return NextResponse.json({ error: 'Solo cajas abiertas aceptan paquetes' }, { status: 400 })
-  }
 
   // 2. Buscar el paquete por tracking_casilla o tracking_origen
   const { data: paquetes } = await admin
@@ -96,12 +93,7 @@ export async function POST(req: NextRequest, { params }: Props) {
         caja_origen: cajaOrigen,
       }, { status: 409 })
     }
-    if (cajaOrigen && cajaOrigen.estado !== 'abierta') {
-      return NextResponse.json({
-        error: `No se puede mover: la caja origen ${cajaOrigen.codigo_interno} está en estado "${cajaOrigen.estado}".`,
-        codigo: 'caja_origen_no_abierta',
-      }, { status: 400 })
-    }
+    // Admin puede mover paquetes aunque la caja origen esté cerrada/despachada
   }
   // Estados elegibles: recibido_usa, listo_envio o en_consolidacion (huérfano)
   const estadosElegibles = ['recibido_usa', 'listo_envio', 'en_consolidacion']
@@ -180,9 +172,6 @@ export async function DELETE(req: NextRequest, { params }: Props) {
     .maybeSingle()
 
   if (!caja) return NextResponse.json({ error: 'Caja no encontrada' }, { status: 404 })
-  if (caja.estado !== 'abierta') {
-    return NextResponse.json({ error: 'Solo cajas abiertas permiten quitar paquetes' }, { status: 400 })
-  }
 
   // Quitar y devolver a estado recibido_usa
   const { error } = await admin

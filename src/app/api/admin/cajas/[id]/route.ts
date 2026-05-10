@@ -115,8 +115,10 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     bodega_destino?: string
     costo_total_usaco?: number | null
     tracking_usaco?: string | null
+    estado?: string
   }
 
+  const ESTADOS_VALIDOS = ['abierta', 'cerrada', 'despachada', 'recibida_colombia']
   const admin = getSupabaseAdmin()
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.notas !== undefined) updates.notas = body.notas
@@ -126,6 +128,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (body.bodega_destino !== undefined) updates.bodega_destino = body.bodega_destino
   if (body.costo_total_usaco !== undefined) updates.costo_total_usaco = body.costo_total_usaco
   if (body.tracking_usaco !== undefined) updates.tracking_usaco = body.tracking_usaco?.trim() || null
+  if (body.estado !== undefined && ESTADOS_VALIDOS.includes(body.estado)) updates.estado = body.estado
 
   const { error } = await admin
     .from('cajas_consolidacion')

@@ -100,7 +100,7 @@ export default function CajaDetalleForm({
   const [modalEliminar, setModalEliminar] = useState(false)
   const [modalEditar, setModalEditar] = useState(false)
 
-  const editable = caja.estado === 'abierta'
+  const editable = true // admin siempre puede agregar/quitar paquetes
   const pesoTotal = paquetes.reduce((s, p) => s + Number(p.peso_libras ?? 0), 0)
   const valorTotal = paquetes.reduce((s, p) => s + Number(p.valor_declarado ?? 0), 0)
 
@@ -796,7 +796,15 @@ function ModalEliminarCaja({ cajaId, codigo, paquetesCount, onClose, onDone }: {
 }
 
 // ─── Modal Editar Caja ───────────────────────────────────────────────────────
+const ESTADOS_CAJA = [
+  { value: 'abierta',           label: 'Abierta',              color: '#F5B800' },
+  { value: 'cerrada',           label: 'Cerrada',              color: '#8899ff' },
+  { value: 'despachada',        label: 'Despachada',           color: '#c084fc' },
+  { value: 'recibida_colombia', label: 'Recibida en Colombia', color: '#34d399' },
+]
+
 function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose: () => void; onDone: () => void }) {
+  const [estado, setEstado] = useState(caja.estado)
   const [bodega, setBodega] = useState(caja.bodega_destino)
   const [courier, setCourier] = useState(caja.courier ?? '')
   const [trackingUsaco, setTrackingUsaco] = useState(caja.tracking_usaco ?? '')
@@ -812,6 +820,7 @@ function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose
     const res = await fetch(`/api/admin/cajas/${caja.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        estado,
         bodega_destino: bodega, courier: courier.trim() || null,
         tracking_usaco: trackingUsaco.trim() || null,
         peso_estimado: pesoEstimado ? parseFloat(pesoEstimado) : null,
@@ -843,6 +852,26 @@ function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose
           </button>
         </div>
         <p className="text-xs -mt-3" style={{ color: `${tw}0.4)` }}>Modifica los datos de la caja. Los cambios se aplicarán de inmediato.</p>
+
+        <div>
+          <label className="text-xs font-medium block mb-1" style={labelStyle}>Estado de la caja</label>
+          <div className="grid grid-cols-2 gap-2">
+            {ESTADOS_CAJA.map(e => (
+              <button
+                key={e.value}
+                type="button"
+                onClick={() => setEstado(e.value)}
+                className="py-2 px-3 rounded-xl text-xs font-semibold text-left transition-all"
+                style={estado === e.value
+                  ? { background: `${e.color}22`, color: e.color, border: `1px solid ${e.color}55` }
+                  : { color: `${tw}0.45)`, border: `1px solid ${tw}0.1)` }
+                }
+              >
+                {estado === e.value ? '● ' : '○ '}{e.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div>
           <label className="text-xs font-medium block mb-1" style={labelStyle}>Ciudad destino</label>
