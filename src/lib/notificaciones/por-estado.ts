@@ -3,7 +3,6 @@
 // Estrategia: Meta directo primero (más confiable). Fallback a Kommo si falla.
 
 import { createClient } from '@supabase/supabase-js'
-import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
 import {
   enviarEmailPorEstado,
   enviarEmailCostoCalculado,
@@ -151,57 +150,6 @@ async function enviarMetaTemplate(
   }
 }
 
-// ─── Envío vía Meta directo (texto libre — solo válido en ventana 24h) ────────
-async function enviarMetaDirecto(phone: string, mensaje: string): Promise<boolean> {
-  __ultimoMetaInfo = {}
-  const phoneId = process.env.META_WA_PHONE_ID
-  const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) {
-    __ultimoMetaInfo = { rawError: 'META_WA_PHONE_ID/TOKEN no configurados' }
-    return false
-  }
-
-  const numero = phone.replace(/\D/g, '')
-  const dest = numero.startsWith('57') ? numero : `57${numero}`
-  __ultimoMetaInfo.destino = dest
-
-  try {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: dest,
-        type: 'text',
-        text: { body: mensaje },
-      }),
-    })
-
-    const raw = await res.text()
-    if (!res.ok) {
-      __ultimoMetaInfo.rawError = `Meta ${res.status}: ${raw.slice(0, 400)}`
-      console.error('[Meta directo]', __ultimoMetaInfo.rawError)
-      return false
-    }
-    try {
-      const data = JSON.parse(raw) as {
-        messages?: { id?: string; message_status?: string }[]
-        contacts?: { wa_id?: string; input?: string }[]
-      }
-      __ultimoMetaInfo.messageId = data.messages?.[0]?.id
-      __ultimoMetaInfo.statusFinal = data.messages?.[0]?.message_status ?? 'accepted'
-      // Si Meta no incluyó el destino en contacts, podría ser señal de número no-WhatsApp
-      if (data.contacts && data.contacts.length === 0) {
-        __ultimoMetaInfo.rawError = 'Meta no resolvió contactos (número podría no tener WhatsApp activo)'
-      }
-    } catch { /* ignorar parse error */ }
-    return true
-  } catch (err) {
-    __ultimoMetaInfo.rawError = err instanceof Error ? err.message : String(err)
-    console.error('[Meta directo] Error:', err)
-    return false
-  }
-}
 
 // ─── Subir imagen a Meta y obtener media_id (más confiable que link público) ─
 async function subirMedia(imageUrl: string): Promise<string | null> {
@@ -316,21 +264,6 @@ async function enviarImagenMeta(phone: string, imageUrl: string, caption?: strin
   }
 }
 
-// ─── Envío con fallback Meta → Kommo ────────────────────────────────────────
-async function enviarConFallback(phone: string, mensaje: string): Promise<{ enviado: boolean; via: string }> {
-  // Intentar Meta primero
-  const metaOk = await enviarMetaDirecto(phone, mensaje)
-  if (metaOk) return { enviado: true, via: 'meta' }
-
-  // Fallback: Kommo
-  try {
-    const r = await sendProactiveWhatsApp(phone, mensaje)
-    return { enviado: r.enviado, via: `kommo_${r.metodo}` }
-  } catch (err) {
-    console.error('[Kommo fallback] Error:', err)
-    return { enviado: false, via: 'fallido' }
-  }
-}
 
 // ─── Cargar paquete + plantilla en una función reutilizable ─────────────────
 // Hacemos 3 queries separadas (paquete, perfil, plantilla) en paralelo en
@@ -498,26 +431,23 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
       return
     }
 
-    // Mensaje WA fallback (texto libre — solo válido en ventana 24h)
-    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : ''
-    // Eventos con template aprobado no requieren plantilla en DB
+    // WhatsApp: solo templates aprobados por Meta (TOS-compliant)
+    // Eventos sin template en EVENTO_A_TEMPLATE no envían WA — solo email
     const templateDef = EVENTO_A_TEMPLATE[evento]
-    const puedeEnviarWa = !!ctx.phone && (!!templateDef || !!ctx.plantilla)
+    const puedeEnviarWa = !!ctx.phone && !!templateDef
 
-    // Solo recibido_usa adjunta foto del producto
     const enviaFotos = estadoNuevo === 'recibido_usa'
     let fotosEnviadas = 0
     let envioOk = false
-    let viaUsada = puedeEnviarWa ? 'meta' : 'sin_whatsapp'
+    let viaUsada = puedeEnviarWa ? 'meta_template' : 'sin_whatsapp'
 
-    if (puedeEnviarWa && templateDef) {
-      // Usar template aprobado por Meta — cumple TOS para mensajes proactivos
+    if (puedeEnviarWa) {
       const params = templateDef.params(ctx.vars, ctx.paquete as PaqRaw)
       const tmplOk = await enviarMetaTemplate(ctx.phone, templateDef.name, params)
       envioOk = tmplOk
       viaUsada = tmplOk ? 'meta_template' : 'meta_template_falló'
 
-      // recibido_usa: enviar la foto del contenido como mensaje separado tras el template
+      // recibido_usa: foto del contenido como mensaje separado tras el template
       if (tmplOk && enviaFotos) {
         const { data: fotos } = await supabase
           .from('fotos_paquetes')
@@ -536,52 +466,8 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
           }
         }
       }
-
-      // Si el template falla, fallback a Kommo (evitamos texto libre en Meta)
-      if (!envioOk) {
-        try {
-          const fallbackMsg = mensaje || `Actualización de tu paquete ${ctx.vars.descripcion || ''}`
-          const r = await sendProactiveWhatsApp(ctx.phone, fallbackMsg)
-          envioOk = r.enviado
-          viaUsada = `kommo_${r.metodo}_tmpl_fallback`
-        } catch { /* ya logueado en sendProactiveWhatsApp */ }
-      }
-    } else if (puedeEnviarWa && enviaFotos) {
-      // recibido_usa sin template activo: imagen + caption (texto libre)
-      const { data: fotos } = await supabase
-        .from('fotos_paquetes')
-        .select('url, descripcion')
-        .eq('paquete_id', paqueteId)
-        .order('created_at', { ascending: true })
-        .limit(5)
-      const fotoContenido = fotos?.find(f =>
-        (f.descripcion ?? '').toLowerCase().includes('contenido')
-      ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
-      if (fotoContenido) {
-        const ok = await enviarImagenMeta(ctx.phone, fotoContenido.url, mensaje)
-        envioOk = ok
-        viaUsada = ok ? 'meta_imagen+caption' : 'meta_imagen_falló'
-        if (ok) {
-          fotosEnviadas = 1
-          console.log('[notif] Imagen contenido + caption enviada OK:', fotoContenido.url)
-        } else {
-          console.warn('[notif] Imagen contenido falló, fallback a solo texto')
-          const r = await enviarConFallback(ctx.phone, mensaje)
-          envioOk = r.enviado
-          viaUsada = `${r.via}_fallback_texto`
-        }
-      } else {
-        const r = await enviarConFallback(ctx.phone, mensaje)
-        envioOk = r.enviado
-        viaUsada = r.via
-      }
-    } else if (puedeEnviarWa) {
-      // Otros estados sin template: texto libre (válido en ventana 24h)
-      const r = await enviarConFallback(ctx.phone, mensaje)
-      envioOk = r.enviado
-      viaUsada = r.via
     }
-    // Si !puedeEnviarWa: envioOk queda false, viaUsada='sin_whatsapp', email igual se envía abajo
+    // Si !puedeEnviarWa: no hay template aprobado → solo email, sin WA
 
     console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${viaUsada} enviado=${envioOk} fotos=${fotosEnviadas}`)
 
@@ -589,10 +475,10 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
     const metaInfo = getUltimoMetaInfo()
     const tituloEnriquecido = `Estado: ${estadoNuevo} (${viaUsada}${fotosEnviadas > 0 ? `, ${fotosEnviadas} foto${fotosEnviadas > 1 ? 's' : ''}` : ''})${metaInfo.messageId ? ` [msg_id=${metaInfo.messageId.slice(-12)}]` : ''}${metaInfo.rawError ? ' [ALERTA]' : ''}`
     const mensajeEnriquecido = metaInfo.rawError
-      ? `${mensaje}\n\n[META INFO]\nDestino: ${metaInfo.destino ?? '?'}\nError: ${metaInfo.rawError}`
+      ? `[META INFO] Destino: ${metaInfo.destino ?? '?'} Error: ${metaInfo.rawError}`
       : metaInfo.messageId
-        ? `${mensaje}\n\n[META OK] msg_id=${metaInfo.messageId} destino=${metaInfo.destino ?? '?'}`
-        : mensaje
+        ? `[META OK] msg_id=${metaInfo.messageId} destino=${metaInfo.destino ?? '?'}`
+        : viaUsada
 
     // ── Enviar también por EMAIL (canal principal: siempre llega) ──
     let emailRes: ResultadoEmail = { ok: false }
@@ -706,14 +592,6 @@ export async function notificarTrackingActualizado(paqueteId: string): Promise<v
     if (!ctx) return
     if (!ctx.vars.tracking_usaco) return // sin valor no notificamos
 
-    const puedeWa = !!ctx.plantilla && !!ctx.phone
-    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : `Seguimiento asignado a tu paquete: ${ctx.vars.tracking}`
-
-    // WhatsApp (solo si hay plantilla y teléfono)
-    const wa = puedeWa
-      ? await enviarConFallback(ctx.phone, mensaje)
-      : { enviado: false, via: 'sin_whatsapp' }
-
     // Email (canal principal, siempre llega)
     let emailRes: ResultadoEmail = { ok: false, error: 'Cliente sin email' }
     if (ctx.perfil.email) {
@@ -737,8 +615,8 @@ export async function notificarTrackingActualizado(paqueteId: string): Promise<v
       paquete_id: paqueteId,
       tipo: 'tracking_actualizado',
       titulo: 'Tracking interno asignado',
-      mensaje,
-      enviada_whatsapp: wa.enviado,
+      mensaje: `tracking_usaco=${ctx.vars.tracking_usaco}`,
+      enviada_whatsapp: false,
       enviada_email: emailRes.ok,
       email_message_id: emailRes.messageId ?? null,
       email_error: emailRes.error ?? null,
@@ -755,14 +633,6 @@ export async function notificarCostoCalculado(paqueteId: string): Promise<void> 
     const ctx = await cargarContexto(paqueteId, 'costo_calculado')
     if (!ctx) return
     if (!ctx.paquete.costo_servicio) return // sin costo no notificamos
-
-    const puedeWa = !!ctx.plantilla && !!ctx.phone
-    const mensaje = ctx.plantilla ? rellenarPlantilla(ctx.plantilla, ctx.vars) : `Costo del servicio calculado: ${ctx.vars.costo}`
-
-    // WhatsApp (solo si hay plantilla y teléfono)
-    const wa = puedeWa
-      ? await enviarConFallback(ctx.phone, mensaje)
-      : { enviado: false, via: 'sin_whatsapp' }
 
     // Email (canal principal)
     let emailRes: ResultadoEmail = { ok: false, error: 'Cliente sin email' }
@@ -788,8 +658,8 @@ export async function notificarCostoCalculado(paqueteId: string): Promise<void> 
       paquete_id: paqueteId,
       tipo: 'costo_calculado',
       titulo: 'Costo del servicio calculado',
-      mensaje,
-      enviada_whatsapp: wa.enviado,
+      mensaje: `costo_servicio=${ctx.paquete.costo_servicio}`,
+      enviada_whatsapp: false,
       enviada_email: emailRes.ok,
       email_message_id: emailRes.messageId ?? null,
       email_error: emailRes.error ?? null,
