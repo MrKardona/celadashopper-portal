@@ -51,7 +51,7 @@ interface PaquetePendiente {
   bodega_destino: string
   notas_cliente: string | null
   valor_declarado?: number | null
-  unidades?: number | null
+  cantidad?: number | null
   fecha_compra?: string | null
   fecha_estimada_llegada?: string | null
   created_at: string
@@ -220,11 +220,11 @@ function ModalDetalle({
                 valor={`$${paquete.valor_declarado.toLocaleString('es-CO')} USD`}
               />
             )}
-            {paquete.unidades != null && (
+            {paquete.cantidad != null && (
               <FilaDetalle
                 icon={<Hash className="h-3.5 w-3.5" />}
-                label="Unidades"
-                valor={String(paquete.unidades)}
+                label="Cantidad"
+                valor={String(paquete.cantidad)}
               />
             )}
             {paquete.tracking_origen && (
