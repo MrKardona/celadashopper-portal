@@ -113,6 +113,7 @@ export default function RecibirForm() {
   const [peso, setPeso] = useState('')
   const [notas, setNotas] = useState('')
   const [valorDeclarado, setValorDeclarado] = useState('')
+  const [trackingCourier, setTrackingCourier] = useState('')
   const [cantidad, setCantidad] = useState(1)
   const [condicion, setCondicion] = useState<'nuevo' | 'usado' | ''>('')
   const [guardando, setGuardando] = useState(false)
@@ -186,8 +187,18 @@ export default function RecibirForm() {
       pesoRef.current?.focus()
       if (paquete.peso_libras != null) setPeso(String(paquete.peso_libras))
       if (paquete.valor_declarado != null) setValorDeclarado(String(paquete.valor_declarado))
+      // Pre-llenar tracking del courier si el paquete ya lo tiene
+      setTrackingCourier(paquete.tracking_origen ?? '')
     }
   }, [paquete])
+
+  // Auto-llenar tracking del courier cuando OCR lo detecta de las fotos
+  useEffect(() => {
+    if (ocrNormal.tracking && !trackingCourier) {
+      setTrackingCourier(ocrNormal.tracking)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocrNormal.tracking])
 
   useEffect(() => {
     if (modoManual) {
@@ -456,6 +467,7 @@ export default function RecibirForm() {
     setErrorBusqueda('')
     setPeso('')
     setNotas('')
+    setTrackingCourier('')
     setCantidad(1)
     setCondicion('')
     setUltimoRecibido(null)
@@ -502,7 +514,7 @@ export default function RecibirForm() {
           valor_declarado: valorDeclarado.trim() ? parseFloat(valorDeclarado) : undefined,
           cantidad: PER_UNIT_CATEGORIAS.has(paquete.categoria) ? cantidad : 1,
           condicion: condicion || undefined,
-          tracking_origen_ocr: ocrNormal.tracking || undefined,
+          tracking_origen_ocr: trackingCourier.trim() || ocrNormal.tracking || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -1409,6 +1421,41 @@ export default function RecibirForm() {
                 ))}
               </div>
             </div>
+            {/* Tracking del courier — se llena solo con OCR o el agente lo escribe */}
+            <div className="space-y-1.5 col-span-2">
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                ID Tracking / Guía del courier
+                <span className="font-normal text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>(UPS, FedEx, DHL...)</span>
+                {analizandoOcrNormal && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: '#c084fc' }}>
+                    <Loader2 className="h-3 w-3 animate-spin" /> Leyendo etiqueta...
+                  </span>
+                )}
+                {ocrNormal.analizado && ocrNormal.tracking && trackingCourier === ocrNormal.tracking && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> IA
+                  </span>
+                )}
+              </label>
+              <input
+                type="text"
+                value={trackingCourier}
+                onChange={e => setTrackingCourier(e.target.value)}
+                placeholder="Ej: 1Z999AA10123456784, 9400111899223397990905..."
+                className="glass-input w-full px-4 py-2.5 text-sm font-mono"
+                style={ocrNormal.tracking && trackingCourier === ocrNormal.tracking
+                  ? { borderColor: 'rgba(245,184,0,0.45)', background: 'rgba(245,184,0,0.04)' }
+                  : {}}
+                autoComplete="off" spellCheck={false}
+              />
+              {ocrNormal.analizado && !ocrNormal.tracking && foto1.url && foto2.url && (
+                <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                  No se detectó tracking en las fotos — puedes escribirlo manualmente
+                </p>
+              )}
+            </div>
+
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Notas internas <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span></label>
               <input
@@ -1417,72 +1464,6 @@ export default function RecibirForm() {
                 className="glass-input w-full px-4 py-2.5 text-sm"
               />
             </div>
-          </div>
-
-          {/* ── Sección fotos ── */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4" style={{ color: 'rgba(255,255,255,0.4)' }} />
-              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                Fotos del paquete{' '}
-                <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>— se enviarán al cliente</span>
-              </span>
-            </div>
-
-            <CamaraVivo context="normal" />
-
-            {!camaraSlot && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <SlotFoto slot={1} context="normal" accent="orange" />
-                </div>
-                <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                  <SlotFoto slot={2} context="normal" accent="orange" />
-                </div>
-              </div>
-            )}
-
-            {!foto1.preview && !foto2.preview && !camaraSlot && (
-              <p className="text-xs text-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                📸 Toma la foto del empaque antes de abrir y la del contenido después. Ambas se envían al cliente.
-              </p>
-            )}
-
-            {/* OCR tracking detectado en fotos del paquete */}
-            {analizandoOcrNormal && (
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-                style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.18)' }}>
-                <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" style={{ color: '#c084fc' }} />
-                <span className="text-xs font-medium" style={{ color: '#c084fc' }}>
-                  Extrayendo tracking del courier de la etiqueta...
-                </span>
-              </div>
-            )}
-            {ocrNormal.analizado && ocrNormal.tracking && (
-              <div className="rounded-xl px-3 py-2.5 space-y-0.5"
-                style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.22)' }}>
-                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#F5B800', letterSpacing: '0.13em' }}>
-                  Tracking del courier detectado en la etiqueta
-                </p>
-                <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>
-                  {ocrNormal.tracking}
-                </p>
-                {!paquete?.tracking_origen ? (
-                  <p className="text-[11px] pt-0.5" style={{ color: 'rgba(245,184,0,0.6)' }}>
-                    Se guardará con el paquete al confirmar — el cliente tendrá información completa del envío
-                  </p>
-                ) : (
-                  <p className="text-[11px] pt-0.5" style={{ color: 'rgba(245,184,0,0.5)' }}>
-                    El paquete ya tiene tracking registrado — este dato no se sobreescribirá
-                  </p>
-                )}
-              </div>
-            )}
-            {ocrNormal.analizado && !ocrNormal.tracking && foto1.url && foto2.url && (
-              <p className="text-[11px] text-center" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                No se detectó tracking del courier en las fotos
-              </p>
-            )}
           </div>
 
           <div className="flex gap-3 pt-1">
