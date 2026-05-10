@@ -154,6 +154,10 @@ export default function RecibirForm() {
   // Sugerencias de clientes cuando lo ingresado no es un tracking sino un casillero/nombre
   const [clientesSugeridos, setClientesSugeridos] = useState<ClienteSugerido[]>([])
 
+  // --- OCR automático en modo normal (extrae tracking de las fotos del paquete encontrado) ---
+  const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; analizado: boolean }>({ tracking: null, analizado: false })
+  const [analizandoOcrNormal, setAnalizandoOcrNormal] = useState(false)
+
   // --- OCR con Claude Vision (modo manual) ---
   const [analizandoOCR, setAnalizandoOCR] = useState(false)
   const [ocrError, setOcrError] = useState('')
@@ -163,6 +167,8 @@ export default function RecibirForm() {
     match_tipo: 'tracking' | 'casillero' | 'nombre' | null
     notas: string | null
     auto_busqueda?: 'encontrado' | 'no_encontrado' | null
+    tracking_extraido?: string | null
+    casilla_extraida?: string | null
   } | null>(null)
   // Nombre del destinatario tal como aparece en la etiqueta — se persiste con el paquete
   const [nombreEtiqueta, setNombreEtiqueta] = useState<string | null>(null)
@@ -200,11 +206,50 @@ export default function RecibirForm() {
     }
   }, [])
 
-  // Auto-analizar con IA en cuanto ambas fotos del scanner están subidas
+  // OCR en modo normal: cuando ambas fotos del paquete encontrado están subidas,
+  // extraer el tracking del courier de la etiqueta para enriquecer los datos.
   useEffect(() => {
-    if (fotoManual1.url && fotoManual2.url && !paquete && !analizandoOCR && !ocrResultado) {
-      analizarConIA()
+    if (!foto1.url || !foto2.url || !paquete) return
+    if (ocrNormal.analizado || analizandoOcrNormal) return
+
+    async function extraerTrackingNormal() {
+      if (!foto1.url || !foto2.url) return
+      setAnalizandoOcrNormal(true)
+      try {
+        const res = await fetch('/api/admin/recibir/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fotoEmpaqueUrl: foto1.url, fotoContenidoUrl: foto2.url }),
+        })
+        const data = await res.json() as { ok?: boolean; etiqueta?: { tracking_origen: string | null } }
+        setOcrNormal({
+          tracking: (res.ok && data.ok) ? (data.etiqueta?.tracking_origen ?? null) : null,
+          analizado: true,
+        })
+      } catch {
+        setOcrNormal({ tracking: null, analizado: true })
+      } finally {
+        setAnalizandoOcrNormal(false)
+      }
     }
+
+    extraerTrackingNormal()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [foto1.url, foto2.url, paquete])
+
+  // Auto-analizar con IA en cuanto ambas fotos del scanner están subidas.
+  // Si el usuario reemplaza una foto después de un análisis previo, se limpia
+  // el resultado anterior y se vuelve a analizar automáticamente.
+  useEffect(() => {
+    if (!fotoManual1.url || !fotoManual2.url) return
+    if (paquete || analizandoOCR) return
+    // Si hay resultado previo pero las URLs cambiaron (fotos nuevas), limpiar y re-analizar
+    if (ocrResultado) {
+      setOcrResultado(null)
+      setOcrError('')
+      return // el set anterior provocará un nuevo render → useEffect re-corre
+    }
+    analizarConIA()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fotoManual1.url, fotoManual2.url])
 
@@ -427,6 +472,7 @@ export default function RecibirForm() {
     setOcrResultado(null)
     setOcrError('')
     setNombreEtiqueta(null)
+    setOcrNormal({ tracking: null, analizado: false })
     detenerCamaraFoto()
     setTimeout(() => inputRef.current?.focus(), 50)
   }
@@ -456,6 +502,7 @@ export default function RecibirForm() {
           valor_declarado: valorDeclarado.trim() ? parseFloat(valorDeclarado) : undefined,
           cantidad: PER_UNIT_CATEGORIAS.has(paquete.categoria) ? cantidad : 1,
           condicion: condicion || undefined,
+          tracking_origen_ocr: ocrNormal.tracking || undefined,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string; mensaje?: string }
@@ -575,6 +622,8 @@ export default function RecibirForm() {
         match_tipo: data.match?.tipo ?? null,
         notas: data.etiqueta.notas,
         auto_busqueda: autoBusqueda,
+        tracking_extraido: data.etiqueta.tracking_origen ?? null,
+        casilla_extraida: data.etiqueta.numero_casilla ?? null,
       })
 
       // Si no se encontró el paquete por tracking, mostrar formulario manual
@@ -1020,8 +1069,10 @@ export default function RecibirForm() {
 
           {/* Resultado del análisis */}
           {ocrResultado && !analizandoOCR && !ocrError && (
-            <div className="rounded-xl px-3 py-2.5 space-y-1"
+            <div className="rounded-xl px-3 py-2.5 space-y-2"
               style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.15)' }}>
+
+              {/* Header */}
               <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#c084fc' }}>
                 <CheckCircle2 className="h-3.5 w-3.5" /> Análisis completado
                 <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>
@@ -1029,14 +1080,53 @@ export default function RecibirForm() {
                   {' '}· contenido: <span style={{ color: ocrResultado.confianza_contenido === 'alta' ? '#34d399' : ocrResultado.confianza_contenido === 'media' ? '#F5B800' : '#f87171' }}>{ocrResultado.confianza_contenido}</span>
                 </span>
               </div>
+
+              {/* Tracking extraído — siempre visible si existe */}
+              {ocrResultado.tracking_extraido && (
+                <div className="rounded-lg px-3 py-2"
+                  style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#F5B800' }}>
+                    Tracking detectado en la etiqueta
+                  </p>
+                  <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>
+                    {ocrResultado.tracking_extraido}
+                  </p>
+                </div>
+              )}
+
+              {/* Casilla extraída — si existe y no hubo tracking */}
+              {ocrResultado.casilla_extraida && !ocrResultado.tracking_extraido && (
+                <div className="rounded-lg px-3 py-2"
+                  style={{ background: 'rgba(99,130,255,0.08)', border: '1px solid rgba(99,130,255,0.2)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5" style={{ color: '#8899ff' }}>
+                    Casillero detectado
+                  </p>
+                  <p className="font-mono text-sm font-bold" style={{ color: '#8899ff' }}>
+                    {ocrResultado.casilla_extraida}
+                  </p>
+                </div>
+              )}
+
+              {/* Resultado de la búsqueda automática */}
               {ocrResultado.auto_busqueda === 'encontrado' && (
-                <p className="text-xs font-semibold" style={{ color: '#34d399' }}>✓ Paquete encontrado — completa los datos debajo y confirma</p>
+                <p className="text-xs font-semibold" style={{ color: '#34d399' }}>
+                  ✓ Paquete encontrado en el sistema — completa los datos debajo y confirma
+                </p>
               )}
               {ocrResultado.auto_busqueda === 'no_encontrado' && (
-                <p className="text-xs" style={{ color: '#F5B800' }}>⚠ Tracking no coincide con paquetes reportados — completa el formulario debajo</p>
+                <p className="text-xs" style={{ color: '#F5B800' }}>
+                  ⚠ El tracking no coincide con paquetes reportados — completa el formulario debajo
+                </p>
+              )}
+              {!ocrResultado.tracking_extraido && !ocrResultado.casilla_extraida && (
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  No se detectó tracking ni casillero en la etiqueta
+                </p>
               )}
               {ocrResultado.notas && (
-                <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>Nota IA: {ocrResultado.notas}</p>
+                <p className="text-xs italic" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Nota IA: {ocrResultado.notas}
+                </p>
               )}
             </div>
           )}
@@ -1292,6 +1382,42 @@ export default function RecibirForm() {
                 📸 Toma la foto del empaque antes de abrir y la del contenido después. Ambas se envían al cliente.
               </p>
             )}
+
+            {/* OCR tracking detectado en fotos del paquete */}
+            {analizandoOcrNormal && (
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.18)' }}>
+                <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" style={{ color: '#c084fc' }} />
+                <span className="text-xs font-medium" style={{ color: '#c084fc' }}>
+                  Extrayendo tracking del courier de la etiqueta...
+                </span>
+              </div>
+            )}
+            {ocrNormal.analizado && ocrNormal.tracking && (
+              <div className="rounded-xl px-3 py-2.5 space-y-0.5"
+                style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.22)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#F5B800', letterSpacing: '0.13em' }}>
+                  Tracking del courier detectado en la etiqueta
+                </p>
+                <p className="font-mono text-sm font-bold" style={{ color: '#F5B800' }}>
+                  {ocrNormal.tracking}
+                </p>
+                {!paquete?.tracking_origen ? (
+                  <p className="text-[11px] pt-0.5" style={{ color: 'rgba(245,184,0,0.6)' }}>
+                    Se guardará con el paquete al confirmar — el cliente tendrá información completa del envío
+                  </p>
+                ) : (
+                  <p className="text-[11px] pt-0.5" style={{ color: 'rgba(245,184,0,0.5)' }}>
+                    El paquete ya tiene tracking registrado — este dato no se sobreescribirá
+                  </p>
+                )}
+              </div>
+            )}
+            {ocrNormal.analizado && !ocrNormal.tracking && foto1.url && foto2.url && (
+              <p className="text-[11px] text-center" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                No se detectó tracking del courier en las fotos
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-1">
@@ -1462,11 +1588,31 @@ export default function RecibirForm() {
               )}
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Tracking courier <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si tiene)</span></label>
-              <input type="text" value={formManual.tracking_courier}
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Tracking courier
+                {ocrResultado?.tracking_extraido && formManual.tracking_courier === ocrResultado.tracking_extraido && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> detectado por IA
+                  </span>
+                )}
+                {!ocrResultado?.tracking_extraido && (
+                  <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si tiene)</span>
+                )}
+              </label>
+              <input
+                type="text"
+                value={formManual.tracking_courier}
                 onChange={e => setFormManual(p => ({ ...p, tracking_courier: e.target.value }))}
-                placeholder="1Z, 9400..." className="glass-input w-full px-3 py-2.5 font-mono text-sm"
-                autoComplete="off" />
+                placeholder="1Z, 9400... (la IA lo detecta de las fotos)"
+                className="glass-input w-full px-3 py-2.5 font-mono text-sm"
+                autoComplete="off"
+                style={
+                  ocrResultado?.tracking_extraido && formManual.tracking_courier === ocrResultado.tracking_extraido
+                    ? { borderColor: 'rgba(245,184,0,0.4)', background: 'rgba(245,184,0,0.04)' }
+                    : {}
+                }
+              />
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Bodega destino</label>

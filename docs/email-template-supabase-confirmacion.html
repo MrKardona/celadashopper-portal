@@ -6,7 +6,7 @@
   Cómo subir esta plantilla:
   1. Entra a https://supabase.com/dashboard/project/igijeqhyppvpennjdkiu/auth/templates
   2. Selecciona "Confirm signup"
-  3. En el campo "Subject heading" pega:  ¡Confirma tu cuenta CeladaShopper! 📦
+  3. En el campo "Subject heading" pega:  ¡Confirma tu cuenta CeladaShopper!
   4. En el campo "Message body (HTML)" pega TODO el HTML de abajo
   5. Click en "Save changes"
 
@@ -24,20 +24,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Confirma tu cuenta CeladaShopper</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f4f6;padding:24px 0;">
+<body style="margin:0;padding:0;background-color:#090915;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+    bgcolor="#090915" style="background-color:#090915;padding:32px 0;">
     <tr>
       <td align="center">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"
+          style="max-width:600px;width:100%;background-color:#11112a;border-radius:14px;overflow:hidden;border:1px solid #3a3a68;">
 
-          <!-- Header naranja -->
+          <!-- Header -->
           <tr>
-            <td style="background-color:#ea580c;padding:28px 32px;">
+            <td bgcolor="#11112a" style="background-color:#11112a;padding:26px 32px 20px 32px;border-bottom:1px solid #3a3a68;">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td>
-                    <span style="color:#ffffff;font-size:24px;font-weight:bold;letter-spacing:-0.3px;">📦 CeladaShopper</span>
-                    <p style="color:#fed7aa;font-size:13px;margin:4px 0 0 0;">Tu casillero en USA</p>
+                    <p style="margin:0 0 2px 0;color:#F5B800;font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">CeladaShopper</p>
+                    <p style="margin:0;color:#6868a0;font-size:12px;">Tu casillero en USA &rarr; Colombia</p>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background-color:#F5B800;color:#000;font-size:18px;padding:6px 10px;border-radius:8px;line-height:1;">&#128230;</span>
                   </td>
                 </tr>
               </table>
@@ -46,14 +51,14 @@
 
           <!-- Hero -->
           <tr>
-            <td style="padding:36px 32px 16px 32px;background-color:#fff7ed;text-align:center;">
-              <div style="display:inline-block;width:72px;height:72px;background-color:#ea580c;border-radius:50%;line-height:72px;font-size:34px;color:#ffffff;margin-bottom:16px;">
-                ✉️
+            <td bgcolor="#11112a" style="background-color:#11112a;padding:36px 32px 20px 32px;text-align:center;">
+              <div style="display:inline-block;width:70px;height:70px;background-color:#19193a;border-radius:50%;line-height:70px;font-size:32px;margin-bottom:18px;border:2px solid #3a3a68;">
+                &#9993;
               </div>
-              <h1 style="color:#1c1917;font-size:26px;margin:0 0 8px 0;font-weight:bold;line-height:1.3;">
+              <h1 style="color:#ffffff;font-size:24px;margin:0 0 8px 0;font-weight:bold;line-height:1.3;">
                 ¡Bienvenido a CeladaShopper!
               </h1>
-              <p style="color:#57534e;font-size:15px;margin:0;line-height:1.5;">
+              <p style="color:#b2b2d8;font-size:15px;margin:0;line-height:1.5;">
                 Solo falta un paso para activar tu cuenta
               </p>
             </td>
@@ -61,64 +66,76 @@
 
           <!-- Body -->
           <tr>
-            <td style="padding:24px 32px 8px 32px;background-color:#fff7ed;">
-              <p style="color:#44403c;font-size:15px;line-height:1.7;margin:0 0 20px 0;">
-                Confirma tu correo haciendo click en el botón de abajo. Una vez verificado, podrás iniciar sesión y empezar a recibir tus compras de Estados Unidos en Colombia.
+            <td bgcolor="#11112a" style="background-color:#11112a;padding:8px 32px 24px 32px;">
+              <p style="color:#b2b2d8;font-size:15px;line-height:1.7;margin:0 0 24px 0;text-align:center;">
+                Confirma tu correo haciendo click en el botón de abajo.
+                Una vez verificado, podrás iniciar sesión y empezar a recibir
+                tus compras de Estados Unidos en Colombia.
               </p>
 
-              <!-- Botón CTA -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px auto;">
+              <!-- CTA button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 28px auto;">
                 <tr>
-                  <td style="border-radius:10px;background-color:#ea580c;box-shadow:0 4px 12px rgba(234,88,12,0.25);">
-                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:16px 40px;font-size:16px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px;letter-spacing:0.3px;">
-                      ✓ Confirmar mi cuenta
+                  <td align="center" bgcolor="#F5B800" style="background-color:#F5B800;border-radius:10px;">
+                    <a href="{{ .ConfirmationURL }}"
+                      style="display:inline-block;padding:16px 44px;font-size:16px;font-weight:bold;color:#000000;text-decoration:none;border-radius:10px;letter-spacing:0.3px;">
+                      &#10003; Confirmar mi cuenta
                     </a>
                   </td>
                 </tr>
               </table>
 
-              <p style="color:#78716c;font-size:12px;line-height:1.6;margin:20px 0 0 0;text-align:center;">
+              <p style="color:#6868a0;font-size:12px;line-height:1.6;margin:0 0 6px 0;text-align:center;">
                 ¿El botón no funciona? Copia y pega este enlace en tu navegador:
               </p>
-              <p style="color:#ea580c;font-size:11px;line-height:1.5;margin:6px 0 16px 0;text-align:center;word-break:break-all;font-family:'Courier New',monospace;background:#ffffff;padding:10px;border-radius:6px;border:1px solid #fed7aa;">
-                {{ .ConfirmationURL }}
-              </p>
+              <div style="background-color:#19193a;border:1px solid #2c2c52;border-radius:8px;padding:10px 14px;margin:0 0 20px 0;">
+                <p style="color:#a5b4fc;font-size:11px;line-height:1.5;margin:0;word-break:break-all;font-family:'Courier New',monospace;text-align:center;">
+                  {{ .ConfirmationURL }}
+                </p>
+              </div>
             </td>
           </tr>
 
-          <!-- Próximos pasos -->
+          <!-- Next steps -->
           <tr>
-            <td style="padding:8px 32px 32px 32px;background-color:#fff7ed;">
-              <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:10px;padding:20px 24px;margin:16px 0;">
-                <p style="color:#9a3412;font-size:13px;font-weight:bold;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.5px;">
+            <td bgcolor="#11112a" style="background-color:#11112a;padding:0 32px 32px 32px;">
+              <div style="background-color:#19193a;border:1px solid #3a3a68;border-radius:10px;padding:20px 22px;">
+                <p style="color:#F5B800;font-size:10px;font-weight:bold;margin:0 0 14px 0;text-transform:uppercase;letter-spacing:1.5px;">
                   Lo que sigue
                 </p>
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
-                    <td style="padding:6px 0;color:#44403c;font-size:14px;line-height:1.6;">
-                      <span style="display:inline-block;width:24px;color:#ea580c;font-weight:bold;">1.</span>
+                    <td style="padding:5px 0;vertical-align:top;width:24px;">
+                      <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">1.</span>
+                    </td>
+                    <td style="padding:5px 0;color:#b2b2d8;font-size:14px;line-height:1.5;">
                       Confirma tu cuenta con el botón de arriba
                     </td>
                   </tr>
                   <tr>
-                    <td style="padding:6px 0;color:#44403c;font-size:14px;line-height:1.6;">
-                      <span style="display:inline-block;width:24px;color:#ea580c;font-weight:bold;">2.</span>
+                    <td style="padding:5px 0;vertical-align:top;">
+                      <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">2.</span>
+                    </td>
+                    <td style="padding:5px 0;color:#b2b2d8;font-size:14px;line-height:1.5;">
                       Inicia sesión en el portal con tu correo y contraseña
                     </td>
                   </tr>
                   <tr>
-                    <td style="padding:6px 0;color:#44403c;font-size:14px;line-height:1.6;">
-                      <span style="display:inline-block;width:24px;color:#ea580c;font-weight:bold;">3.</span>
-                      Reporta tus compras y te las traemos a Colombia ✈️
+                    <td style="padding:5px 0;vertical-align:top;">
+                      <span style="color:#a5b4fc;font-weight:bold;font-size:13px;">3.</span>
+                    </td>
+                    <td style="padding:5px 0;color:#b2b2d8;font-size:14px;line-height:1.5;">
+                      Reporta tus compras y te las traemos a Colombia
                     </td>
                   </tr>
                 </table>
               </div>
 
-              <!-- Aviso de seguridad -->
-              <div style="background:#fef3c7;border-left:4px solid #f59e0b;border-radius:4px;padding:12px 16px;margin:20px 0 0 0;">
-                <p style="color:#78350f;font-size:12px;line-height:1.5;margin:0;">
-                  <strong>¿No te registraste tú?</strong> Ignora este correo y tu dirección no será agregada a nuestra base de datos.
+              <!-- Security notice -->
+              <div style="background-color:#19193a;border:1px solid #2c2c52;border-radius:8px;padding:12px 16px;margin:16px 0 0 0;">
+                <p style="color:#6868a0;font-size:12px;line-height:1.5;margin:0;">
+                  <strong style="color:#b2b2d8;">¿No te registraste tú?</strong>
+                  Ignora este correo y tu dirección no será agregada a nuestra base de datos.
                 </p>
               </div>
             </td>
@@ -126,15 +143,15 @@
 
           <!-- Footer -->
           <tr>
-            <td style="background-color:#1c1917;padding:24px 32px;text-align:center;">
-              <p style="color:#fed7aa;font-size:14px;margin:0 0 6px 0;font-weight:bold;">
-                CeladaShopper
+            <td bgcolor="#090915" style="background-color:#090915;padding:20px 32px;border-top:1px solid #2c2c52;text-align:center;">
+              <p style="color:#F5B800;font-size:12px;font-weight:bold;margin:0 0 6px 0;letter-spacing:1px;">
+                CELADASHOPPER
               </p>
-              <p style="color:#a8a29e;font-size:12px;margin:0;line-height:1.6;">
-                Tu casillero en USA · Compra en Estados Unidos, recíbelo en Colombia<br>
-                <a href="https://portal.celadashopper.com" style="color:#fed7aa;text-decoration:none;font-weight:bold;">portal.celadashopper.com</a>
+              <p style="color:#6868a0;font-size:11px;margin:0 0 6px 0;line-height:1.6;">
+                Tu casillero en USA &middot;
+                <a href="https://portal.celadashopper.com" style="color:#a5b4fc;text-decoration:none;">portal.celadashopper.com</a>
               </p>
-              <p style="color:#57534e;font-size:10px;margin:14px 0 0 0;line-height:1.5;">
+              <p style="color:#3a3a60;font-size:10px;margin:0;line-height:1.5;">
                 Recibiste este correo porque alguien usó tu dirección al crear una cuenta en CeladaShopper.<br>
                 Si no fuiste tú, simplemente ignora este mensaje.
               </p>
@@ -143,9 +160,8 @@
 
         </table>
 
-        <!-- Tagline bajo el card -->
-        <p style="color:#a8a29e;font-size:11px;margin:16px 0 0 0;font-family:Arial,sans-serif;">
-          © CeladaShopper · Bodega Miami: 8164 NW 108TH PL, Doral, FL 33178
+        <p style="color:#3a3a60;font-size:11px;margin:16px 0 0 0;font-family:Arial,sans-serif;text-align:center;">
+          &copy; CeladaShopper
         </p>
       </td>
     </tr>

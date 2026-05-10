@@ -65,87 +65,161 @@ function buildEmailHtml(params: {
   tarifas_tabla: string
 }): string {
   const bodega = BODEGA_LABELS[params.bodega_destino] ?? params.bodega_destino
+
+  // Paleta dark portal
+  const BG_OUTER   = '#090915'
+  const BG_CARD    = '#11112a'
+  const BG_INNER   = '#19193a'
+  const BORDER_VIS = '#3a3a68'
+  const BORDER_SUB = '#2c2c52'
+  const GOLD       = '#F5B800'
+  const GOLD_DIM   = '#7a5c00'
+  const PURPLE     = '#a5b4fc'
+  const GREEN      = '#34d399'
+  const TEXT_PRIM  = '#ffffff'
+  const TEXT_BODY  = '#b2b2d8'
+  const TEXT_MUTE  = '#6868a0'
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:Arial,sans-serif;">
-<div style="max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+<body style="margin:0;padding:0;background-color:${BG_OUTER};font-family:Arial,Helvetica,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+  bgcolor="${BG_OUTER}" style="background-color:${BG_OUTER};padding:32px 0;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0"
+        style="max-width:600px;width:100%;background-color:${BG_CARD};border-radius:14px;overflow:hidden;border:1px solid ${BORDER_VIS};">
 
-  <!-- Header -->
-  <div style="background:#ea580c;padding:24px 32px;">
-    <h1 style="margin:0;color:#fff;font-size:22px;font-weight:700;">📦 ¡Pedido registrado!</h1>
-    <p style="margin:4px 0 0;color:#fed7aa;font-size:14px;">CeladaShopper — Tu casillero USA → Colombia</p>
-  </div>
+        <!-- Header -->
+        <tr>
+          <td bgcolor="${BG_CARD}" style="background-color:${BG_CARD};padding:26px 32px 20px 32px;border-bottom:1px solid ${BORDER_VIS};">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td>
+                  <p style="margin:0 0 2px 0;color:${GOLD};font-size:11px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">CeladaShopper</p>
+                  <p style="margin:0;color:${TEXT_MUTE};font-size:12px;">Tu casillero en USA &rarr; Colombia</p>
+                </td>
+                <td align="right" style="vertical-align:middle;">
+                  <span style="display:inline-block;background-color:${GOLD};color:#000;font-size:18px;padding:6px 10px;border-radius:8px;line-height:1;">&#128230;</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-  <!-- Body -->
-  <div style="padding:32px;">
-    <p style="margin:0 0 16px;color:#374151;font-size:15px;">Hola <strong>${params.nombre}</strong>,</p>
-    <p style="margin:0 0 24px;color:#374151;font-size:15px;">Tu pedido fue registrado exitosamente en nuestro sistema. Aquí tienes todos los detalles.</p>
+        <!-- Body -->
+        <tr>
+          <td bgcolor="${BG_CARD}" style="background-color:${BG_CARD};padding:32px;">
 
-    <!-- Tracking box -->
-    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <p style="margin:0 0 4px;color:#9a3412;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Número de seguimiento</p>
-      <p style="margin:0;color:#ea580c;font-size:24px;font-weight:700;font-family:monospace;">${params.tracking_casilla}</p>
-      <p style="margin:4px 0 0;color:#9a3412;font-size:12px;">Guarda este número para consultar el estado de tu paquete</p>
-    </div>
+            <h2 style="color:${TEXT_PRIM};font-size:22px;margin:0 0 6px 0;">&#127881; ¡Pedido registrado!</h2>
+            <p style="color:${TEXT_BODY};font-size:15px;line-height:1.65;margin:0 0 24px 0;">
+              Hola <strong style="color:${TEXT_PRIM};">${params.nombre}</strong>,
+              tu pedido fue registrado exitosamente. Aquí tienes todos los detalles.
+            </p>
 
-    <!-- Package details -->
-    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;width:40%;">📦 Producto</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">${params.descripcion}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:14px;">🏪 Tienda</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f3f4f6;color:#111827;font-size:14px;font-weight:500;">${params.tienda}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;color:#6b7280;font-size:14px;">🏙️ Ciudad de entrega</td>
-        <td style="padding:8px 0;color:#111827;font-size:14px;font-weight:500;">${bodega}</td>
-      </tr>
-    </table>
+            <!-- Tracking box -->
+            <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+              <p style="margin:0 0 4px 0;color:${GOLD};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+                &#128278; Número de seguimiento
+              </p>
+              <p style="margin:0 0 6px 0;color:${GOLD};font-size:26px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:2px;">
+                ${params.tracking_casilla}
+              </p>
+              <p style="margin:0;color:${TEXT_MUTE};font-size:11px;">Guarda este número para consultar el estado de tu paquete</p>
+            </div>
 
-    <!-- USA Address box -->
-    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <p style="margin:0 0 8px;color:#166534;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">📮 Dirección de envío en USA</p>
-      <p style="margin:0;color:#15803d;font-size:14px;line-height:1.7;">
-        <strong>${params.nombre}</strong><br>
-        <strong style="font-size:16px;">${params.numero_casilla}</strong><br>
-        ${USA_ADDRESS}
-      </p>
-    </div>
+            <!-- Package details -->
+            <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="padding:7px 0;color:${TEXT_MUTE};font-size:13px;border-bottom:1px solid ${BORDER_SUB};">&#128230; Producto</td>
+                  <td style="padding:7px 0;color:${TEXT_PRIM};font-size:13px;font-weight:bold;text-align:right;border-bottom:1px solid ${BORDER_SUB};">${params.descripcion}</td>
+                </tr>
+                <tr>
+                  <td style="padding:7px 0;color:${TEXT_MUTE};font-size:13px;border-bottom:1px solid ${BORDER_SUB};">&#127978; Tienda</td>
+                  <td style="padding:7px 0;color:${TEXT_PRIM};font-size:13px;font-weight:bold;text-align:right;border-bottom:1px solid ${BORDER_SUB};">${params.tienda}</td>
+                </tr>
+                <tr>
+                  <td style="padding:7px 0;color:${TEXT_MUTE};font-size:13px;">&#128205; Ciudad de entrega</td>
+                  <td style="padding:7px 0;color:${TEXT_PRIM};font-size:13px;font-weight:bold;text-align:right;">${bodega}</td>
+                </tr>
+              </table>
+            </div>
 
-    <!-- Tarifa estimada -->
-    <div style="background:#f8fafc;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <p style="margin:0 0 8px;color:#374151;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">💰 Tarifa estimada para tu categoría</p>
-      <p style="margin:0;color:#374151;font-size:14px;">${params.tarifa_info}</p>
-    </div>
+            <!-- USA Address box -->
+            <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+              <p style="margin:0 0 10px 0;color:${PURPLE};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+                &#128206; Dirección de envío en USA
+              </p>
+              <p style="margin:0;color:${TEXT_BODY};font-size:14px;line-height:1.8;">
+                <strong style="color:${TEXT_PRIM};">${params.nombre}</strong><br>
+                <strong style="color:${GOLD};font-size:16px;">${params.numero_casilla}</strong><br>
+                <span style="color:${TEXT_BODY};">${USA_ADDRESS}</span>
+              </p>
+            </div>
 
-    <!-- Tarifas tabla -->
-    <details style="margin-bottom:24px;">
-      <summary style="cursor:pointer;color:#ea580c;font-size:14px;font-weight:600;margin-bottom:8px;">Ver tabla de tarifas completa</summary>
-      <div style="margin-top:8px;font-size:13px;color:#374151;line-height:1.8;">${params.tarifas_tabla}</div>
-    </details>
+            <!-- Tarifa estimada -->
+            <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+              <p style="margin:0 0 6px 0;color:${GOLD};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+                &#128176; Tarifa estimada para tu categoría
+              </p>
+              <p style="margin:0;color:${TEXT_BODY};font-size:14px;line-height:1.5;">${params.tarifa_info}</p>
+            </div>
 
-    <!-- Next steps -->
-    <div style="background:#f0f9ff;border-left:3px solid #0ea5e9;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:24px;">
-      <p style="margin:0 0 6px;color:#0369a1;font-size:14px;font-weight:700;">¿Qué sigue?</p>
-      <ol style="margin:0;padding-left:20px;color:#0369a1;font-size:14px;">
-        <li>Asegúrate de usar la dirección USA de arriba como destino de tu compra</li>
-        <li>Cuando tu paquete llegue, te enviamos fotos por WhatsApp</li>
-        <li>Te confirmamos el peso y el costo antes de enviarlo a Colombia</li>
-        <li>Envío a Colombia: 8–12 días hábiles</li>
-      </ol>
-    </div>
+            <!-- Tarifas tabla -->
+            <div style="background-color:${BG_INNER};border:1px solid ${BORDER_SUB};border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+              <p style="margin:0 0 8px 0;color:${TEXT_MUTE};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+                Tabla de tarifas
+              </p>
+              <div style="font-size:13px;color:${TEXT_BODY};line-height:1.9;">${params.tarifas_tabla}</div>
+            </div>
 
-    <p style="margin:0;color:#6b7280;font-size:13px;">¿Tienes preguntas? Escríbenos por WhatsApp o responde a este correo.</p>
-  </div>
+            <!-- Next steps -->
+            <div style="background-color:${BG_INNER};border:1px solid ${GREEN};border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+              <p style="margin:0 0 10px 0;color:${GREEN};font-size:13px;font-weight:bold;">&#10003; ¿Qué sigue?</p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr><td style="color:${PURPLE};font-size:13px;padding:3px 0;vertical-align:top;">1.&nbsp;</td><td style="color:${TEXT_BODY};font-size:13px;padding:3px 0;">Usa la dirección USA de arriba como destino de tu compra</td></tr>
+                <tr><td style="color:${PURPLE};font-size:13px;padding:3px 0;vertical-align:top;">2.&nbsp;</td><td style="color:${TEXT_BODY};font-size:13px;padding:3px 0;">Cuando llegue a Miami, te enviamos fotos por WhatsApp</td></tr>
+                <tr><td style="color:${PURPLE};font-size:13px;padding:3px 0;vertical-align:top;">3.&nbsp;</td><td style="color:${TEXT_BODY};font-size:13px;padding:3px 0;">Te confirmamos peso y costo antes de enviarlo a Colombia</td></tr>
+                <tr><td style="color:${PURPLE};font-size:13px;padding:3px 0;vertical-align:top;">4.&nbsp;</td><td style="color:${TEXT_BODY};font-size:13px;padding:3px 0;">Envío a Colombia: 8&ndash;12 días hábiles</td></tr>
+              </table>
+            </div>
 
-  <!-- Footer -->
-  <div style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;">
-    <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">CeladaShopper · Tu casillero USA → Colombia · portal.celadashopper.com</p>
-  </div>
-</div>
+            <p style="margin:0 0 28px 0;color:${TEXT_MUTE};font-size:13px;">
+              ¿Tienes preguntas? Escríbenos por WhatsApp o responde a este correo.
+            </p>
+
+            <!-- CTA -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
+              <tr>
+                <td align="center" bgcolor="${GOLD}" style="background-color:${GOLD};border-radius:10px;">
+                  <a href="https://portal.celadashopper.com"
+                    style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:bold;color:#000000;text-decoration:none;border-radius:10px;">
+                    Ir al portal &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td bgcolor="${BG_OUTER}" style="background-color:${BG_OUTER};padding:20px 32px;border-top:1px solid ${BORDER_SUB};text-align:center;">
+            <p style="color:${GOLD};font-size:12px;font-weight:bold;margin:0 0 6px 0;letter-spacing:1px;">CELADASHOPPER</p>
+            <p style="color:${TEXT_MUTE};font-size:11px;margin:0 0 6px 0;line-height:1.6;">
+              Tu casillero en USA &middot; portal.celadashopper.com
+            </p>
+            <p style="color:#3a3a60;font-size:10px;margin:0;">Recibiste este correo porque tienes una cuenta activa en CeladaShopper.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`
 }

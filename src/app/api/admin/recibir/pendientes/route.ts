@@ -32,7 +32,7 @@ export async function GET() {
   // Paquetes reportados, ordenados por fecha de reporte (más reciente primero)
   const { data: paquetes, error } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, descripcion, tienda, categoria, bodega_destino, cliente_id, created_at, notas_cliente')
+    .select('id, tracking_casilla, tracking_origen, descripcion, tienda, categoria, bodega_destino, cliente_id, created_at, notas_cliente, valor_declarado, unidades, fecha_compra, fecha_estimada_llegada')
     .eq('estado', 'reportado')
     .order('created_at', { ascending: false })
     .limit(100)
@@ -68,6 +68,10 @@ export async function GET() {
     categoria: p.categoria,
     bodega_destino: p.bodega_destino,
     notas_cliente: p.notas_cliente,
+    valor_declarado: p.valor_declarado,
+    unidades: p.unidades,
+    fecha_compra: p.fecha_compra,
+    fecha_estimada_llegada: p.fecha_estimada_llegada,
     created_at: p.created_at,
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
   }))

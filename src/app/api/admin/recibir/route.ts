@@ -155,6 +155,9 @@ export async function POST(req: NextRequest) {
     cantidad?: number
     // Condición del producto (nuevo / usado)
     condicion?: string | null
+    // Tracking del courier detectado por OCR en las fotos (solo Modo A: paquete existente)
+    // Se guarda si el paquete no tenía tracking_origen, o si el agente lo confirmó
+    tracking_origen_ocr?: string | null
   }
 
   // Helper: parsea valor_declarado a number > 0 o null. Aceptamos "12.34" y 12.34.
@@ -359,7 +362,7 @@ export async function POST(req: NextRequest) {
 
   const { data: paquete } = await admin
     .from('paquetes')
-    .select('id, estado, tracking_casilla')
+    .select('id, estado, tracking_casilla, tracking_origen')
     .eq('id', paquete_id)
     .single()
 
@@ -394,6 +397,11 @@ export async function POST(req: NextRequest) {
   if (valorDeclarado !== null) updates.valor_declarado = valorDeclarado
   updates.cantidad = cantidadParsed
   if (condicionParsed !== null) updates.condicion = condicionParsed
+  // Guardar tracking del courier si OCR lo detectó y el paquete no tenía uno
+  const trackingOcrLimpio = body.tracking_origen_ocr?.trim() || null
+  if (trackingOcrLimpio && !paquete.tracking_origen) {
+    updates.tracking_origen = trackingOcrLimpio
+  }
 
   const { error: updateError } = await admin.from('paquetes').update(updates).eq('id', paquete_id)
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
