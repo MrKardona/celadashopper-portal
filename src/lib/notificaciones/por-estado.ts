@@ -48,28 +48,29 @@ const EVENTO_A_TEMPLATE: Record<string, {
   params: (vars: Record<string, string>, paq: PaqRaw) => string[]
 }> = {
   paquete_recibido_usa: {
-    name: 'cs_paquete_recibido_9dalr1',
-    // "Hola {{1}}, tu paquete *{{2}}* llego a nuestra bodega en USA\nPeso: {{3}} lb | Costo servicio: ${{4}} USD\n..."
+    name: 'cs_paquete_recibido_usa',
+    // "📦 ¡Hola {{1}}! Tu paquete llegó a nuestra bodega en Miami, USA\n*{{2}}*\n📌 Tracking: {{3}}\n⚖️ Peso: {{4}} lb\n💵 Costo de servicio aproximado: ${{5}} USD"
     params: (vars, paq) => [
       vars.nombre,
       vars.descripcion || 'tu paquete',
+      vars.tracking_origen || vars.tracking || 'N/D',
       String(paq.peso_facturable ?? paq.peso_libras ?? 'N/A'),
       String(paq.costo_servicio ?? 'N/A'),
     ],
   },
   paquete_en_transito: {
-    name: 'cs_paquete_en_transito_m7ur7g',
-    // "Hola {{1}}, tu paquete *{{2}}* ya esta en camino a Colombia. Tiempo estimado: 5-8 dias habiles..."
+    name: 'cs_en_transito',
+    // "✈️ ¡Hola {{1}}! Tu paquete está en camino a Colombia\n📦 *{{2}}*"
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
   paquete_listo_recoger: {
-    name: 'cs_listo_recoger_3dpm34',
-    // "Hola {{1}}, tu paquete *{{2}}* esta listo para recoger\nen nuestra bodega de {{3}}.\nHorario: lunes a sabado 9am - 6pm"
+    name: 'cs_listo_recoger_v2',
+    // "🎉 ¡Hola {{1}}! Tu paquete llegó y está listo para recoger\n📦 *{{2}}*\n📍 Bodega: *{{3}}*"
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete', vars.bodega || 'Medellín'],
   },
   paquete_entregado: {
-    name: 'cs_paquete_entregado_9sr0uh',
-    // "Hola {{1}}, tu paquete *{{2}}* fue entregado exitosamente. Revisa el detalle y foto de entrega en tu portal..."
+    name: 'cs_entregado',
+    // "✅ ¡Hola {{1}}! Tu paquete fue entregado exitosamente 🎊\n📦 *{{2}}*"
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
 }
