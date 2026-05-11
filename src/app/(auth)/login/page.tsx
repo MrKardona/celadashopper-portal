@@ -2,7 +2,7 @@
 
 import { Suspense, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { MailCheck, Send, Lock, ShieldCheck } from 'lucide-react'
+import { MailCheck, Send, Lock, ShieldCheck, MessageCircle, UserX } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { enviarMagicLink, iniciarSesionAdmin } from './actions'
@@ -108,6 +108,7 @@ function LoginForm() {
   const [adminPass, setAdminPass] = useState('')
 
   const [error, setError] = useState('')
+  const [noRegistrado, setNoRegistrado] = useState(false)
   const [loading, setLoading] = useState(false)
   const submitting = useRef(false)
 
@@ -116,9 +117,16 @@ function LoginForm() {
     e.preventDefault()
     if (submitting.current) return
     submitting.current = true
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setNoRegistrado(false)
     const { error } = await enviarMagicLink(email)
-    if (error) { setError(error); setLoading(false); submitting.current = false; return }
+    if (error) {
+      if (error.includes('no tiene una cuenta')) {
+        setNoRegistrado(true)
+      } else {
+        setError(error)
+      }
+      setLoading(false); submitting.current = false; return
+    }
     setEnviado(true); setLoading(false); submitting.current = false
   }
 
@@ -294,32 +302,83 @@ function LoginForm() {
           <p role="alert" aria-live="polite" className="text-sm" style={{ color: '#f87171' }}>{error}</p>
         )}
 
-        <motion.button
-          type="submit"
-          disabled={loading}
-          whileHover={{ scale: 1.02, boxShadow: '0 0 28px rgba(245,184,0,0.4)' }}
-          whileTap={{ scale: 0.97 }}
-          transition={{ duration: 0.15 }}
-          className="btn-gold w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold"
-        >
-          {loading ? (
-            <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />Enviando...</>
-          ) : (
-            <><Send className="h-4 w-4" />Enviar link de acceso</>
-          )}
-        </motion.button>
+        {/* Panel: correo no registrado */}
+        {noRegistrado && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease }}
+            className="rounded-xl overflow-hidden"
+            style={{ border: '1px solid rgba(245,184,0,0.3)' }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2.5 px-4 py-3"
+              style={{ background: 'rgba(245,184,0,0.1)' }}>
+              <UserX className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#F5B800' }}>Este correo no está registrado</p>
+                <p className="text-[11px]" style={{ color: 'rgba(245,184,0,0.65)' }}>
+                  <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{email}</strong>
+                </p>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="px-4 py-3 space-y-3" style={{ background: 'rgba(245,184,0,0.04)' }}>
+              <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Para acceder al portal necesitas un casillero activo. Escríbenos por WhatsApp y te registramos en menos de 5 minutos.
+              </p>
+              <a
+                href={`https://wa.me/573001234567?text=${encodeURIComponent(`Hola Celada, quiero registrarme en el portal con el correo: ${email}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
+                style={{ background: '#25D366', color: 'white' }}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Registrarme por WhatsApp
+              </a>
+              <button
+                type="button"
+                onClick={() => { setNoRegistrado(false); setError('') }}
+                className="w-full text-xs text-center hover:underline"
+                style={{ color: 'rgba(255,255,255,0.3)' }}
+              >
+                Intentar con otro correo
+              </button>
+            </div>
+          </motion.div>
+        )}
 
-        <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
-          Te enviaremos un link al correo · Sin contraseña
-        </p>
+        {!noRegistrado && (
+          <>
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileHover={{ scale: 1.02, boxShadow: '0 0 28px rgba(245,184,0,0.4)' }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="btn-gold w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold"
+            >
+              {loading ? (
+                <><div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />Enviando...</>
+              ) : (
+                <><Send className="h-4 w-4" />Enviar link de acceso</>
+              )}
+            </motion.button>
 
-        <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
-          style={{ background: 'rgba(245,184,0,0.06)', border: '1px solid rgba(245,184,0,0.14)' }}>
-          <span className="mt-px flex-shrink-0" style={{ color: '#F5B800' }}>💡</span>
-          <p style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
-            Abre el link <strong style={{ color: 'rgba(255,255,255,0.65)' }}>en este mismo navegador</strong>, no desde la app de correo.
-          </p>
-        </div>
+            <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
+              Te enviaremos un link al correo · Sin contraseña
+            </p>
+
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs"
+              style={{ background: 'rgba(245,184,0,0.06)', border: '1px solid rgba(245,184,0,0.14)' }}>
+              <span className="mt-px flex-shrink-0" style={{ color: '#F5B800' }}>💡</span>
+              <p style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+                Abre el link <strong style={{ color: 'rgba(255,255,255,0.65)' }}>en este mismo navegador</strong>, no desde la app de correo.
+              </p>
+            </div>
+          </>
+        )}
       </form>
 
       {/* Acceso admin — discreto al fondo */}
