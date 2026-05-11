@@ -99,6 +99,7 @@ export default function CajaDetalleForm({
   const [modalDespachar, setModalDespachar] = useState(false)
   const [modalEliminar, setModalEliminar] = useState(false)
   const [modalEditar, setModalEditar] = useState(false)
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null)
 
   const editable = true // admin siempre puede agregar/quitar paquetes
   const pesoTotal = paquetes.reduce((s, p) => s + Number(p.peso_libras ?? 0), 0)
@@ -374,6 +375,127 @@ export default function CajaDetalleForm({
         </div>
       )}
 
+      {/* Lista de paquetes adentro */}
+      <div className="glass-card overflow-hidden">
+        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+          <div>
+            <span className="text-sm font-semibold text-white">Contenido de la caja</span>
+            <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
+              Clic en la imagen para ampliarla · Clic en la fila para ver el paquete
+            </p>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+            style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
+            {paquetes.length} paq.
+          </span>
+        </div>
+
+        {paquetes.length === 0 ? (
+          <div className="text-center py-14 text-sm" style={{ color: `${tw}0.35)` }}>
+            <Package className="h-10 w-10 mx-auto mb-3 opacity-20 text-white" />
+            La caja está vacía. Escanea paquetes para llenarla.
+          </div>
+        ) : (
+          <div className="max-h-[520px] overflow-y-auto divide-y" style={{ borderColor: `${tw}0.05)` }}>
+            {paquetes.map((p) => {
+              const estadoS = ESTADO_DARK[p.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' }
+              const bodegaMismatch = p.bodega_destino !== caja.bodega_destino
+              return (
+                <div key={p.id} className="flex items-center gap-3 px-4 py-3 group cursor-pointer transition-colors"
+                  onClick={() => router.push(`/admin/paquetes/${p.id}`)}
+                  onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.04)`)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+
+                  {/* Thumbnail */}
+                  {p.foto_url ? (
+                    <img
+                      src={p.foto_url}
+                      alt={p.descripcion}
+                      className="flex-shrink-0 rounded-lg object-cover transition-opacity hover:opacity-80"
+                      style={{ width: 52, height: 52, border: `1px solid ${tw}0.12)`, cursor: 'zoom-in' }}
+                      onClick={e => { e.stopPropagation(); setFotoAmpliada(p.foto_url!) }}
+                      title="Ver imagen completa"
+                    />
+                  ) : (
+                    <span className="flex-shrink-0 flex items-center justify-center rounded-lg"
+                      style={{ width: 52, height: 52, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
+                      <Package className="h-5 w-5" style={{ color: `${tw}0.2)` }} />
+                    </span>
+                  )}
+
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-xs font-bold flex-shrink-0" style={{ color: '#F5B800' }}>
+                        {p.tracking_casilla ?? '—'}
+                      </span>
+                      <span className={`text-sm truncate ${p.cliente ? 'font-medium text-white' : ''}`}
+                        style={!p.cliente ? { color: '#fbbf24', fontStyle: 'italic' } : undefined}>
+                        {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
+                      </span>
+                      {p.cliente?.numero_casilla && (
+                        <span className="text-xs flex-shrink-0" style={{ color: `${tw}0.35)` }}>
+                          ({p.cliente.numero_casilla})
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs" style={{ color: `${tw}0.45)`, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.descripcion}
+                      </span>
+                      <span className="text-[11px]" style={{ color: `${tw}0.3)` }}>
+                        {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
+                      </span>
+                      {p.peso_libras && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded"
+                          style={{ color: `${tw}0.5)`, background: `${tw}0.04)`, border: `1px solid ${tw}0.07)` }}>
+                          {p.peso_libras} lb
+                        </span>
+                      )}
+                      {Number(p.valor_declarado) > 0 && (
+                        <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold"
+                          style={{ color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                          ${Number(p.valor_declarado).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: badges + remove */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {bodegaMismatch && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
+                        style={{ color: '#fbbf24', background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}
+                        title={`Distinta a la caja: ${BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}`}>
+                        <MapPin className="h-2.5 w-2.5" />
+                        {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
+                        <span aria-hidden="true"> ⚠️</span>
+                      </span>
+                    )}
+                    <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap"
+                      style={{ background: estadoS.bg, color: estadoS.color, border: `1px solid ${estadoS.border}` }}>
+                      {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
+                    </span>
+                    {editable && (
+                      <button
+                        onClick={e => { e.stopPropagation(); quitarPaquete(p.id) }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all ml-1"
+                        style={{ color: `${tw}0.3)` }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
+                        onMouseLeave={e => { e.currentTarget.style.color = `${tw}0.3)`; e.currentTarget.style.background = 'transparent' }}
+                        title="Quitar de la caja"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Paquetes disponibles */}
       {editable && (
         <PaquetesDisponibles
@@ -388,102 +510,6 @@ export default function CajaDetalleForm({
           }}
         />
       )}
-
-      {/* Lista de paquetes adentro */}
-      <div className="glass-card overflow-hidden">
-        <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
-          <span className="text-sm font-semibold text-white">Contenido de la caja</span>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
-            {paquetes.length}
-          </span>
-        </div>
-
-        {paquetes.length === 0 ? (
-          <div className="text-center py-12 text-sm" style={{ color: `${tw}0.35)` }}>
-            <Package className="h-10 w-10 mx-auto mb-2 opacity-20 text-white" />
-            La caja está vacía. Escanea paquetes para llenarla.
-          </div>
-        ) : (
-          <div className="max-h-[480px] overflow-y-auto">
-            {paquetes.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3 text-sm group cursor-pointer"
-                style={{ borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined }}
-                onClick={() => router.push(`/admin/paquetes/${p.id}`)}
-                onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.05)`)}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                {p.foto_url ? (
-                  <img
-                    src={p.foto_url}
-                    alt={p.descripcion}
-                    className="flex-shrink-0 rounded object-cover"
-                    style={{ width: 36, height: 36, border: `1px solid ${tw}0.1)` }}
-                  />
-                ) : (
-                  <span className="flex-shrink-0 flex items-center justify-center rounded"
-                    style={{ width: 36, height: 36, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
-                    <Package className="h-4 w-4" style={{ color: `${tw}0.25)` }} />
-                  </span>
-                )}
-                <span className="font-mono text-xs font-semibold w-28 truncate flex-shrink-0" style={{ color: '#F5B800' }}>
-                  {p.tracking_casilla}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm truncate ${!p.cliente ? '' : 'font-medium text-white'}`}
-                    style={!p.cliente ? { color: '#fbbf24', fontStyle: 'italic' } : undefined}>
-                    {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
-                    {p.cliente?.numero_casilla && (
-                      <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>({p.cliente.numero_casilla})</span>
-                    )}
-                  </p>
-                  <p className="text-xs truncate" style={{ color: `${tw}0.45)` }}>
-                    {p.descripcion} · {CATEGORIA_LABELS[p.categoria as CategoriaProducto] ?? p.categoria}
-                  </p>
-                </div>
-                <span
-                  className="text-[11px] px-1.5 py-0.5 rounded whitespace-nowrap inline-flex items-center gap-0.5"
-                  style={p.bodega_destino !== caja.bodega_destino
-                    ? { color: '#fbbf24', background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }
-                    : { color: `${tw}0.45)`, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}
-                  title={p.bodega_destino !== caja.bodega_destino
-                    ? `Distinta a la caja: ${BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}`
-                    : BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
-                >
-                  <MapPin className="h-2.5 w-2.5" />
-                  {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
-                  {p.bodega_destino !== caja.bodega_destino && <span aria-hidden="true">⚠️</span>}
-                </span>
-                <span className="text-xs whitespace-nowrap" style={{ color: `${tw}0.45)` }}>
-                  {p.peso_libras ? `${p.peso_libras} lb` : '—'}
-                </span>
-                {Number(p.valor_declarado) > 0 && (
-                  <span className="text-xs font-semibold whitespace-nowrap" style={{ color: '#34d399' }}>
-                    ${Number(p.valor_declarado).toFixed(2)}
-                  </span>
-                )}
-                {(() => { const s = ESTADO_DARK[p.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' }; return (
-                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap"
-                    style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
-                    {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
-                  </span>
-                )})()}
-                {editable && (
-                  <button
-                    onClick={e => { e.stopPropagation(); quitarPaquete(p.id) }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded transition-colors"
-                    style={{ color: `${tw}0.3)` }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                    onMouseLeave={e => (e.currentTarget.style.color = `${tw}0.3)`)}
-                    title="Quitar de la caja"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Modales */}
       {modalCerrar && (
@@ -501,6 +527,32 @@ export default function CajaDetalleForm({
       {modalEditar && (
         <ModalEditarCaja caja={caja}
           onClose={() => setModalEditar(false)} onDone={() => { setModalEditar(false); router.refresh(); refrescar() }} />
+      )}
+
+      {/* Lightbox */}
+      {fotoAmpliada && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
+          onClick={() => setFotoAmpliada(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full z-10 transition-colors"
+            style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+            onClick={() => setFotoAmpliada(null)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={fotoAmpliada}
+            alt="Foto del paquete"
+            className="rounded-xl object-contain shadow-2xl"
+            style={{ maxHeight: '88vh', maxWidth: '90vw', cursor: 'default' }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   )
@@ -972,6 +1024,7 @@ function PaquetesDisponibles({
   const [incluirOtras, setIncluirOtras] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
   const [agregandoId, setAgregandoId] = useState<string | null>(null)
+  const [fotoAmpliadaDisp, setFotoAmpliadaDisp] = useState<string | null>(null)
 
   async function cargar() {
     setCargando(true)
@@ -1077,6 +1130,32 @@ function PaquetesDisponibles({
         )}
       </div>
 
+      {/* Lightbox disponibles */}
+      {fotoAmpliadaDisp && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
+          onClick={() => setFotoAmpliadaDisp(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 rounded-full z-10 transition-colors"
+            style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+            onClick={() => setFotoAmpliadaDisp(null)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={fotoAmpliadaDisp}
+            alt="Foto del paquete"
+            className="rounded-xl object-contain shadow-2xl"
+            style={{ maxHeight: '88vh', maxWidth: '90vw', cursor: 'default' }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* Lista */}
       <div className="max-h-[420px] overflow-y-auto">
         {cargando ? (
@@ -1109,17 +1188,19 @@ function PaquetesDisponibles({
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                {/* Miniatura segunda foto */}
+                {/* Miniatura */}
                 {p.foto_url ? (
                   <img
                     src={p.foto_url}
                     alt={p.descripcion}
-                    className="flex-shrink-0 rounded object-cover"
-                    style={{ width: 40, height: 40, border: `1px solid ${tw}0.1)` }}
+                    className="flex-shrink-0 rounded-lg object-cover transition-opacity hover:opacity-80"
+                    style={{ width: 44, height: 44, border: `1px solid ${tw}0.12)`, cursor: 'zoom-in' }}
+                    onClick={e => { e.stopPropagation(); setFotoAmpliadaDisp(p.foto_url) }}
+                    title="Ver imagen completa"
                   />
                 ) : (
-                  <span className="flex-shrink-0 flex items-center justify-center rounded"
-                    style={{ width: 40, height: 40, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
+                  <span className="flex-shrink-0 flex items-center justify-center rounded-lg"
+                    style={{ width: 44, height: 44, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
                     <Package className="h-4 w-4" style={{ color: bodegaDistinta ? '#fbbf24' : `${tw}0.25)` }} />
                   </span>
                 )}
