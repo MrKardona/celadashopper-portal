@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
     || pathname.startsWith('/api/whatsapp')
     || pathname.startsWith('/api/shopify')
     || pathname.startsWith('/api/kommo')
+    || pathname.startsWith('/api/cron')
 
   if (!user && !isPublic) {
     const loginUrl = new URL('/login', request.url)
