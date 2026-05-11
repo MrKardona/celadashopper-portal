@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@supabase/supabase-js'
 import { Box } from 'lucide-react'
 import NuevaCajaButton from '@/components/admin/NuevaCajaButton'
