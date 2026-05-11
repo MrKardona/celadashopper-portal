@@ -23,13 +23,20 @@ export default async function CajasPage() {
 
   const lista = cajas ?? []
 
-  // Contar paquetes por caja
+  // Contar paquetes por caja + estado USACO por caja
   const cajaIds = lista.map(c => c.id)
   const conteoMap: Record<string, number> = {}
+  const estadoUsacoMap: Record<string, string> = {}
   if (cajaIds.length > 0) {
-    const { data: paquetes } = await supabase.from('paquetes').select('caja_id').in('caja_id', cajaIds)
+    const { data: paquetes } = await supabase
+      .from('paquetes')
+      .select('caja_id, estado_usaco')
+      .in('caja_id', cajaIds)
     for (const p of paquetes ?? []) {
       if (p.caja_id) conteoMap[p.caja_id] = (conteoMap[p.caja_id] ?? 0) + 1
+      if (p.caja_id && p.estado_usaco && !estadoUsacoMap[p.caja_id]) {
+        estadoUsacoMap[p.caja_id] = p.estado_usaco
+      }
     }
   }
 
@@ -56,7 +63,7 @@ export default async function CajasPage() {
       </div>
 
       {/* Grid interactivo + panel deslizante */}
-      <CajasPageClient cajas={lista} conteoMap={conteoMap} />
+      <CajasPageClient cajas={lista} conteoMap={conteoMap} estadoUsacoMap={estadoUsacoMap} />
     </div>
   )
 }

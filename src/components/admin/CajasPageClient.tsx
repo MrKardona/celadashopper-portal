@@ -41,6 +41,21 @@ const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
 }
 
+const USACO_STYLE: Record<string, { bg: string; color: string; border: string; label: string; emoji: string }> = {
+  'GuiaCreadaColaborador': { bg: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)',  border: 'rgba(255,255,255,0.08)', label: 'Guía creada',                emoji: '🏷️' },
+  'Pre-Alertado':          { bg: 'rgba(99,130,255,0.1)',  color: '#8899ff',                 border: 'rgba(99,130,255,0.2)',   label: 'Pre-alertado para despacho', emoji: '📋' },
+  'RecibidoOrigen':        { bg: 'rgba(99,130,255,0.12)', color: '#8899ff',                 border: 'rgba(99,130,255,0.25)',  label: 'Recibido en bodega Miami',   emoji: '📦' },
+  'IncluidoEnGuia':        { bg: 'rgba(168,85,247,0.12)', color: '#c084fc',                 border: 'rgba(168,85,247,0.25)',  label: 'Incluido en guía de envío',  emoji: '🏷️' },
+  'TransitoInternacional': { bg: 'rgba(245,184,0,0.15)',  color: '#F5B800',                 border: 'rgba(245,184,0,0.3)',    label: 'En tránsito internacional',  emoji: '✈️' },
+  'ProcesoDeAduana':       { bg: 'rgba(251,146,60,0.15)', color: '#fb923c',                 border: 'rgba(251,146,60,0.3)',   label: 'En proceso de aduana',       emoji: '🛃' },
+  'BodegaDestino':         { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'Llegó a Colombia',           emoji: '🇨🇴' },
+  'EnRuta':                { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'En ruta de entrega',         emoji: '🛵' },
+  'En ruta transito':      { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'En camino con transportadora',emoji: '🚚' },
+  'EnTransportadora':      { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'Con transportadora local',   emoji: '📬' },
+  'EntregaFallida':        { bg: 'rgba(239,68,68,0.12)',  color: '#f87171',                 border: 'rgba(239,68,68,0.25)',  label: 'Intento de entrega fallido', emoji: '⚠️' },
+  'Entregado':             { bg: 'rgba(52,211,153,0.15)', color: '#34d399',                 border: 'rgba(52,211,153,0.3)',  label: 'Entregado',                  emoji: '✅' },
+}
+
 export interface CajaResumen {
   id: string
   codigo_interno: string
@@ -58,6 +73,7 @@ export interface CajaResumen {
 interface Props {
   cajas: CajaResumen[]
   conteoMap: Record<string, number>
+  estadoUsacoMap: Record<string, string>
 }
 
 function MetaChip({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
@@ -70,7 +86,7 @@ function MetaChip({ icon: Icon, children }: { icon: React.ElementType; children:
   )
 }
 
-export default function CajasPageClient({ cajas, conteoMap }: Props) {
+export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detalle, setDetalle] = useState<{ caja: CajaDetalle; paquetes: PaqueteCaja[] } | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -119,6 +135,8 @@ export default function CajasPageClient({ cajas, conteoMap }: Props) {
     const count = conteoMap[caja.id] ?? 0
     const s = ESTADO_CAJA_STYLE[caja.estado] ?? { bg: `${tw}0.08)`, color: `${tw}0.5)`, border: `${tw}0.12)` }
     const isSelected = selectedId === caja.id
+    const usacoEstado = estadoUsacoMap[caja.id]
+    const usacoStyle = usacoEstado ? (USACO_STYLE[usacoEstado] ?? null) : null
 
     return (
       <div
@@ -182,6 +200,18 @@ export default function CajasPageClient({ cajas, conteoMap }: Props) {
             )}
           </div>
         </div>
+
+        {/* Banner USACO — estado actual del envío */}
+        {usacoStyle && (
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
+              style={{ background: usacoStyle.bg, color: usacoStyle.color, border: `1px solid ${usacoStyle.border}` }}>
+              <span className="text-sm leading-none">{usacoStyle.emoji}</span>
+              <span className="flex-1">{usacoStyle.label}</span>
+              <span className="text-[10px] opacity-60 font-normal">USACO</span>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
