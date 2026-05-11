@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { insertarEventoTracking } from '@/lib/usaco/tracking'
 
 function getSupabaseAdmin() {
   return createClient(
@@ -140,6 +141,8 @@ export async function POST(req: NextRequest, { params }: Props) {
     descripcion: descripcionEvento,
     ubicacion: 'Miami, USA',
   }).then(() => {/* ok */}, (e) => console.error('[caja+paquete] evento:', e))
+
+  await insertarEventoTracking(admin, paquete.id, 'procesado', 'celada')
 
   return NextResponse.json({
     ok: true,

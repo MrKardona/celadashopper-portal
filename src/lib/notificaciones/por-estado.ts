@@ -10,6 +10,7 @@ import {
 } from '@/lib/email/notificaciones'
 import { calcularTarifa } from '@/lib/tarifas/calcular'
 import type { ResultadoEmail } from '@/lib/email/transporter'
+import { insertarEventoTracking } from '@/lib/usaco/tracking'
 import sharp from 'sharp'
 
 function getSupabase() {
@@ -30,6 +31,13 @@ const ESTADO_A_EVENTO: Record<string, string> = {
   entregado: 'paquete_entregado',
   retenido: 'paquete_retenido',
   devuelto: 'paquete_devuelto',
+}
+
+// Eventos de tracking cliente (paquetes_tracking) por estado
+const ESTADO_A_TRACKING: Record<string, string> = {
+  recibido_usa:    'recibido_miami',
+  en_bodega_local: 'listo_entrega',
+  entregado:       'entregado',
 }
 
 const BODEGA_LABELS: Record<string, string> = {
@@ -469,6 +477,12 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
       }
     }
     // Si !puedeEnviarWa: no hay template aprobado → solo email, sin WA
+
+    // Insertar evento en timeline de tracking visible al cliente
+    const trackingEvento = ESTADO_A_TRACKING[estadoNuevo]
+    if (trackingEvento) {
+      await insertarEventoTracking(ctx.supabase, paqueteId, trackingEvento, 'celada')
+    }
 
     console.log(`[notificarCambioEstado] paquete=${paqueteId} estado=${estadoNuevo} via=${viaUsada} enviado=${envioOk} fotos=${fotosEnviadas}`)
 

@@ -9,6 +9,7 @@ import {
 import { fechaHoraLarga } from '@/lib/fecha'
 import { FadeUp, FadeUpScroll } from '@/components/portal/AnimateIn'
 import { FotoGaleria } from '@/components/portal/FotoGaleria'
+import { TrackingTimeline } from '@/components/paquetes/TrackingTimeline'
 
 const ESTADOS_ORDEN: EstadoPaquete[] = [
   'reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio',
@@ -37,10 +38,11 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [paqueteRes, fotosRes, eventosRes] = await Promise.all([
+  const [paqueteRes, fotosRes, eventosRes, trackingRes] = await Promise.all([
     supabase.from('paquetes').select('*').eq('id', id).eq('cliente_id', user!.id).eq('visible_cliente', true).maybeSingle(),
     supabase.from('fotos_paquetes').select('*').eq('paquete_id', id).order('created_at'),
     supabase.from('eventos_paquete').select('*').eq('paquete_id', id).order('created_at', { ascending: false }),
+    supabase.from('paquetes_tracking').select('id, evento, descripcion, fecha, fuente').eq('paquete_id', id).order('fecha'),
   ])
 
   const paquete = paqueteRes.data
@@ -48,6 +50,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
 
   paquete.fotos_paquetes  = fotosRes.data ?? []
   paquete.eventos_paquete = eventosRes.data ?? []
+  const trackingEventos   = trackingRes.data ?? []
 
   // Prev / next navigation (solo paquetes del mismo cliente, visibles)
   const [prevRes, nextRes] = await Promise.all([
@@ -185,9 +188,9 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
             {paquete.tracking_usaco && (
               <div className="flex items-start gap-3 p-3 rounded-xl"
                 style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.18)' }}>
-                <span className="text-base mt-0.5">🚛</span>
+                <span className="text-base mt-0.5">✈️</span>
                 <div>
-                  <dt className="text-xs font-medium" style={{ color: '#F5B800' }}>Aguja de transporte · USACO</dt>
+                  <dt className="text-xs font-medium" style={{ color: '#F5B800' }}>Guía de envío internacional</dt>
                   <dd className="text-sm font-mono font-semibold text-white mt-0.5">{paquete.tracking_usaco}</dd>
                 </div>
               </div>
@@ -220,6 +223,18 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
               </div>
             )}
 
+          </div>
+        </div>
+      </FadeUpScroll>
+
+      {/* Seguimiento del paquete */}
+      <FadeUpScroll delay={0.05}>
+        <div className="glass-card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+            <h2 className="font-semibold text-white">📍 Seguimiento del paquete</h2>
+          </div>
+          <div className="p-5">
+            <TrackingTimeline eventos={trackingEventos} />
           </div>
         </div>
       </FadeUpScroll>
