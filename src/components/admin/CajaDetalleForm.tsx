@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type EstadoPaquete } from '@/types'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
   reportado:         { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.7)', border: 'rgba(255,255,255,0.12)' },
@@ -99,7 +100,6 @@ export default function CajaDetalleForm({
   const [modalDespachar, setModalDespachar] = useState(false)
   const [modalEliminar, setModalEliminar] = useState(false)
   const [modalEditar, setModalEditar] = useState(false)
-  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null)
 
   const editable = true // admin siempre puede agregar/quitar paquetes
   const pesoTotal = paquetes.reduce((s, p) => s + Number(p.peso_libras ?? 0), 0)
@@ -407,21 +407,7 @@ export default function CajaDetalleForm({
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
 
                   {/* Thumbnail */}
-                  {p.foto_url ? (
-                    <img
-                      src={p.foto_url}
-                      alt={p.descripcion}
-                      className="flex-shrink-0 rounded-lg object-cover transition-opacity hover:opacity-80"
-                      style={{ width: 52, height: 52, border: `1px solid ${tw}0.12)`, cursor: 'zoom-in' }}
-                      onClick={e => { e.stopPropagation(); setFotoAmpliada(p.foto_url!) }}
-                      title="Ver imagen completa"
-                    />
-                  ) : (
-                    <span className="flex-shrink-0 flex items-center justify-center rounded-lg"
-                      style={{ width: 52, height: 52, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
-                      <Package className="h-5 w-5" style={{ color: `${tw}0.2)` }} />
-                    </span>
-                  )}
+                  <FotoThumb url={p.foto_url} alt={p.descripcion} width={52} height={52} />
 
                   {/* Main info */}
                   <div className="flex-1 min-w-0 space-y-1">
@@ -529,31 +515,6 @@ export default function CajaDetalleForm({
           onClose={() => setModalEditar(false)} onDone={() => { setModalEditar(false); router.refresh(); refrescar() }} />
       )}
 
-      {/* Lightbox */}
-      {fotoAmpliada && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
-          onClick={() => setFotoAmpliada(null)}
-        >
-          <button
-            className="absolute top-4 right-4 p-2 rounded-full z-10 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            onClick={() => setFotoAmpliada(null)}
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <img
-            src={fotoAmpliada}
-            alt="Foto del paquete"
-            className="rounded-xl object-contain shadow-2xl"
-            style={{ maxHeight: '88vh', maxWidth: '90vw', cursor: 'default' }}
-            onClick={e => e.stopPropagation()}
-          />
-        </div>
-      )}
     </div>
   )
 }
@@ -1024,7 +985,6 @@ function PaquetesDisponibles({
   const [incluirOtras, setIncluirOtras] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
   const [agregandoId, setAgregandoId] = useState<string | null>(null)
-  const [fotoAmpliadaDisp, setFotoAmpliadaDisp] = useState<string | null>(null)
 
   async function cargar() {
     setCargando(true)
@@ -1130,32 +1090,6 @@ function PaquetesDisponibles({
         )}
       </div>
 
-      {/* Lightbox disponibles */}
-      {fotoAmpliadaDisp && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
-          onClick={() => setFotoAmpliadaDisp(null)}
-        >
-          <button
-            className="absolute top-4 right-4 p-2 rounded-full z-10 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            onClick={() => setFotoAmpliadaDisp(null)}
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <img
-            src={fotoAmpliadaDisp}
-            alt="Foto del paquete"
-            className="rounded-xl object-contain shadow-2xl"
-            style={{ maxHeight: '88vh', maxWidth: '90vw', cursor: 'default' }}
-            onClick={e => e.stopPropagation()}
-          />
-        </div>
-      )}
-
       {/* Lista */}
       <div className="max-h-[420px] overflow-y-auto">
         {cargando ? (
@@ -1189,21 +1123,7 @@ function PaquetesDisponibles({
                 onMouseEnter={e => (e.currentTarget.style.background = `${tw}0.03)`)}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                 {/* Miniatura */}
-                {p.foto_url ? (
-                  <img
-                    src={p.foto_url}
-                    alt={p.descripcion}
-                    className="flex-shrink-0 rounded-lg object-cover transition-opacity hover:opacity-80"
-                    style={{ width: 44, height: 44, border: `1px solid ${tw}0.12)`, cursor: 'zoom-in' }}
-                    onClick={e => { e.stopPropagation(); setFotoAmpliadaDisp(p.foto_url) }}
-                    title="Ver imagen completa"
-                  />
-                ) : (
-                  <span className="flex-shrink-0 flex items-center justify-center rounded-lg"
-                    style={{ width: 44, height: 44, background: `${tw}0.04)`, border: `1px solid ${tw}0.08)` }}>
-                    <Package className="h-4 w-4" style={{ color: bodegaDistinta ? '#fbbf24' : `${tw}0.25)` }} />
-                  </span>
-                )}
+                <FotoThumb url={p.foto_url} alt={p.descripcion} width={44} height={44} />
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm truncate ${p.cliente ? 'font-medium text-white' : ''}`}
                     style={!p.cliente ? { color: '#fbbf24', fontStyle: 'italic', fontWeight: 500 } : undefined}>

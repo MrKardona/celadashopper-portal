@@ -6,6 +6,7 @@ import { Package, PlusCircle, ChevronRight } from 'lucide-react'
 import { CATEGORIA_LABELS, type CategoriaProducto } from '@/types'
 import { FadeUp, FadeUpScroll, StaggerGridScroll, StaggerItem } from '@/components/portal/AnimateIn'
 import { fechaCorta } from '@/lib/fecha'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const PASO_ESTADOS: Record<string, number> = {
   reportado: 0,
@@ -226,19 +227,7 @@ function PaqueteCard({ paquete }: { paquete: any }) {
 
             {/* Thumbnail + chevron */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {thumbUrl ? (
-                <img
-                  src={thumbUrl}
-                  alt={paquete.descripcion}
-                  className="rounded-xl object-cover flex-shrink-0"
-                  style={{ width: 52, height: 52, border: `1px solid ${tw}0.1)` }}
-                />
-              ) : (
-                <div className="rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ width: 52, height: 52, background: `${tw}0.04)`, border: `1px solid ${tw}0.07)` }}>
-                  <Package className="h-5 w-5" style={{ color: `${tw}0.15)` }} />
-                </div>
-              )}
+              <FotoThumb url={thumbUrl} alt={paquete.descripcion} width={52} height={52} radius="0.75rem" />
               <ChevronRight className="h-5 w-5 transition-colors group-hover:text-yellow-300"
                 style={{ color: `${tw}0.2)` }} />
             </div>

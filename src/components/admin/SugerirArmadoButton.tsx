@@ -6,6 +6,7 @@ import {
   Sparkles, X, Loader2, Box, Package, AlertCircle, CheckCircle2,
   DollarSign, MapPin,
 } from 'lucide-react'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const tw = 'rgba(255,255,255,'
 
@@ -362,21 +363,7 @@ export default function SugerirArmadoButton() {
                                     <li key={p.id} className="px-4 py-2 text-xs flex items-center gap-2.5"
                                       style={{ borderTop: pi > 0 ? `1px solid ${tw}0.04)` : undefined }}>
                                       {/* Miniatura del producto */}
-                                      {p.foto_url ? (
-                                        <img
-                                          src={p.foto_url}
-                                          alt={p.descripcion}
-                                          className="flex-shrink-0 rounded object-cover"
-                                          style={{ width: 28, height: 28, border: `1px solid ${tw}0.1)` }}
-                                        />
-                                      ) : (
-                                        <span
-                                          className="flex-shrink-0 flex items-center justify-center rounded"
-                                          style={{ width: 28, height: 28, background: `${tw}0.05)`, border: `1px solid ${tw}0.08)` }}
-                                        >
-                                          <Package className="h-3.5 w-3.5" style={{ color: `${tw}0.25)` }} />
-                                        </span>
-                                      )}
+                                      <FotoThumb url={p.foto_url} alt={p.descripcion} width={28} height={28} />
                                       {/* Nombre cliente */}
                                       <span className="font-medium truncate w-32 flex-shrink-0"
                                         style={{ color: p.cliente_nombre ? `${tw}0.85)` : '#F5B800' }}>

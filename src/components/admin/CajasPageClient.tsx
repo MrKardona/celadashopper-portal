@@ -13,6 +13,7 @@ import { es } from 'date-fns/locale'
 import { CATEGORIA_LABELS, ESTADO_LABELS, type CategoriaProducto, type EstadoPaquete } from '@/types'
 import EliminarCajaIconButton from '@/components/admin/EliminarCajaIconButton'
 import type { CajaDetalle, PaqueteCaja } from '@/components/admin/CajaDetalleForm'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const tw = 'rgba(255,255,255,'
 
@@ -476,15 +477,7 @@ function PanelDetalle({
                     onMouseLeave={e => (e.currentTarget.style.background = `${tw}0.03)`)}
                   >
                     {/* Foto o ícono */}
-                    <div className="h-10 w-10 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
-                      style={{ background: `${tw}0.06)` }}>
-                      {p.foto_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.foto_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <Package className="h-4 w-4" style={{ color: `${tw}0.25)` }} />
-                      )}
-                    </div>
+                    <FotoThumb url={p.foto_url} alt={p.descripcion} width={40} height={40} />
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
