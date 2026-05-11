@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import {
   ScanBarcode, Search, CheckCircle2, AlertCircle, Package,
   Scale, Loader2, X, ClipboardList, Camera, ImageIcon, Video, VideoOff,
-  PackageOpen, Sparkles,
+  PackageOpen, Sparkles, UserPlus, ChevronDown,
 } from 'lucide-react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
@@ -159,6 +159,12 @@ export default function RecibirForm() {
   const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; descripcion: string | null; analizado: boolean }>({ tracking: null, descripcion: null, analizado: false })
   const [analizandoOcrNormal, setAnalizandoOcrNormal] = useState(false)
   const [descripcionOcr, setDescripcionOcr] = useState('')
+
+  // --- Panel de registro de cliente nuevo ---
+  const [mostrarRegistro, setMostrarRegistro] = useState(false)
+  const [formRegistro, setFormRegistro] = useState({ nombre: '', email: '', whatsapp: '', ciudad: '' })
+  const [registrando, setRegistrando] = useState(false)
+  const [clienteRegistrado, setClienteRegistrado] = useState<{ nombre_completo: string; email: string; numero_casilla: string } | null>(null)
 
   // --- OCR con Claude Vision (modo manual) ---
   const [analizandoOCR, setAnalizandoOCR] = useState(false)
@@ -516,6 +522,10 @@ export default function RecibirForm() {
     setNombreEtiqueta(null)
     setOcrNormal({ tracking: null, descripcion: null, analizado: false })
     setDescripcionOcr('')
+    setMostrarRegistro(false)
+    setFormRegistro({ nombre: '', email: '', whatsapp: '', ciudad: '' })
+    setRegistrando(false)
+    setClienteRegistrado(null)
     detenerCamaraFoto()
     setTimeout(() => inputRef.current?.focus(), 50)
   }
@@ -731,6 +741,61 @@ export default function RecibirForm() {
       limpiar()
     } finally {
       setGuardandoManual(false)
+    }
+  }
+
+  // ── Registrar cliente nuevo desde el panel de recepción ──────────────────
+  async function handleRegistrarCliente(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formRegistro.nombre.trim() || !formRegistro.email.trim()) return
+    setRegistrando(true)
+    try {
+      const res = await fetch('/api/admin/clientes/crear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre_completo: formRegistro.nombre.trim(),
+          email: formRegistro.email.trim().toLowerCase(),
+          whatsapp: formRegistro.whatsapp.trim() || undefined,
+          ciudad: formRegistro.ciudad.trim() || undefined,
+        }),
+      })
+      const data = await res.json() as {
+        ok?: boolean
+        error?: string
+        cliente?: { id: string; nombre_completo: string; email: string; numero_casilla: string; whatsapp: string | null; telefono: string | null; ciudad: string | null }
+        numero_casilla?: string
+      }
+
+      if (res.status === 409 && data.cliente) {
+        // Ya existe — lo seleccionamos directamente
+        setClienteManual(data.cliente)
+        setClientesSugeridos([])
+        setErrorBusqueda('')
+        setMostrarRegistro(false)
+        setModoManual(true)
+        return
+      }
+
+      if (!res.ok || !data.ok || !data.cliente) {
+        setErrorBusqueda(data.error ?? 'Error al crear el cliente')
+        return
+      }
+
+      setClienteRegistrado({
+        nombre_completo: data.cliente.nombre_completo,
+        email: data.cliente.email,
+        numero_casilla: data.numero_casilla ?? data.cliente.numero_casilla,
+      })
+      setMostrarRegistro(false)
+      setErrorBusqueda('')
+      // Cargar el nuevo cliente en modo manual para recibir un paquete de inmediato
+      setClienteManual(data.cliente)
+      setClientesSugeridos([])
+    } catch {
+      setErrorBusqueda('Error de conexión al registrar el cliente')
+    } finally {
+      setRegistrando(false)
     }
   }
 
@@ -1269,6 +1334,8 @@ export default function RecibirForm() {
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               {errorBusqueda}
             </div>
+
+            {/* Card: recibir sin asignar */}
             <div className="rounded-xl p-4 space-y-2"
               style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.2)' }}>
               <p className="text-sm font-medium" style={{ color: '#F5B800' }}>¿El paquete llegó sin casillero registrado?</p>
@@ -1287,6 +1354,130 @@ export default function RecibirForm() {
                 Recibir sin asignar
               </button>
             </div>
+
+            {/* Card: registrar cliente nuevo */}
+            <div className="rounded-xl overflow-hidden"
+              style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <button
+                type="button"
+                onClick={() => setMostrarRegistro(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 transition-colors"
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(52,211,153,0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 flex-shrink-0" style={{ color: '#34d399' }} />
+                  <div className="text-left">
+                    <p className="text-sm font-semibold" style={{ color: '#34d399' }}>¿Cliente nuevo? Regístralo aquí</p>
+                    <p className="text-xs" style={{ color: 'rgba(52,211,153,0.6)' }}>Crea su cuenta y asígnale casillero en segundos</p>
+                  </div>
+                </div>
+                <ChevronDown className="h-4 w-4 flex-shrink-0 transition-transform"
+                  style={{ color: 'rgba(52,211,153,0.5)', transform: mostrarRegistro ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+              </button>
+
+              {mostrarRegistro && (
+                <form onSubmit={handleRegistrarCliente}
+                  className="px-4 pb-4 space-y-3"
+                  style={{ borderTop: '1px solid rgba(52,211,153,0.12)' }}>
+                  <p className="pt-3 text-[11px]" style={{ color: 'rgba(52,211,153,0.55)' }}>
+                    Se creará una cuenta en el portal. El cliente recibirá un enlace para configurar su contraseña.
+                  </p>
+
+                  {/* Nombre completo */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      Nombre completo <span style={{ color: '#f87171' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formRegistro.nombre}
+                      onChange={e => setFormRegistro(p => ({ ...p, nombre: e.target.value }))}
+                      placeholder="Ej: María García López"
+                      required
+                      className="glass-input w-full px-3 py-2 text-sm rounded-xl"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      Email <span style={{ color: '#f87171' }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={formRegistro.email}
+                      onChange={e => setFormRegistro(p => ({ ...p, email: e.target.value }))}
+                      placeholder="correo@ejemplo.com"
+                      required
+                      className="glass-input w-full px-3 py-2 text-sm rounded-xl"
+                    />
+                  </div>
+
+                  {/* WhatsApp + Ciudad en fila */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>WhatsApp</label>
+                      <input
+                        type="tel"
+                        value={formRegistro.whatsapp}
+                        onChange={e => setFormRegistro(p => ({ ...p, whatsapp: e.target.value }))}
+                        placeholder="+57 300 000 0000"
+                        className="glass-input w-full px-3 py-2 text-sm rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>Ciudad</label>
+                      <input
+                        type="text"
+                        value={formRegistro.ciudad}
+                        onChange={e => setFormRegistro(p => ({ ...p, ciudad: e.target.value }))}
+                        placeholder="Medellín"
+                        className="glass-input w-full px-3 py-2 text-sm rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={registrando || !formRegistro.nombre.trim() || !formRegistro.email.trim()}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-opacity disabled:opacity-40"
+                    style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.35)' }}
+                  >
+                    {registrando
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Registrando...</>
+                      : <><UserPlus className="h-4 w-4" /> Crear cliente y asignar casillero</>}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Confirmación de cliente registrado */}
+            {clienteRegistrado && (
+              <div className="rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
+                style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)' }}>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" style={{ color: '#34d399' }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#34d399' }}>¡Cliente registrado!</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(52,211,153,0.7)' }}>{clienteRegistrado.email}</p>
+                  </div>
+                  <div className="ml-auto flex-shrink-0 text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.5)' }}>Casillero</p>
+                    <p className="font-mono font-bold text-lg leading-tight" style={{ color: '#34d399' }}>{clienteRegistrado.numero_casilla}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setModoManual(true) }}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold"
+                  style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+                >
+                  <Package className="h-4 w-4" />
+                  Recibir paquete para {clienteRegistrado.nombre_completo.split(' ')[0]}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
