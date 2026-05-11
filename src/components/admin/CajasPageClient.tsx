@@ -134,13 +134,17 @@ export default function CajasPageClient({ cajas, conteoMap }: Props) {
 
         <div className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-mono text-sm font-bold text-white">{caja.codigo_interno}</p>
-              {caja.tracking_usaco && (
-                <p className="text-xs font-mono mt-0.5" style={{ color: '#F5B800' }}>USACO: {caja.tracking_usaco}</p>
+            <div className="min-w-0 flex-1">
+              {caja.tracking_usaco ? (
+                <>
+                  <p className="font-mono text-base font-bold text-white leading-tight">{caja.tracking_usaco}</p>
+                  <p className="font-mono text-[11px] mt-0.5 truncate" style={{ color: `${tw}0.3)` }}>{caja.codigo_interno}</p>
+                </>
+              ) : (
+                <p className="font-mono text-sm font-bold text-white">{caja.codigo_interno}</p>
               )}
             </div>
-            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap mr-8"
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 mr-8"
               style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
               {s.label}
             </span>
