@@ -64,7 +64,7 @@ const EVENTO_A_TEMPLATE: Record<string, {
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
   paquete_listo_recoger: {
-    name: 'cs_listo_recoger_v3_pending', // TODO: actualizar sufijo tras aprobación Meta
+    name: 'cs_listo_recoger_v3_v8hd3b',
     // "🎉 ¡Hola {{1}}! Tu paquete llegó y está listo\n📦 *{{2}}*\n🛵 Te vamos a programar la entrega..."
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
