@@ -1,11 +1,13 @@
+﻿export const dynamic = 'force-dynamic'
+
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import PaquetesTablaClient from '@/components/admin/PaquetesTablaClient'
 
 const ESTADO_LABELS_LOCAL: Record<string, string> = {
-  reportado: 'Reportado', recibido_usa: 'Recibido USA', en_consolidacion: 'En consolidación',
-  listo_envio: 'Listo envío', en_transito: 'En tránsito', en_colombia: 'En Colombia',
+  reportado: 'Reportado', recibido_usa: 'Recibido USA', en_consolidacion: 'En consolidaciÃ³n',
+  listo_envio: 'Listo envÃ­o', en_transito: 'En trÃ¡nsito', en_colombia: 'En Colombia',
   en_bodega_local: 'En bodega local', en_camino_cliente: 'En camino', entregado: 'Entregado',
   retenido: 'Retenido', devuelto: 'Devuelto',
 }
@@ -18,7 +20,7 @@ const ESTADOS = [
 
 const BODEGAS = ['medellin', 'bogota', 'barranquilla']
 const BODEGA_LABELS: Record<string, string> = {
-  medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
+  medellin: 'MedellÃ­n', bogota: 'BogotÃ¡', barranquilla: 'Barranquilla',
 }
 
 const tw = 'rgba(255,255,255,'
@@ -91,7 +93,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     if (thumb) fotosMap[pid] = thumb.url
   }
 
-  // Build consolidacionMap: cliente_id → count of packages in US states
+  // Build consolidacionMap: cliente_id â†’ count of packages in US states
   const consolidacionMap: Record<string, number> = {}
   for (const row of (consolidacionUsaRes.data ?? []) as { cliente_id: string | null }[]) {
     if (!row.cliente_id) continue
@@ -119,7 +121,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   if (cliente_id) {
     const perfilFiltrado = Object.values(perfilesMap).find((_, i) => Object.keys(perfilesMap)[i] === cliente_id)
       ?? (await supabase.from('perfiles').select('nombre_completo, numero_casilla').eq('id', cliente_id).single()).data
-    if (perfilFiltrado) nombreCliente = `${perfilFiltrado.nombre_completo} · ${perfilFiltrado.numero_casilla}`
+    if (perfilFiltrado) nombreCliente = `${perfilFiltrado.nombre_completo} Â· ${perfilFiltrado.numero_casilla}`
   }
 
   return (
@@ -129,12 +131,12 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-white">Paquetes</h1>
           <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>
             {filtrados.length} resultado{filtrados.length !== 1 ? 's' : ''}
-            {nombreCliente && <span style={{ color: '#F5B800' }}> · {nombreCliente}</span>}
+            {nombreCliente && <span style={{ color: '#F5B800' }}> Â· {nombreCliente}</span>}
           </p>
         </div>
         {cliente_id && (
           <Link href="/admin/clientes" className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ color: `${tw}0.6)`, border: `1px solid ${tw}0.12)` }}>
-            ← Volver a clientes
+            â† Volver a clientes
           </Link>
         )}
       </div>
@@ -160,13 +162,13 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
         </select>
         <select name="asignacion" defaultValue={asignacion ?? ''} className={selectClass}>
           <option value="">Asignados y sin asignar</option>
-          <option value="sin_asignar">⏳ Solo sin asignar</option>
-          <option value="asignados">✓ Solo asignados</option>
+          <option value="sin_asignar">â³ Solo sin asignar</option>
+          <option value="asignados">âœ“ Solo asignados</option>
         </select>
         <select name="consolidacion" defaultValue={consolidacion ?? ''} className={selectClass}>
-          <option value="">Consolidación: cualquiera</option>
-          <option value="requiere">📦 Requiere consolidar</option>
-          <option value="despachable">🚀 Listo para despachar</option>
+          <option value="">ConsolidaciÃ³n: cualquiera</option>
+          <option value="requiere">ðŸ“¦ Requiere consolidar</option>
+          <option value="despachable">ðŸš€ Listo para despachar</option>
         </select>
         <button type="submit" className="btn-gold px-4 py-2 rounded-xl text-sm font-semibold">Filtrar</button>
         {(estado || bodega || q || asignacion || consolidacion || cliente_id) && (

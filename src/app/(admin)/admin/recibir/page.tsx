@@ -1,3 +1,5 @@
+﻿export const dynamic = 'force-dynamic'
+
 // src/app/(admin)/admin/recibir/page.tsx
 import RecibirForm from './RecibirForm'
 import { ScanBarcode } from 'lucide-react'
