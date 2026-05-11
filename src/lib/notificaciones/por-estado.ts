@@ -64,7 +64,7 @@ const EVENTO_A_TEMPLATE: Record<string, {
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
   paquete_listo_recoger: {
-    name: 'cs_listo_recoger_v4', // UTILITY — creado vía Meta API directo, sin sufijo Kommo
+    name: 'cs_listo_recoger_v2_04nkhl', // UTILITY — aprobado
     // "🎉 ¡Hola {{1}}! Tu paquete llegó y está listo\n📦 *{{2}}*\n🛵 Te vamos a programar la entrega..."
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
