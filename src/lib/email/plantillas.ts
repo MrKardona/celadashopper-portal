@@ -442,7 +442,7 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
     ${vars.tracking_usaco ? `
       <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;margin:20px 0;">
         <p style="color:${GOLD};font-size:10px;margin:0 0 6px 0;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-          &#128666; Guía de transporte (USACO)
+          &#128666; Guía de transporte
         </p>
         <p style="color:${GOLD};font-size:22px;font-weight:bold;margin:0 0 6px 0;font-family:'Courier New',monospace;letter-spacing:2px;">${vars.tracking_usaco}</p>
         <p style="color:${TEXT_MUTE};font-size:11px;margin:0;">Usa este número para rastrear el paquete en la transportadora local.</p>
@@ -485,7 +485,7 @@ export function plantillaPaqueteListoRecoger(vars: VariablesPlantilla): { subjec
     ${vars.tracking_usaco ? `
       <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;margin:20px 0;">
         <p style="color:${GOLD};font-size:10px;margin:0 0 6px 0;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-          &#128666; Guía USACO
+          &#128666; Guía
         </p>
         <p style="color:${GOLD};font-size:22px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:2px;">${vars.tracking_usaco}</p>
       </div>
@@ -539,7 +539,7 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
       ${vars.tracking_origen ? bloqueDatos('&#128666; Guía del courier', vars.tracking_origen) : ''}
-      ${vars.tracking_usaco ? bloqueDatos('&#128666; Guía USACO', vars.tracking_usaco) : ''}
+      ${vars.tracking_usaco ? bloqueDatos('&#128666; Guía', vars.tracking_usaco) : ''}
       ${vars.bodega ? bloqueDatos('&#128205; Bodega', vars.bodega) : ''}
       ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
@@ -624,7 +624,7 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
     ${vars.tracking_usaco ? `
       <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;margin:20px 0;">
         <p style="color:${GOLD};font-size:10px;margin:0 0 6px 0;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-          &#128666; Guía USACO
+          &#128666; Guía
         </p>
         <p style="color:${GOLD};font-size:22px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:2px;">${vars.tracking_usaco}</p>
       </div>

@@ -136,7 +136,7 @@ export async function enviarEmailCostoCalculado(d: DatosEmail): Promise<Resultad
   return enviarEmail({ to: d.emailDestino, subject: p.subject, html: p.html, text: p.text })
 }
 
-// ─── Tracking USACO actualizado ─────────────────────────────────────────────
+// ─── Tracking actualizado ────────────────────────────────────────────────────
 export async function enviarEmailTrackingActualizado(d: DatosEmail): Promise<ResultadoEmail> {
   const vars = buildVars(d)
   const p = plantillaTrackingActualizado(vars)
