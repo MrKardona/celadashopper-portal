@@ -88,9 +88,20 @@ export async function enviarMagicLink(email: string): Promise<{ error: string | 
 
   if (error) {
     console.error('[enviarMagicLink]', error.message)
-    // No exponer el mensaje exacto si el email no existe (prevenir enumeración)
-    if (error.message.toLowerCase().includes('signups not allowed')) {
-      return { error: 'Este correo no tiene una cuenta registrada. Contacta al administrador.' }
+    const msg = error.message.toLowerCase()
+    // Detectar que el usuario no existe → abrir formulario de registro
+    if (
+      msg.includes('signups not allowed') ||
+      msg.includes('signup_disabled') ||
+      msg.includes('user not found') ||
+      msg.includes('no user found') ||
+      msg.includes('invalid login credentials')
+    ) {
+      return { error: 'Este correo no tiene una cuenta registrada. Puedes crear una.' }
+    }
+    // Rate limit
+    if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('after')) {
+      return { error: 'Demasiados intentos. Espera unos minutos e intenta de nuevo.' }
     }
     return { error: 'No se pudo enviar el link. Intenta de nuevo.' }
   }

@@ -123,17 +123,31 @@ function LoginForm() {
     if (submitting.current) return
     submitting.current = true
     setLoading(true); setError('')
-    const { error } = await enviarMagicLink(email)
-    if (error) {
-      if (error.includes('no tiene una cuenta')) {
-        setModoRegistro(true)
-        setFormReg({ nombre: '', whatsapp: '', ciudad: '' })
-      } else {
-        setError(error)
+    try {
+      const { error } = await enviarMagicLink(email)
+      if (error) {
+        // Cualquier error que indique que el usuario no está registrado → mostrar formulario
+        const esNoRegistrado =
+          error.includes('no tiene una cuenta') ||
+          error.includes('Puedes crear una') ||
+          error.includes('not registered') ||
+          error.includes('user not found') ||
+          error.includes('No user found')
+        if (esNoRegistrado) {
+          setModoRegistro(true)
+          setFormReg({ nombre: '', whatsapp: '', ciudad: '' })
+        } else {
+          setError(error)
+        }
+        return
       }
-      setLoading(false); submitting.current = false; return
+      setEnviado(true)
+    } catch {
+      setError('No se pudo conectar. Verifica tu conexión e intenta de nuevo.')
+    } finally {
+      setLoading(false)
+      submitting.current = false
     }
-    setEnviado(true); setLoading(false); submitting.current = false
   }
 
   // ── Registrar cliente nuevo ───────────────────────────────────────────────
