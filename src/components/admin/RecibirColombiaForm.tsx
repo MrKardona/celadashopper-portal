@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ScanBarcode, Search, Package, CheckCircle2, AlertCircle, Loader2,
-  X, MapPin, MessageCircle, Camera, PackageCheck, Clock,
+  X, MapPin, MessageCircle, Camera, PackageCheck, Clock, ChevronDown,
 } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import HistorialRecibidasColombia from '@/components/admin/HistorialRecibidasColombia'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const tw = 'rgba(255,255,255,'
 
@@ -55,10 +56,26 @@ interface CajaPendiente {
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
   recibido_usa:      { bg: 'rgba(99,130,255,0.12)', color: '#8899ff',  border: 'rgba(99,130,255,0.3)' },
+  en_consolidacion:  { bg: 'rgba(245,184,0,0.10)',  color: '#F5B800',  border: 'rgba(245,184,0,0.25)' },
+  listo_envio:       { bg: 'rgba(168,85,247,0.12)', color: '#c084fc',  border: 'rgba(168,85,247,0.3)' },
+  en_transito:       { bg: 'rgba(251,146,60,0.12)', color: '#fb923c',  border: 'rgba(251,146,60,0.3)' },
   en_camino_colombia:{ bg: 'rgba(168,85,247,0.12)', color: '#c084fc',  border: 'rgba(168,85,247,0.3)' },
   en_bodega_local:   { bg: 'rgba(52,211,153,0.12)', color: '#34d399',  border: 'rgba(52,211,153,0.3)' },
   en_camino_cliente: { bg: 'rgba(245,184,0,0.12)',  color: '#F5B800',  border: 'rgba(245,184,0,0.3)'  },
   entregado:         { bg: 'rgba(52,211,153,0.18)', color: '#34d399',  border: 'rgba(52,211,153,0.4)' },
+}
+
+interface PaqueteExpansion {
+  id: string
+  tracking_casilla: string | null
+  descripcion: string
+  categoria: string
+  peso_libras: number | string | null
+  valor_declarado: number | string | null
+  estado: string
+  bodega_destino: string
+  foto_url: string | null
+  cliente: { nombre_completo: string; numero_casilla: string | null } | null
 }
 
 function estadoBadgeStyle(estado: string): React.CSSProperties {
@@ -84,6 +101,8 @@ export default function RecibirColombiaForm() {
   const [resultado, setResultado] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const [scannerAbierto, setScannerAbierto] = useState(false)
   const [cajasPendientes, setCajasPendientes] = useState<CajaPendiente[]>([])
+  const [expandidoId, setExpandidoId] = useState<string | null>(null)
+  const [paquetesCargados, setPaquetesCargados] = useState<Record<string, PaqueteExpansion[] | 'loading' | 'error'>>({})
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -176,6 +195,27 @@ export default function RecibirColombiaForm() {
     setError('')
     setResultado(null)
     inputRef.current?.focus()
+  }
+
+  async function cargarPaquetes(id: string) {
+    if (paquetesCargados[id] && paquetesCargados[id] !== 'error') return
+    setPaquetesCargados(prev => ({ ...prev, [id]: 'loading' }))
+    try {
+      const res = await fetch(`/api/admin/cajas/${id}`)
+      const data = await res.json() as { paquetes?: PaqueteExpansion[] }
+      setPaquetesCargados(prev => ({ ...prev, [id]: data.paquetes ?? [] }))
+    } catch {
+      setPaquetesCargados(prev => ({ ...prev, [id]: 'error' }))
+    }
+  }
+
+  function toggleExpandir(id: string) {
+    if (expandidoId === id) {
+      setExpandidoId(null)
+    } else {
+      setExpandidoId(id)
+      cargarPaquetes(id)
+    }
   }
 
   async function abrirScanner() {
@@ -481,53 +521,133 @@ export default function RecibirColombiaForm() {
           <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
             <Clock className="h-4 w-4" style={{ color: '#F5B800' }} />
             <h3 className="text-sm font-semibold text-white">Cajas pendientes por recibir</h3>
+            <p className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>— clic en una caja para ver su contenido</p>
             <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold"
               style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
               {cajasPendientes.length}
             </span>
           </div>
-          <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          <div>
             {cajasPendientes.map(c => {
               const dias = c.fecha_despacho
                 ? Math.floor((Date.now() - new Date(c.fecha_despacho).getTime()) / 86400000)
                 : null
+              const expandido = expandidoId === c.id
+              const pkgs = paquetesCargados[c.id]
+
               return (
-                <div key={c.id} className="flex items-center gap-3 px-5 py-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold font-mono text-white">
-                        {c.codigo_interno ?? c.tracking_usaco ?? c.id.slice(0, 8)}
+                <div key={c.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  {/* Fila cabecera — clic para expandir */}
+                  <div
+                    className="flex items-center gap-3 px-5 py-3 cursor-pointer select-none transition-colors"
+                    onClick={() => toggleExpandir(c.id)}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <ChevronDown
+                      className="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                      style={{ color: `${tw}0.3)`, transform: expandido ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold font-mono text-white">
+                          {c.codigo_interno ?? c.tracking_usaco ?? c.id.slice(0, 8)}
+                        </p>
+                        {c.bodega_destino && (
+                          <span className="text-[11px] px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
+                            style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}>
+                            <MapPin className="h-2.5 w-2.5" />
+                            {BODEGA_LABELS[c.bodega_destino] ?? c.bodega_destino}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        {c.paquetes_count} paquete{c.paquetes_count !== 1 ? 's' : ''}
+                        {(c.peso_real ?? c.peso_estimado) ? ` · ${c.peso_real ?? c.peso_estimado} lb` : ''}
+                        {c.courier ? ` · ${c.courier}` : ''}
+                        {dias !== null ? ` · hace ${dias} día${dias !== 1 ? 's' : ''}` : ''}
                       </p>
-                      {c.bodega_destino && (
-                        <span className="text-[11px] px-1.5 py-0.5 rounded"
-                          style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}>
-                          <MapPin className="h-2.5 w-2.5 inline mr-0.5" />
-                          {BODEGA_LABELS[c.bodega_destino] ?? c.bodega_destino}
-                        </span>
+                    </div>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (c.tracking_usaco) {
+                          setTracking(c.tracking_usaco)
+                          buscar(c.tracking_usaco)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }
+                      }}
+                      disabled={!c.tracking_usaco}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-30 flex-shrink-0"
+                      style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
+                    >
+                      <PackageCheck className="h-3.5 w-3.5" />
+                      Recibir
+                    </button>
+                  </div>
+
+                  {/* Panel expandible con paquetes */}
+                  {expandido && (
+                    <div style={{ background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      {pkgs === 'loading' || pkgs === undefined ? (
+                        <div className="flex items-center gap-2 px-6 py-4 text-sm" style={{ color: `${tw}0.35)` }}>
+                          <Loader2 className="h-4 w-4 animate-spin" /> Cargando paquetes...
+                        </div>
+                      ) : pkgs === 'error' ? (
+                        <div className="flex items-center gap-2 px-6 py-3 text-sm"
+                          style={{ color: '#f87171' }}>
+                          <AlertCircle className="h-4 w-4" /> Error al cargar los paquetes
+                        </div>
+                      ) : pkgs.length === 0 ? (
+                        <div className="px-6 py-4 text-sm" style={{ color: `${tw}0.35)` }}>
+                          Esta caja no tiene paquetes registrados
+                        </div>
+                      ) : (
+                        <div>
+                          {pkgs.map((p, pi) => {
+                            const s = ESTADO_DARK[p.estado] ?? null
+                            return (
+                              <div key={p.id} className="flex items-center gap-3 px-6 py-2.5 text-sm"
+                                style={{ borderTop: pi > 0 ? '1px solid rgba(255,255,255,0.04)' : undefined }}>
+                                <FotoThumb url={p.foto_url} alt={p.descripcion} width={36} height={36} />
+                                <span className="font-mono text-[11px] font-bold w-28 truncate flex-shrink-0"
+                                  style={{ color: '#F5B800' }}>
+                                  {p.tracking_casilla ?? '—'}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm truncate ${p.cliente ? 'font-medium text-white' : ''}`}
+                                    style={!p.cliente ? { color: '#fbbf24', fontStyle: 'italic' } : undefined}>
+                                    {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
+                                    {p.cliente?.numero_casilla && (
+                                      <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>
+                                        ({p.cliente.numero_casilla})
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>
+                                    {p.descripcion}
+                                    {p.peso_libras ? ` · ${p.peso_libras} lb` : ''}
+                                    {Number(p.valor_declarado) > 0 ? ` · $${Number(p.valor_declarado).toFixed(2)}` : ''}
+                                  </p>
+                                </div>
+                                {s ? (
+                                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+                                    style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                                    {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
+                                  </span>
+                                ) : (
+                                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+                                    style={{ background: `${tw}0.06)`, color: `${tw}0.5)`, border: `1px solid ${tw}0.12)` }}>
+                                    {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                      {c.paquetes_count} paquete{c.paquetes_count !== 1 ? 's' : ''}
-                      {(c.peso_real ?? c.peso_estimado) ? ` · ${c.peso_real ?? c.peso_estimado} lb` : ''}
-                      {c.courier ? ` · ${c.courier}` : ''}
-                      {dias !== null ? ` · hace ${dias} día${dias !== 1 ? 's' : ''}` : ''}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (c.tracking_usaco) {
-                        setTracking(c.tracking_usaco)
-                        buscar(c.tracking_usaco)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }
-                    }}
-                    disabled={!c.tracking_usaco}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-30 flex-shrink-0"
-                    style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
-                  >
-                    <PackageCheck className="h-3.5 w-3.5" />
-                    Recibir
-                  </button>
+                  )}
                 </div>
               )
             })}
