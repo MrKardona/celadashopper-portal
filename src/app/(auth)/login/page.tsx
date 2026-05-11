@@ -2,7 +2,7 @@
 
 import { Suspense, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { MailCheck, Send, Lock, ShieldCheck, MessageCircle, UserX } from 'lucide-react'
+import { MailCheck, Send, Lock, ShieldCheck, UserPlus, ArrowLeft, Package } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { enviarMagicLink, iniciarSesionAdmin } from './actions'
@@ -108,26 +108,71 @@ function LoginForm() {
   const [adminPass, setAdminPass] = useState('')
 
   const [error, setError] = useState('')
-  const [noRegistrado, setNoRegistrado] = useState(false)
   const [loading, setLoading] = useState(false)
   const submitting = useRef(false)
+
+  // Estado registro inline
+  const [modoRegistro, setModoRegistro] = useState(false)
+  const [formReg, setFormReg] = useState({ nombre: '', whatsapp: '', ciudad: '' })
+  const [registrando, setRegistrando] = useState(false)
+  const [registrado, setRegistrado] = useState<{ numero_casilla: string; nombre_completo: string } | null>(null)
 
   // ── Enviar magic link (clientes) ──────────────────────────────────────────
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault()
     if (submitting.current) return
     submitting.current = true
-    setLoading(true); setError(''); setNoRegistrado(false)
+    setLoading(true); setError('')
     const { error } = await enviarMagicLink(email)
     if (error) {
       if (error.includes('no tiene una cuenta')) {
-        setNoRegistrado(true)
+        setModoRegistro(true)
+        setFormReg({ nombre: '', whatsapp: '', ciudad: '' })
       } else {
         setError(error)
       }
       setLoading(false); submitting.current = false; return
     }
     setEnviado(true); setLoading(false); submitting.current = false
+  }
+
+  // ── Registrar cliente nuevo ───────────────────────────────────────────────
+  async function handleRegistro(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formReg.nombre.trim()) return
+    setRegistrando(true); setError('')
+    try {
+      const res = await fetch('/api/auth/registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre_completo: formReg.nombre.trim(),
+          email,
+          whatsapp: formReg.whatsapp.trim() || undefined,
+          ciudad: formReg.ciudad.trim() || undefined,
+        }),
+      })
+      const data = await res.json() as {
+        ok?: boolean; error?: string; ya_existe?: boolean
+        numero_casilla?: string; nombre_completo?: string
+      }
+      if (res.status === 409 && data.ya_existe) {
+        // Ya tiene cuenta — intentar enviar magic link directamente
+        setModoRegistro(false)
+        const { error: mlErr } = await enviarMagicLink(email)
+        if (!mlErr) { setEnviado(true) } else { setError('Esta cuenta ya existe. Revisa tu correo.') }
+        return
+      }
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? 'Error al crear la cuenta')
+        return
+      }
+      setRegistrado({ numero_casilla: data.numero_casilla!, nombre_completo: data.nombre_completo! })
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setRegistrando(false)
+    }
   }
 
   // ── Login con contraseña (admins) ─────────────────────────────────────────
@@ -139,6 +184,50 @@ function LoginForm() {
     const { error } = await iniciarSesionAdmin(adminEmail, adminPass)
     if (error) { setError(error); setLoading(false); submitting.current = false; return }
     router.push('/admin')
+  }
+
+  // ── Pantalla: cuenta creada ───────────────────────────────────────────────
+  if (registrado) {
+    return (
+      <motion.div {...fadeUp(0)} className="space-y-5 py-2">
+        <div className="text-center space-y-3">
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mx-auto"
+            style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.25)' }}
+          >
+            <Package className="h-8 w-8" style={{ color: '#34d399' }} />
+          </motion.div>
+          <div>
+            <p className="text-xl font-bold text-white">¡Bienvenido a Celada!</p>
+            <p className="text-sm mt-1 leading-relaxed" style={{ color: `${tw}0.5)` }}>
+              Tu casillero está listo,{' '}
+              <strong className="text-white">{registrado.nombre_completo.split(' ')[0]}</strong>.
+            </p>
+          </div>
+          <div className="inline-flex flex-col items-center gap-1 px-5 py-3 rounded-2xl"
+            style={{ background: 'rgba(245,184,0,0.1)', border: '1px solid rgba(245,184,0,0.25)' }}>
+            <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(245,184,0,0.6)' }}>Tu casillero</span>
+            <span className="font-mono text-3xl font-bold" style={{ color: '#F5B800' }}>{registrado.numero_casilla}</span>
+          </div>
+        </div>
+        <div className="rounded-xl px-4 py-3 text-sm text-center"
+          style={{ background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.2)', color: 'rgba(52,211,153,0.8)' }}>
+          Enviamos un link de acceso a <strong style={{ color: '#34d399' }}>{email}</strong>.<br />
+          <span style={{ color: 'rgba(255,255,255,0.45)' }}>Ábrelo para entrar al portal.</span>
+        </div>
+        <p className="text-xs text-center" style={{ color: `${tw}0.3)` }}>
+          ¿No lo ves? Revisa la carpeta de spam o{' '}
+          <button
+            onClick={() => { setRegistrado(null); setModoRegistro(false); setEnviado(false) }}
+            className="font-semibold hover:underline" style={{ color: '#F5B800' }}>
+            solicita el link de nuevo
+          </button>
+        </p>
+      </motion.div>
+    )
   }
 
   // ── Pantalla "revisa tu correo" ───────────────────────────────────────────
@@ -302,54 +391,7 @@ function LoginForm() {
           <p role="alert" aria-live="polite" className="text-sm" style={{ color: '#f87171' }}>{error}</p>
         )}
 
-        {/* Panel: correo no registrado */}
-        {noRegistrado && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease }}
-            className="rounded-xl overflow-hidden"
-            style={{ border: '1px solid rgba(245,184,0,0.3)' }}
-          >
-            {/* Header */}
-            <div className="flex items-center gap-2.5 px-4 py-3"
-              style={{ background: 'rgba(245,184,0,0.1)' }}>
-              <UserX className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
-              <div>
-                <p className="text-sm font-semibold" style={{ color: '#F5B800' }}>Este correo no está registrado</p>
-                <p className="text-[11px]" style={{ color: 'rgba(245,184,0,0.65)' }}>
-                  <strong style={{ color: 'rgba(255,255,255,0.7)' }}>{email}</strong>
-                </p>
-              </div>
-            </div>
-            {/* Body */}
-            <div className="px-4 py-3 space-y-3" style={{ background: 'rgba(245,184,0,0.04)' }}>
-              <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                Para acceder al portal necesitas un casillero activo. Escríbenos por WhatsApp y te registramos en menos de 5 minutos.
-              </p>
-              <a
-                href={`https://wa.me/573001234567?text=${encodeURIComponent(`Hola Celada, quiero registrarme en el portal con el correo: ${email}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-opacity hover:opacity-90"
-                style={{ background: '#25D366', color: 'white' }}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Registrarme por WhatsApp
-              </a>
-              <button
-                type="button"
-                onClick={() => { setNoRegistrado(false); setError('') }}
-                className="w-full text-xs text-center hover:underline"
-                style={{ color: 'rgba(255,255,255,0.3)' }}
-              >
-                Intentar con otro correo
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {!noRegistrado && (
+        {!modoRegistro && (
           <>
             <motion.button
               type="submit"
@@ -380,6 +422,97 @@ function LoginForm() {
           </>
         )}
       </form>
+
+      {/* ── Formulario de registro (aparece cuando el correo no existe) ── */}
+      {modoRegistro && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease }}
+          className="space-y-4"
+        >
+          {/* Header */}
+          <div className="rounded-xl px-4 py-3 space-y-1"
+            style={{ background: 'rgba(99,130,255,0.08)', border: '1px solid rgba(99,130,255,0.2)' }}>
+            <div className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 flex-shrink-0" style={{ color: '#8899ff' }} />
+              <p className="text-sm font-semibold" style={{ color: '#8899ff' }}>Crea tu cuenta gratis</p>
+            </div>
+            <p className="text-[11px] pl-6" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              Registrando: <strong style={{ color: 'rgba(255,255,255,0.65)' }}>{email}</strong>
+            </p>
+          </div>
+
+          <form onSubmit={handleRegistro} className="space-y-3">
+            {/* Nombre */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" style={{ color: `${tw}0.65)` }}>
+                Nombre completo <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={formReg.nombre}
+                onChange={e => setFormReg(p => ({ ...p, nombre: e.target.value }))}
+                placeholder="Ej: María García López"
+                required
+                autoFocus
+                className="glass-input w-full px-4 py-3 text-sm outline-none"
+              />
+            </div>
+
+            {/* WhatsApp + Ciudad */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" style={{ color: `${tw}0.65)` }}>WhatsApp</label>
+                <input
+                  type="tel"
+                  value={formReg.whatsapp}
+                  onChange={e => setFormReg(p => ({ ...p, whatsapp: e.target.value }))}
+                  placeholder="+57 300..."
+                  className="glass-input w-full px-3 py-3 text-sm outline-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium" style={{ color: `${tw}0.65)` }}>Ciudad</label>
+                <input
+                  type="text"
+                  value={formReg.ciudad}
+                  onChange={e => setFormReg(p => ({ ...p, ciudad: e.target.value }))}
+                  placeholder="Medellín"
+                  className="glass-input w-full px-3 py-3 text-sm outline-none"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-sm" style={{ color: '#f87171' }}>{error}</p>
+            )}
+
+            <motion.button
+              type="submit"
+              disabled={registrando || !formReg.nombre.trim()}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ duration: 0.15 }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm rounded-xl font-bold disabled:opacity-40"
+              style={{ background: 'rgba(99,130,255,0.9)', color: 'white' }}
+            >
+              {registrando
+                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creando cuenta...</>
+                : <><UserPlus className="h-4 w-4" />Crear mi cuenta y obtener casillero</>}
+            </motion.button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => { setModoRegistro(false); setError('') }}
+            className="w-full flex items-center justify-center gap-1.5 text-xs hover:underline"
+            style={{ color: `${tw}0.3)` }}
+          >
+            <ArrowLeft className="h-3 w-3" /> Volver e intentar con otro correo
+          </button>
+        </motion.div>
+      )}
 
       {/* Acceso admin — discreto al fondo */}
       <div className="pt-2 border-t" style={{ borderColor: `${tw}0.06)` }}>
