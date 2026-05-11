@@ -1,4 +1,32 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+
+// POST: proxy hacia Meta API para crear o parchear templates
+export async function POST(request: NextRequest) {
+  const token = process.env.META_WA_TOKEN
+  const wabaId = '114659381735674'
+  if (!token) return NextResponse.json({ error: 'META_WA_TOKEN no configurado' }, { status: 500 })
+
+  const body = await request.json() as Record<string, unknown>
+
+  // PATCH template existente (cambiar categoría, etc.)
+  if (body._action === 'patch' && typeof body.template_id === 'string') {
+    const { _action: _, template_id, ...patch } = body
+    const res = await fetch(`https://graph.facebook.com/v19.0/${template_id}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    return NextResponse.json(await res.json(), { status: res.status })
+  }
+
+  // Crear nuevo template
+  const res = await fetch(`https://graph.facebook.com/v19.0/${wabaId}/message_templates`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return NextResponse.json(await res.json(), { status: res.status })
+}
 
 export async function GET() {
   const token = process.env.META_WA_TOKEN
