@@ -43,6 +43,23 @@ export async function iniciarSesionAdmin(
 export async function recuperarContrasenaAdmin(
   email: string,
 ): Promise<{ error: string | null }> {
+  const normalizedEmail = email.trim().toLowerCase()
+
+  // Verificar que el correo pertenece a un admin o agente_usa
+  const admin = createAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+  const { data: perfil } = await admin
+    .from('perfiles')
+    .select('rol')
+    .ilike('email', normalizedEmail)
+    .maybeSingle()
+
+  if (!perfil || !['admin', 'agente_usa'].includes(perfil.rol ?? '')) {
+    return { error: 'No tienes permisos suficientes para solicitar recuperación de contraseña.' }
+  }
+
   const supabase = await createClient()
   const headersList = await headers()
 
@@ -53,7 +70,7 @@ export async function recuperarContrasenaAdmin(
     'https://portal.celadashopper.com'
 
   const { error } = await supabase.auth.resetPasswordForEmail(
-    email.trim().toLowerCase(),
+    normalizedEmail,
     { redirectTo: `${origin}/api/auth/callback?next=/nueva-contrasena` },
   )
 
@@ -61,7 +78,7 @@ export async function recuperarContrasenaAdmin(
     console.error('[recuperarContrasenaAdmin]', error.message)
   }
 
-  // Siempre responder OK para no revelar si el email existe
+  // Responder OK (no revelar si el email existe en Auth)
   return { error: null }
 }
 
