@@ -30,21 +30,45 @@ export async function POST(req: NextRequest) {
 
   const admin = getAdmin()
 
-  // Verificar si el email ya existe en perfiles
-  const { data: existente } = await admin
+  // ── 1. Verificar si el perfil ya existe (case-insensitive) ──────────────
+  const { data: perfilExistente } = await admin
     .from('perfiles')
     .select('id, nombre_completo, email, numero_casilla')
-    .eq('email', email)
+    .ilike('email', email)
     .maybeSingle()
 
-  if (existente) {
-    return NextResponse.json({
-      error: 'Este email ya tiene una cuenta registrada',
-      ya_existe: true,
-    }, { status: 409 })
+  if (perfilExistente) {
+    return NextResponse.json({ error: 'Este email ya tiene una cuenta registrada', ya_existe: true }, { status: 409 })
   }
 
-  // Calcular siguiente número de casilla (CS-XXXX)
+  // ── 2. Verificar si el usuario ya existe en Auth (sin perfil) ───────────
+  const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const authExistente = authList?.users?.find(u => u.email?.toLowerCase() === email)
+
+  let userId: string
+
+  if (authExistente) {
+    // Auth user existe pero no tiene perfil — usamos su ID directamente
+    userId = authExistente.id
+  } else {
+    // ── 3. Crear usuario nuevo en Supabase Auth ───────────────────────────
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { nombre_completo: nombre },
+    })
+
+    if (authError || !authData.user) {
+      // Si ya existe (race condition), buscar por email de nuevo
+      if (authError?.message?.includes('already been registered') || authError?.message?.includes('already exists')) {
+        return NextResponse.json({ error: 'Este email ya tiene una cuenta registrada', ya_existe: true }, { status: 409 })
+      }
+      return NextResponse.json({ error: 'No se pudo crear la cuenta. Intenta de nuevo.' }, { status: 500 })
+    }
+    userId = authData.user.id
+  }
+
+  // ── 4. Calcular siguiente número de casilla (CS-XXXX) ──────────────────
   const { data: maxRow } = await admin
     .from('perfiles')
     .select('numero_casilla')
@@ -60,22 +84,11 @@ export async function POST(req: NextRequest) {
   }
   const numeroCasilla = `CS-${nextNum}`
 
-  // Crear usuario en Supabase Auth
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    user_metadata: { nombre_completo: nombre },
-  })
-
-  if (authError || !authData.user) {
-    return NextResponse.json({ error: authError?.message ?? 'Error creando el usuario' }, { status: 500 })
-  }
-
-  // Crear perfil
+  // ── 5. Crear perfil ─────────────────────────────────────────────────────
   const { data: nuevoPerfil, error: perfilErr } = await admin
     .from('perfiles')
     .insert({
-      id: authData.user.id,
+      id: userId,
       nombre_completo: nombre,
       email,
       whatsapp: body.whatsapp?.trim() || null,
@@ -88,28 +101,24 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (perfilErr || !nuevoPerfil) {
-    await admin.auth.admin.deleteUser(authData.user.id)
-    return NextResponse.json({ error: perfilErr?.message ?? 'Error creando perfil' }, { status: 500 })
+    // Si es duplicate key en perfiles, el perfil ya existe — tratar como ya_existe
+    if (perfilErr?.code === '23505') {
+      return NextResponse.json({ error: 'Este email ya tiene una cuenta registrada', ya_existe: true }, { status: 409 })
+    }
+    // Solo eliminar auth user si lo creamos nosotros (no si ya existía)
+    if (!authExistente) {
+      await admin.auth.admin.deleteUser(userId).catch(() => {})
+    }
+    return NextResponse.json({ error: 'Error creando el perfil. Intenta de nuevo.' }, { status: 500 })
   }
 
-  // Enviar magic link para que el cliente acceda de inmediato
+  // ── 6. Enviar magic link de acceso ──────────────────────────────────────
   const headersList = await headers()
   const origin =
     headersList.get('origin') ??
     process.env.NEXT_PUBLIC_SITE_URL ??
     'https://portal.celadashopper.com'
 
-  try {
-    await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: { redirectTo: `${origin}/api/auth/callback` },
-    })
-  } catch {
-    // No crítico
-  }
-
-  // Intentar enviar magic link via OTP para que llegue al correo
   try {
     const supabasePublic = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -123,7 +132,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch {
-    // No crítico — el usuario puede pedir el link después
+    // No crítico — el usuario puede solicitar el link desde el login después
   }
 
   return NextResponse.json({

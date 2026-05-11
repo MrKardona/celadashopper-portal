@@ -157,14 +157,13 @@ function LoginForm() {
         numero_casilla?: string; nombre_completo?: string
       }
       if (res.status === 409 && data.ya_existe) {
-        // Ya tiene cuenta — intentar enviar magic link directamente
+        // Ya tiene cuenta — mostrar pantalla de "revisa tu correo"
         setModoRegistro(false)
-        const { error: mlErr } = await enviarMagicLink(email)
-        if (!mlErr) { setEnviado(true) } else { setError('Esta cuenta ya existe. Revisa tu correo.') }
+        setEnviado(true)
         return
       }
       if (!res.ok || !data.ok) {
-        setError(data.error ?? 'Error al crear la cuenta')
+        setError(data.error ?? 'Error al crear la cuenta. Intenta de nuevo.')
         return
       }
       setRegistrado({ numero_casilla: data.numero_casilla!, nombre_completo: data.nombre_completo! })
@@ -387,7 +386,7 @@ function LoginForm() {
           />
         </div>
 
-        {error && (
+        {error && !modoRegistro && (
           <p role="alert" aria-live="polite" className="text-sm" style={{ color: '#f87171' }}>{error}</p>
         )}
 
