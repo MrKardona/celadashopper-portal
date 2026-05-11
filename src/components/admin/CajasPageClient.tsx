@@ -137,7 +137,7 @@ export default function CajasPageClient({ cajas, conteoMap }: Props) {
             <div className="min-w-0 flex-1">
               {caja.tracking_usaco ? (
                 <>
-                  <p className="font-mono text-base font-bold text-white leading-tight">{caja.tracking_usaco}</p>
+                  <p className="font-mono text-base font-bold leading-tight" style={{ color: '#F5B800' }}>{caja.tracking_usaco}</p>
                   <p className="font-mono text-[11px] mt-0.5 truncate" style={{ color: `${tw}0.3)` }}>{caja.codigo_interno}</p>
                 </>
               ) : (
