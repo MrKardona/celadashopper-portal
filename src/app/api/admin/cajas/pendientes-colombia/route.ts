@@ -25,7 +25,7 @@ export async function GET() {
 
   const { data: cajas, error } = await admin
     .from('cajas_consolidacion')
-    .select('id, codigo_interno, tracking_usaco, courier, bodega_destino, peso_estimado, peso_real, fecha_despacho, estado')
+    .select('id, codigo_interno, tracking_usaco, courier, bodega_destino, peso_estimado, peso_real, fecha_despacho, estado, created_at')
     .in('estado', ['despachada', 'cerrada'])
     .order('fecha_despacho', { ascending: true })
 

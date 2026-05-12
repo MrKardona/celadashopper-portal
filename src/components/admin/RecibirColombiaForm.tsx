@@ -51,6 +51,7 @@ interface CajaPendiente {
   peso_real: number | null
   fecha_despacho: string | null
   estado: string
+  created_at: string
   paquetes_count: number
 }
 
@@ -515,87 +516,140 @@ export default function RecibirColombiaForm() {
         </div>
       )}
 
-      {/* Cajas pendientes por recibir */}
+      {/* Cajas despachadas — en tránsito a Colombia */}
       {cajasPendientes.length > 0 && (
         <div className="glass-card overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <Clock className="h-4 w-4" style={{ color: '#F5B800' }} />
-            <h3 className="text-sm font-semibold text-white">Cajas pendientes por recibir</h3>
-            <p className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>— clic en una caja para ver su contenido</p>
-            <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold"
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <Clock className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-white">Cajas despachadas — en tránsito a Colombia</h3>
+              <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>Clic en una caja para ver su contenido · clic en Recibir para procesarla</p>
+            </div>
+            <span className="text-xs px-2.5 py-1 rounded-full font-bold flex-shrink-0"
               style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
               {cajasPendientes.length}
             </span>
           </div>
+
+          {/* Cabecera de columnas */}
+          <div className="hidden md:grid px-5 py-2 text-[11px] font-semibold uppercase tracking-wider select-none"
+            style={{
+              gridTemplateColumns: '28px 2.2fr 90px 110px 130px 90px',
+              color: `${tw}0.28)`,
+              background: `${tw}0.02)`,
+              borderBottom: `1px solid ${tw}0.06)`,
+            }}>
+            <span />
+            <span>Tracking USACO</span>
+            <span className="text-center">Paquetes</span>
+            <span className="text-center">Destino</span>
+            <span className="text-center">Desde creación</span>
+            <span />
+          </div>
+
+          {/* Filas */}
           <div>
             {cajasPendientes.map(c => {
-              const dias = c.fecha_despacho
-                ? Math.floor((Date.now() - new Date(c.fecha_despacho).getTime()) / 86400000)
-                : null
+              const msDesdeCreacion = Date.now() - new Date(c.created_at).getTime()
+              const horas = Math.floor(msDesdeCreacion / 3600000)
+              const dias = Math.floor(horas / 24)
+              const tiempoLabel = dias >= 1
+                ? `${dias} día${dias !== 1 ? 's' : ''}`
+                : horas >= 1
+                  ? `${horas} h`
+                  : 'Recién'
+              const esAntigua = dias >= 3
               const expandido = expandidoId === c.id
               const pkgs = paquetesCargados[c.id]
 
               return (
-                <div key={c.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  {/* Fila cabecera — clic para expandir */}
+                <div key={c.id} style={{ borderTop: `1px solid ${tw}0.05)` }}>
+                  {/* Fila principal */}
                   <div
-                    className="flex items-center gap-3 px-5 py-3 cursor-pointer select-none transition-colors"
+                    className="grid items-center px-5 py-3 cursor-pointer select-none transition-colors"
+                    style={{
+                      gridTemplateColumns: '28px 2.2fr 90px 110px 130px 90px',
+                      background: esAntigua ? 'rgba(239,68,68,0.04)' : 'transparent',
+                    }}
                     onClick={() => toggleExpandir(c.id)}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    onMouseEnter={e => (e.currentTarget.style.background = esAntigua ? 'rgba(239,68,68,0.08)' : `${tw}0.03)`)}
+                    onMouseLeave={e => (e.currentTarget.style.background = esAntigua ? 'rgba(239,68,68,0.04)' : 'transparent')}
                   >
+                    {/* Chevron */}
                     <ChevronDown
-                      className="h-4 w-4 flex-shrink-0 transition-transform duration-200"
+                      className="h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200"
                       style={{ color: `${tw}0.3)`, transform: expandido ? 'rotate(180deg)' : 'rotate(0deg)' }}
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold font-mono text-white">
-                          {c.codigo_interno ?? c.tracking_usaco ?? c.id.slice(0, 8)}
-                        </p>
-                        {c.bodega_destino && (
-                          <span className="text-[11px] px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"
-                            style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}>
-                            <MapPin className="h-2.5 w-2.5" />
-                            {BODEGA_LABELS[c.bodega_destino] ?? c.bodega_destino}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                        {c.paquetes_count} paquete{c.paquetes_count !== 1 ? 's' : ''}
-                        {(c.peso_real ?? c.peso_estimado) ? ` · ${c.peso_real ?? c.peso_estimado} lb` : ''}
-                        {c.courier ? ` · ${c.courier}` : ''}
-                        {dias !== null ? ` · hace ${dias} día${dias !== 1 ? 's' : ''}` : ''}
+
+                    {/* Tracking USACO */}
+                    <div className="min-w-0 pr-2">
+                      <p className="font-mono text-sm font-bold text-white truncate">
+                        {c.tracking_usaco ?? <span style={{ color: `${tw}0.3)`, fontStyle: 'italic', fontWeight: 400 }}>Sin tracking</span>}
                       </p>
+                      <p className="text-[11px] truncate" style={{ color: `${tw}0.3)` }}>{c.codigo_interno}</p>
                     </div>
-                    <button
-                      onClick={e => {
-                        e.stopPropagation()
-                        if (c.tracking_usaco) {
-                          setTracking(c.tracking_usaco)
-                          buscar(c.tracking_usaco)
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }
-                      }}
-                      disabled={!c.tracking_usaco}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors disabled:opacity-30 flex-shrink-0"
-                      style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
-                    >
-                      <PackageCheck className="h-3.5 w-3.5" />
-                      Recibir
-                    </button>
+
+                    {/* Paquetes */}
+                    <div className="text-center">
+                      <span className="text-sm font-bold text-white">{c.paquetes_count}</span>
+                      <span className="text-xs ml-0.5" style={{ color: `${tw}0.4)` }}>paq</span>
+                      {(c.peso_real ?? c.peso_estimado) && (
+                        <p className="text-[11px]" style={{ color: `${tw}0.3)` }}>{c.peso_real ?? c.peso_estimado} lb</p>
+                      )}
+                    </div>
+
+                    {/* Destino */}
+                    <div className="text-center">
+                      <span className="inline-flex items-center gap-0.5 text-xs px-2 py-1 rounded-lg"
+                        style={{ background: `${tw}0.07)`, color: `${tw}0.6)` }}>
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        {BODEGA_LABELS[c.bodega_destino ?? ''] ?? c.bodega_destino ?? '—'}
+                      </span>
+                    </div>
+
+                    {/* Tiempo desde creación */}
+                    <div className="text-center">
+                      <span
+                        className="text-xs font-semibold px-2 py-1 rounded-lg whitespace-nowrap"
+                        style={esAntigua
+                          ? { background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }
+                          : { color: `${tw}0.5)` }}
+                      >
+                        {esAntigua && '⚠ '}{tiempoLabel}
+                      </span>
+                    </div>
+
+                    {/* Botón recibir */}
+                    <div className="text-right">
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          if (c.tracking_usaco) {
+                            setTracking(c.tracking_usaco)
+                            buscar(c.tracking_usaco)
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }
+                        }}
+                        disabled={!c.tracking_usaco}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl transition-colors disabled:opacity-30"
+                        style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
+                      >
+                        <PackageCheck className="h-3.5 w-3.5" />
+                        Recibir
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Panel expandible con paquetes */}
+                  {/* Panel expandible */}
                   {expandido && (
-                    <div style={{ background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ background: `${tw}0.02)`, borderTop: `1px solid ${tw}0.05)` }}>
                       {pkgs === 'loading' || pkgs === undefined ? (
                         <div className="flex items-center gap-2 px-6 py-4 text-sm" style={{ color: `${tw}0.35)` }}>
                           <Loader2 className="h-4 w-4 animate-spin" /> Cargando paquetes...
                         </div>
                       ) : pkgs === 'error' ? (
-                        <div className="flex items-center gap-2 px-6 py-3 text-sm"
-                          style={{ color: '#f87171' }}>
+                        <div className="flex items-center gap-2 px-6 py-3 text-sm" style={{ color: '#f87171' }}>
                           <AlertCircle className="h-4 w-4" /> Error al cargar los paquetes
                         </div>
                       ) : pkgs.length === 0 ? (
@@ -608,10 +662,9 @@ export default function RecibirColombiaForm() {
                             const s = ESTADO_DARK[p.estado] ?? null
                             return (
                               <div key={p.id} className="flex items-center gap-3 px-6 py-2.5 text-sm"
-                                style={{ borderTop: pi > 0 ? '1px solid rgba(255,255,255,0.04)' : undefined }}>
+                                style={{ borderTop: pi > 0 ? `1px solid ${tw}0.04)` : undefined }}>
                                 <FotoThumb url={p.foto_url} alt={p.descripcion} width={36} height={36} />
-                                <span className="font-mono text-[11px] font-bold w-28 truncate flex-shrink-0"
-                                  style={{ color: '#F5B800' }}>
+                                <span className="font-mono text-[11px] font-bold w-28 truncate flex-shrink-0" style={{ color: '#F5B800' }}>
                                   {p.tracking_casilla ?? '—'}
                                 </span>
                                 <div className="flex-1 min-w-0">
@@ -619,9 +672,7 @@ export default function RecibirColombiaForm() {
                                     style={!p.cliente ? { color: '#fbbf24', fontStyle: 'italic' } : undefined}>
                                     {p.cliente?.nombre_completo ?? '⏳ Sin asignar'}
                                     {p.cliente?.numero_casilla && (
-                                      <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>
-                                        ({p.cliente.numero_casilla})
-                                      </span>
+                                      <span className="text-xs ml-1" style={{ color: `${tw}0.35)` }}>({p.cliente.numero_casilla})</span>
                                     )}
                                   </p>
                                   <p className="text-xs truncate" style={{ color: `${tw}0.4)` }}>
@@ -630,17 +681,12 @@ export default function RecibirColombiaForm() {
                                     {Number(p.valor_declarado) > 0 ? ` · $${Number(p.valor_declarado).toFixed(2)}` : ''}
                                   </p>
                                 </div>
-                                {s ? (
-                                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
-                                    style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
-                                    {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
-                                  </span>
-                                ) : (
-                                  <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
-                                    style={{ background: `${tw}0.06)`, color: `${tw}0.5)`, border: `1px solid ${tw}0.12)` }}>
-                                    {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
-                                  </span>
-                                )}
+                                <span className="text-[11px] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
+                                  style={s
+                                    ? { background: s.bg, color: s.color, border: `1px solid ${s.border}` }
+                                    : { background: `${tw}0.06)`, color: `${tw}0.5)`, border: `1px solid ${tw}0.12)` }}>
+                                  {ESTADO_LABELS[p.estado as EstadoPaquete] ?? p.estado}
+                                </span>
                               </div>
                             )
                           })}
