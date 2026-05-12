@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-import { Bike, MapPin, Phone, Package, FileText, ExternalLink, ArrowLeft, CheckCircle2, User } from 'lucide-react'
+import { Bike, MapPin, Phone, Package, ExternalLink, ArrowLeft, CheckCircle2, User } from 'lucide-react'
 import Link from 'next/link'
+import OrdenarManualesPanel from '@/components/admin/OrdenarManualesPanel'
 
 const tw = 'rgba(255,255,255,'
 const BODEGA_LABELS: Record<string, string> = {
@@ -109,58 +110,21 @@ export default async function AdminDomiciliarioDetallePage({ params }: Props) {
       ) : (
         <div className="grid grid-cols-1 gap-4">
 
-          {/* ── Domicilios manuales ── */}
-          {manuales.map((m, idx) => (
-            <div key={m.id} className="glass-card p-4 space-y-3"
-              style={{ borderColor: 'rgba(129,140,248,0.2)' }}>
-
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'rgba(129,140,248,0.12)' }}>
-                    <FileText className="h-3.5 w-3.5" style={{ color: '#818cf8' }} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{m.nombre}</p>
-                    <p className="text-[11px]" style={{ color: '#818cf8' }}>Domicilio manual</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                  style={{ background: 'rgba(129,140,248,0.12)', color: '#818cf8', border: '1px solid rgba(129,140,248,0.25)' }}>
-                  #{paquetes.length + idx + 1}
-                </span>
-              </div>
-
-              <a href={`https://maps.google.com/?q=${encodeURIComponent(m.direccion)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-start gap-2 text-xs hover:opacity-80 transition-opacity"
-                style={{ color: `${tw}0.7)` }}>
-                <MapPin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: '#818cf8' }} />
-                <div>
-                  <p>{m.direccion}</p>
-                  <p className="mt-0.5 flex items-center gap-1" style={{ color: '#818cf8' }}>
-                    <ExternalLink className="h-2.5 w-2.5" /> Abrir en Maps
-                  </p>
-                </div>
-              </a>
-
-              {m.telefono && (
-                <a href={`https://wa.me/${m.telefono.replace(/\D/g, '')}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs hover:underline"
-                  style={{ color: '#34d399' }}>
-                  <Phone className="h-3 w-3" />{m.telefono}
-                </a>
-              )}
-
-              {m.notas && (
-                <p className="text-xs px-3 py-2 rounded-xl"
-                  style={{ background: `${tw}0.04)`, color: `${tw}0.55)`, border: `1px solid ${tw}0.07)` }}>
-                  {m.notas}
-                </p>
-              )}
+          {/* ── Domicilios manuales — panel con drag+drop y optimización IA ── */}
+          {manuales.length > 0 && (
+            <div className="glass-card p-4" style={{ borderColor: 'rgba(129,140,248,0.2)' }}>
+              <OrdenarManualesPanel
+                domiciliarioId={id}
+                manuales={manuales.map(m => ({
+                  id: m.id,
+                  nombre: m.nombre,
+                  direccion: m.direccion,
+                  telefono: m.telefono ?? null,
+                  notas: m.notas ?? null,
+                }))}
+              />
             </div>
-          ))}
+          )}
 
           {/* ── Paquetes del sistema ── */}
           {paquetes.map((p, idx) => {
