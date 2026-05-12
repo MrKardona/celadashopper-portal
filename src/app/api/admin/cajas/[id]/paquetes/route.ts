@@ -146,7 +146,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   await insertarEventoTracking(admin, paquete.id, 'procesado', 'celada')
 
   // 7. Si este paquete es una división, verificar si todos los hermanos
-  //    ya tienen caja asignada. En ese caso notificar al cliente del paquete padre.
+  //    ya tienen caja asignada. En ese caso cambiar el padre a en_transito y notificar.
   if (paquete.paquete_origen_id) {
     const { data: hermanos } = await admin
       .from('paquetes')
@@ -155,7 +155,21 @@ export async function POST(req: NextRequest, { params }: Props) {
 
     const todosEnCaja = hermanos && hermanos.length > 0 && hermanos.every(h => h.caja_id !== null)
     if (todosEnCaja) {
-      notificarCambioEstado(paquete.paquete_origen_id, 'en_consolidacion')
+      const ahora2 = new Date().toISOString()
+      await admin
+        .from('paquetes')
+        .update({ estado: 'en_transito', updated_at: ahora2 })
+        .eq('id', paquete.paquete_origen_id)
+
+      await admin.from('eventos_paquete').insert({
+        paquete_id: paquete.paquete_origen_id,
+        estado_anterior: 'en_consolidacion',
+        estado_nuevo: 'en_transito',
+        descripcion: `Todas las divisiones consolidadas — paquete en camino a Colombia`,
+        ubicacion: 'Miami, USA',
+      }).then(() => {/* ok */}, (e) => console.error('[caja+paquete] evento padre:', e))
+
+      notificarCambioEstado(paquete.paquete_origen_id, 'en_transito')
         .catch(err => console.error('[caja+paquete] notif padre división:', err))
     }
   }
