@@ -17,6 +17,10 @@ import { createClient as createAdmin, type SupabaseClient } from '@supabase/supa
 import { createClient } from '@/lib/supabase/server'
 import { analizarPaquete, type EtiquetaOCR, type ContenidoOCR } from '@/lib/ocr/paquete'
 
+// Claude Vision + 2 fotos en paralelo puede tardar 10-20s
+// Sin esto Vercel corta a los 10s y devuelve body vacío → "Unexpected end of JSON"
+export const maxDuration = 60
+
 function getSupabaseAdmin(): SupabaseClient {
   return createAdmin(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

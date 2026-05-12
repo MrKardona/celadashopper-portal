@@ -4,5 +4,10 @@
       "path": "/api/cron/usaco-sync",
       "schedule": "0 2 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/admin/recibir/ocr/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }
