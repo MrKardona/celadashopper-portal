@@ -2,17 +2,12 @@
 
 /**
  * FotoThumb – miniatura clicable que abre un lightbox a pantalla completa.
- * Funciona tanto en componentes server como client (es un leaf client component).
- *
- * Props:
- *  url     – URL de la imagen. Si es null/undefined muestra el ícono Package.
- *  alt     – texto alternativo
- *  width   – ancho en px (default 40)
- *  height  – alto en px (default 40)
- *  radius  – border-radius en px o string CSS (default '0.5rem')
+ * Usa createPortal para montar el lightbox en document.body, completamente
+ * fuera del árbol DOM del componente, evitando cualquier propagación de clicks.
  */
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Maximize2, Package } from 'lucide-react'
 
 export default function FotoThumb({
@@ -29,7 +24,10 @@ export default function FotoThumb({
   radius?: number | string
 }) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const borderRadius = typeof radius === 'number' ? `${radius}px` : radius
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (!open) return
@@ -43,9 +41,7 @@ export default function FotoThumb({
       <span
         className="flex-shrink-0 flex items-center justify-center"
         style={{
-          width,
-          height,
-          borderRadius,
+          width, height, borderRadius,
           background: 'rgba(255,255,255,0.04)',
           border: '1px solid rgba(255,255,255,0.08)',
         }}
@@ -90,20 +86,20 @@ export default function FotoThumb({
         </div>
       </button>
 
-      {/* Lightbox */}
-      {open && (
+      {/* Lightbox — montado en document.body via portal, fuera de todo árbol DOM */}
+      {mounted && open && createPortal(
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-6"
-          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
-          onClick={e => { e.stopPropagation(); setOpen(false) }}
+          className="fixed inset-0 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)', zIndex: 9999 }}
+          onClick={() => setOpen(false)}
         >
           <button
             type="button"
-            className="absolute top-4 right-4 p-2 rounded-full z-10 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
+            className="absolute top-4 right-4 p-2 rounded-full transition-colors"
+            style={{ background: 'rgba(255,255,255,0.1)', color: 'white', zIndex: 10000 }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            onClick={e => { e.stopPropagation(); setOpen(false) }}
+            onClick={() => setOpen(false)}
           >
             <X className="h-5 w-5" />
           </button>
@@ -114,7 +110,8 @@ export default function FotoThumb({
             style={{ maxHeight: '88vh', maxWidth: '90vw', cursor: 'default' }}
             onClick={e => e.stopPropagation()}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
