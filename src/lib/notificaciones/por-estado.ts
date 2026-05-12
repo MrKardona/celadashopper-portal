@@ -53,12 +53,10 @@ const BODEGA_LABELS: Record<string, string> = {
 type PaqRaw = Record<string, unknown>
 const EVENTO_A_TEMPLATE: Record<string, {
   name: string
-  nameFoto?: string   // variante con header IMAGE (si el template lo tiene configurado)
   params: (vars: Record<string, string>, paq: PaqRaw) => string[]
 }> = {
   paquete_recibido_usa: {
-    name: 'cs_paquete_recibido_usa_n9bz7s',       // sin foto (fallback)
-    nameFoto: 'cs_recibido_usa_foto',              // con foto en header (UTILITY, IMAGE header)
+    name: 'cs_paquete_recibido_usa_n9bz7s',
     // "📦 ¡Hola {{1}}! Tu paquete llegó a nuestra bodega en Miami, USA\n*{{2}}*\n📌 Tracking: {{3}}\n⚖️ Peso: {{4}} lb\n💵 Costo de servicio aproximado: ${{5}} USD"
     params: (vars, paq) => [
       vars.nombre,
@@ -100,12 +98,10 @@ let __ultimoMetaInfo: { messageId?: string; destino?: string; statusFinal?: stri
 export function getUltimoMetaInfo() { return { ...__ultimoMetaInfo } }
 
 // ─── Envío de template aprobado vía Meta (TOS-compliant para mensajes proactivos) ─
-// headerMediaId: si se proporciona, se agrega un componente HEADER con la imagen
 async function enviarMetaTemplate(
   phone: string,
   templateName: string,
   params: string[],
-  headerMediaId?: string,
 ): Promise<boolean> {
   __ultimoMetaInfo = {}
   const phoneId = process.env.META_WA_PHONE_ID
@@ -119,20 +115,6 @@ async function enviarMetaTemplate(
   const dest = numero.startsWith('57') ? numero : `57${numero}`
   __ultimoMetaInfo.destino = dest
 
-  // Construir componentes del template
-  const components: object[] = [
-    {
-      type: 'body',
-      parameters: params.map(p => ({ type: 'text', text: p })),
-    },
-  ]
-  if (headerMediaId) {
-    components.unshift({
-      type: 'header',
-      parameters: [{ type: 'image', image: { id: headerMediaId } }],
-    })
-  }
-
   try {
     const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
       method: 'POST',
@@ -144,7 +126,12 @@ async function enviarMetaTemplate(
         template: {
           name: templateName,
           language: { code: 'es' },
-          components,
+          components: [
+            {
+              type: 'body',
+              parameters: params.map(p => ({ type: 'text', text: p })),
+            },
+          ],
         },
       }),
     })
@@ -465,42 +452,29 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
     if (puedeEnviarWa) {
       const params = templateDef.params(ctx.vars, ctx.paquete as PaqRaw)
+      const tmplOk = await enviarMetaTemplate(ctx.phone, templateDef.name, params)
+      envioOk = tmplOk
+      viaUsada = tmplOk ? 'meta_template' : 'meta_template_falló'
 
-      // recibido_usa con foto: intentar subir imagen y usar template con header IMAGE
-      // El template cs_recibido_usa_foto (UTILITY, header IMAGE) siempre llega sin ventana 24h
-      let headerMediaId: string | undefined
-      let templateName = templateDef.name // fallback: template sin foto
-
-      if (enviaFotos && templateDef.nameFoto) {
+      // recibido_usa: foto del contenido como mensaje separado tras el template
+      if (tmplOk && enviaFotos) {
         const { data: fotos } = await supabase
           .from('fotos_paquetes')
           .select('url, descripcion')
           .eq('paquete_id', paqueteId)
           .order('created_at', { ascending: true })
           .limit(5)
-
         const fotoContenido = fotos?.find(f =>
           (f.descripcion ?? '').toLowerCase().includes('contenido')
         ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
-
         if (fotoContenido) {
-          const mediaId = await subirMedia(fotoContenido.url)
-          if (mediaId) {
-            headerMediaId = mediaId
-            templateName = templateDef.nameFoto  // usar variante con header
+          const fotoOk = await enviarImagenMeta(ctx.phone, fotoContenido.url)
+          if (fotoOk) {
             fotosEnviadas = 1
-            console.log('[notif] Foto subida como header del template. media_id=', mediaId)
-          } else {
-            console.warn('[notif] No se pudo subir foto para header — usando template sin foto')
+            console.log('[notif] Foto contenido enviada tras template OK:', fotoContenido.url)
           }
         }
       }
-
-      const tmplOk = await enviarMetaTemplate(ctx.phone, templateName, params, headerMediaId)
-      envioOk = tmplOk
-      viaUsada = tmplOk
-        ? (headerMediaId ? 'meta_template_con_foto' : 'meta_template')
-        : 'meta_template_falló'
     }
     // Si !puedeEnviarWa: no hay template aprobado → solo email, sin WA
 
