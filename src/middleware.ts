@@ -82,7 +82,7 @@ export async function middleware(request: NextRequest) {
     if (pathname === '/dashboard' && rol === 'agente_usa') {
       return NextResponse.redirect(new URL('/agente', request.url))
     }
-    if (pathname === '/dashboard' && rol === 'domiciliario') {
+    if (pathname === '/dashboard' && rol === 'domiciliario' && !asClient) {
       return NextResponse.redirect(new URL('/domiciliario', request.url))
     }
 

@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { User } from 'lucide-react'
+import { User, LayoutDashboard } from 'lucide-react'
+import Link from 'next/link'
 import PerfilDomiciliarioForm from '@/components/domiciliario/PerfilDomiciliarioForm'
 
 function getAdmin() {
@@ -59,6 +60,16 @@ export default async function PerfilDomiciliarioPage() {
           </div>
         </div>
       </div>
+
+      {/* Portal de usuario */}
+      <Link
+        href="/dashboard?as=client"
+        className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+        style={{ background: `${tw}0.04)`, border: `1px solid ${tw}0.09)`, color: `${tw}0.6)` }}>
+        <LayoutDashboard className="h-4 w-4 flex-shrink-0" style={{ color: '#818cf8' }} />
+        <span className="text-sm font-medium">Ir a portal de usuario</span>
+        <span className="ml-auto text-xs" style={{ color: `${tw}0.3)` }}>Ver mis paquetes →</span>
+      </Link>
 
       {/* Editable form */}
       <PerfilDomiciliarioForm perfil={{

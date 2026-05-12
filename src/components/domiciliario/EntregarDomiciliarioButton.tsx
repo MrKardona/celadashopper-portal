@@ -98,7 +98,7 @@ function Modal({ paqueteId, descripcion, onClose }: Props & { onClose: () => voi
     setSubiendo(true)
     try {
       const form = new FormData(); form.append('file', file)
-      const res = await fetch('/api/admin/foto', { method: 'POST', body: form })
+      const res = await fetch('/api/domiciliario/foto', { method: 'POST', body: form })
       const data = await res.json() as { url?: string; error?: string }
       if (!res.ok || !data.url) { setError(data.error ?? 'No se pudo subir la foto'); setFotoPreview(null); return }
       setFotoUrl(data.url)
