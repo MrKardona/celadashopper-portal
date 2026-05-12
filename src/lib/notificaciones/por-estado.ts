@@ -81,6 +81,11 @@ const EVENTO_A_TEMPLATE: Record<string, {
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
   },
   paquete_entregado: {
+    // Template con header IMAGE — foto de entrega del domiciliario
+    // Activar cuando Meta apruebe cs_entregado_con_foto:
+    //   name: 'cs_entregado_con_foto',
+    //   headerImagen: true,
+    // Mientras tanto usar el template de texto aprobado:
     name: 'cs_entregado_jutpck',
     // "✅ ¡Hola {{1}}! Tu paquete fue entregado exitosamente 🎊\n📦 *{{2}}*"
     params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
