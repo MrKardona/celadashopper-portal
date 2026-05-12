@@ -20,7 +20,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Usar service role para saltar RLS y leer el rol correctamente
   const [perfilRes, listosRes] = await Promise.all([
     supabaseAdmin.from('perfiles').select('nombre_completo, rol').eq('id', user.id).single(),
-    supabaseAdmin.from('paquetes').select('id', { count: 'exact', head: true }).in('estado', ['en_bodega_local', 'en_camino_cliente']),
+    supabaseAdmin.from('paquetes').select('id', { count: 'exact', head: true })
+      .in('estado', ['en_bodega_local', 'en_camino_cliente'])
+      .eq('visible_cliente', true)
+      .is('paquete_origen_id', null),
   ])
 
   const perfil = perfilRes.data
