@@ -32,9 +32,10 @@ const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
   {
     label: 'Gestión',
     items: [
-      { href: '/admin/paquetes',  label: 'Paquetes', icon: Package,    exact: false },
-      { href: '/admin/clientes',  label: 'Clientes', icon: Users,      exact: false },
-      { href: '/admin/tarifas',   label: 'Tarifas',  icon: DollarSign, exact: false },
+      { href: '/admin/paquetes',        label: 'Paquetes',     icon: Package,    exact: false },
+      { href: '/admin/clientes',        label: 'Clientes',     icon: Users,      exact: false },
+      { href: '/admin/tarifas',         label: 'Tarifas',      icon: DollarSign, exact: false },
+      { href: '/admin/usaco-comparar',  label: 'Auditoría USACO', icon: ScanBarcode, exact: false },
     ],
   },
 ]
