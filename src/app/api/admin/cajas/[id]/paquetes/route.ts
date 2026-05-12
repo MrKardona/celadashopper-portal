@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { insertarEventoTracking } from '@/lib/usaco/tracking'
+import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
 function getSupabaseAdmin() {
   return createClient(
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   // 2. Buscar el paquete por tracking_casilla o tracking_origen
   const { data: paquetes } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, estado, caja_id, bodega_destino, cliente_id')
+    .select('id, tracking_casilla, descripcion, estado, caja_id, bodega_destino, cliente_id, paquete_origen_id')
     .or(`tracking_casilla.ilike.${tracking},tracking_origen.ilike.${tracking}`)
     .limit(2)
 
@@ -143,6 +144,21 @@ export async function POST(req: NextRequest, { params }: Props) {
   }).then(() => {/* ok */}, (e) => console.error('[caja+paquete] evento:', e))
 
   await insertarEventoTracking(admin, paquete.id, 'procesado', 'celada')
+
+  // 7. Si este paquete es una división, verificar si todos los hermanos
+  //    ya tienen caja asignada. En ese caso notificar al cliente del paquete padre.
+  if (paquete.paquete_origen_id) {
+    const { data: hermanos } = await admin
+      .from('paquetes')
+      .select('id, caja_id')
+      .eq('paquete_origen_id', paquete.paquete_origen_id)
+
+    const todosEnCaja = hermanos && hermanos.length > 0 && hermanos.every(h => h.caja_id !== null)
+    if (todosEnCaja) {
+      notificarCambioEstado(paquete.paquete_origen_id, 'en_consolidacion')
+        .catch(err => console.error('[caja+paquete] notif padre división:', err))
+    }
+  }
 
   return NextResponse.json({
     ok: true,
