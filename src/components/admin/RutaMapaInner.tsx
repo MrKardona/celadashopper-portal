@@ -7,6 +7,12 @@ import 'leaflet/dist/leaflet.css'
 
 const tw = 'rgba(255,255,255,'
 
+// Punto de salida fijo: Celada Shopper, Itagüí
+const CELADA_ORIGEN = {
+  label: 'Celada Shopper — Salida',
+  direccion: 'Celada Personal Shopper, Itagüí, Antioquia, Colombia',
+}
+
 interface Parada {
   num: number
   label: string
@@ -50,6 +56,23 @@ function markerIcon(num: number, tipo: 'paquete' | 'manual') {
   })
 }
 
+function origenIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:36px;height:36px;border-radius:50%;
+      background:#34d399;color:white;
+      display:flex;align-items:center;justify-content:center;
+      font-size:17px;
+      border:2.5px solid white;
+      box-shadow:0 0 0 3px rgba(52,211,153,0.35),0 3px 12px rgba(0,0,0,0.4);
+    ">🏠</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
+  })
+}
+
 async function geocodificar(direccion: string): Promise<[number, number] | null> {
   try {
     const q = encodeURIComponent(direccion + ', Colombia')
@@ -64,28 +87,35 @@ async function geocodificar(direccion: string): Promise<[number, number] | null>
 }
 
 export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
-  const [geocoded,   setGeocoded]   = useState<GeoParada[]>([])
-  const [cargando,   setCargando]   = useState(false)
-  const [progreso,   setProgreso]   = useState(0)
+  const [origenCoords, setOrigenCoords]   = useState<[number, number] | null>(null)
+  const [geocoded,     setGeocoded]       = useState<GeoParada[]>([])
+  const [cargando,     setCargando]       = useState(false)
+  const [progreso,     setProgreso]       = useState(0)
   const abortRef = useRef(false)
 
   useEffect(() => {
-    if (paradas.length === 0) { setGeocoded([]); return }
+    if (paradas.length === 0) { setGeocoded([]); setOrigenCoords(null); return }
     abortRef.current = false
     setCargando(true)
     setProgreso(0)
     setGeocoded([])
+    setOrigenCoords(null)
 
     ;(async () => {
+      // 1. Geocodificar punto de salida (Celada Shopper, Itagüí)
+      const oc = await geocodificar(CELADA_ORIGEN.direccion)
+      if (abortRef.current) return
+      setOrigenCoords(oc)
+
+      // 2. Geocodificar paradas con rate-limit de Nominatim (1 req/seg)
       const resultados: GeoParada[] = []
       for (let i = 0; i < paradas.length; i++) {
         if (abortRef.current) break
+        await new Promise(r => setTimeout(r, 1050))
         const p = paradas[i]
         const coords = await geocodificar(p.direccion)
         setProgreso(Math.round(((i + 1) / paradas.length) * 100))
         if (coords) resultados.push({ ...p, lat: coords[0], lng: coords[1] })
-        // Nominatim rate limit: 1 req/seg
-        if (i < paradas.length - 1) await new Promise(r => setTimeout(r, 1050))
       }
       if (!abortRef.current) setGeocoded(resultados)
       setCargando(false)
@@ -94,13 +124,13 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
     return () => { abortRef.current = true }
   }, [paradas])
 
-  const puntos: [number, number][] = geocoded.map(g => [g.lat, g.lng])
+  // Polilínea: origen → paradas en orden
+  const puntoOrigen: [number, number][] = origenCoords ? [origenCoords] : []
+  const puntosParadas: [number, number][] = geocoded.map(g => [g.lat, g.lng])
+  const todosLosPuntos: [number, number][] = [...puntoOrigen, ...puntosParadas]
 
-  // URL para abrir en Google Maps (waypoints)
-  const mapsUrl = paradas
-    .map(p => encodeURIComponent(p.direccion))
-    .join('/')
-  const googleMapsUrl = `https://www.google.com/maps/dir/${mapsUrl}`
+  // URL Google Maps: origen fijo → todas las paradas en orden
+  const googleMapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(CELADA_ORIGEN.direccion)}/${paradas.map(p => encodeURIComponent(p.direccion)).join('/')}`
 
   return (
     <div className="space-y-3">
@@ -155,7 +185,7 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
           </div>
         ) : (
           <MapContainer
-            center={puntos[0] ?? [6.244, -75.574]}
+            center={todosLosPuntos[0] ?? [6.172, -75.599]}
             zoom={13}
             style={{ height: '100%', width: '100%', background: '#0f0f1a' }}
             zoomControl={true}
@@ -164,17 +194,29 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               attribution='&copy; <a href="https://carto.com">CARTO</a>'
             />
-            <FitBounds puntos={puntos} />
+            <FitBounds puntos={todosLosPuntos} />
 
-            {/* Polilínea de ruta */}
-            {puntos.length > 1 && (
+            {/* Polilínea: salida → entregas en orden */}
+            {todosLosPuntos.length > 1 && (
               <Polyline
-                positions={puntos}
+                positions={todosLosPuntos}
                 pathOptions={{ color: '#818cf8', weight: 2.5, opacity: 0.7, dashArray: '6 5' }}
               />
             )}
 
-            {/* Marcadores numerados */}
+            {/* Marcador de salida (Celada Shopper) */}
+            {origenCoords && (
+              <Marker position={origenCoords} icon={origenIcon()}>
+                <Popup>
+                  <div style={{ fontFamily: 'system-ui', fontSize: 13, minWidth: 160 }}>
+                    <p style={{ fontWeight: 700, marginBottom: 3 }}>🏠 Celada Shopper</p>
+                    <p style={{ color: '#555', fontSize: 11 }}>Punto de salida · Itagüí</p>
+                  </div>
+                </Popup>
+              </Marker>
+            )}
+
+            {/* Marcadores numerados de entregas */}
             {geocoded.map(g => (
               <Marker key={g.num} position={[g.lat, g.lng]} icon={markerIcon(g.num, g.tipo)}>
                 <Popup>
@@ -190,8 +232,11 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
       </div>
 
       {/* Leyenda */}
-      {geocoded.length > 0 && (
+      {(origenCoords || geocoded.length > 0) && (
         <div className="flex items-center gap-4 text-[11px]" style={{ color: `${tw}0.35)` }}>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#34d399' }} /> Celada Shopper (salida)
+          </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#F5B800' }} /> Paquete sistema
           </span>
