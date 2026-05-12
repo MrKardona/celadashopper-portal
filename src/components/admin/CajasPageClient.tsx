@@ -139,12 +139,23 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
     const usacoEstado = estadoUsacoMap[caja.id]
     const usacoStyle = usacoEstado ? (USACO_STYLE[usacoEstado] ?? null) : null
 
+    const esManejo = caja.tipo === 'manejo'
+
     return (
       <div
         className="glass-card overflow-hidden relative group transition-all cursor-pointer"
-        style={isSelected ? { borderColor: 'rgba(245,184,0,0.4)', boxShadow: '0 0 0 2px rgba(245,184,0,0.15)' } : {}}
+        style={isSelected
+          ? { borderColor: 'rgba(245,184,0,0.4)', boxShadow: '0 0 0 2px rgba(245,184,0,0.15)' }
+          : esManejo
+            ? { borderColor: 'rgba(249,115,22,0.3)', boxShadow: '0 0 0 1px rgba(249,115,22,0.08)', background: 'rgba(249,115,22,0.04)' }
+            : {}}
         onClick={() => isSelected ? cerrar() : abrir(caja.id)}
       >
+        {/* Franja naranja izquierda para cajas de manejo */}
+        {esManejo && (
+          <div className="absolute left-0 top-0 bottom-0 w-0.5 rounded-l-2xl"
+            style={{ background: 'linear-gradient(180deg, rgba(249,115,22,0.8) 0%, rgba(249,115,22,0.3) 100%)' }} />
+        )}
         {/* Botón eliminar — solo se muestra en hover, no propaga al click del card */}
         <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
           onClick={e => e.stopPropagation()}>
