@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Bike, Package, Phone } from 'lucide-react'
 import Link from 'next/link'
 import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
+import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
 
 const tw = 'rgba(255,255,255,'
 
@@ -124,15 +125,20 @@ export default async function DomiciliariosPage() {
                   </div>
                 </div>
 
-                {/* Link a listos-entrega filtrado */}
-                <Link
-                  href={`/admin/listos-entrega?domiciliario=${d.id}`}
-                  className="flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all"
-                  style={{ border: `1px solid ${tw}0.1)`, color: `${tw}0.5)` }}
-                  onMouseEnter={undefined}>
-                  <Package className="h-3.5 w-3.5" />
-                  Ver paquetes asignados
-                </Link>
+                {/* Acciones */}
+                <div className="space-y-2">
+                  <Link
+                    href={`/admin/listos-entrega?domiciliario=${d.id}`}
+                    className="flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all w-full"
+                    style={{ border: `1px solid ${tw}0.1)`, color: `${tw}0.5)` }}>
+                    <Package className="h-3.5 w-3.5" />
+                    Ver paquetes asignados
+                  </Link>
+                  <NuevoDomicilioManualModal
+                    domiciliarioId={d.id}
+                    domiciliarioNombre={d.nombre_completo}
+                  />
+                </div>
               </div>
             )
           })}
