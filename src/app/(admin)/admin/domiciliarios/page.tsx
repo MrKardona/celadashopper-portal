@@ -36,7 +36,7 @@ export default async function DomiciliariosPage() {
   if (domIds.length > 0) {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
 
-    const [enCaminoRes, entregadosRes, manualesRes] = await Promise.all([
+    const [enCaminoRes, entregadosRes, manualesPendientesRes, manualesEntregadosRes] = await Promise.all([
       admin.from('paquetes')
         .select('domiciliario_id')
         .in('domiciliario_id', domIds)
@@ -51,6 +51,11 @@ export default async function DomiciliariosPage() {
         .in('domiciliario_id', domIds)
         .eq('estado', 'pendiente')
         .order('orden'),
+      admin.from('domicilios_manuales')
+        .select('domiciliario_id')
+        .in('domiciliario_id', domIds)
+        .eq('estado', 'completado')
+        .gte('updated_at', hoy.toISOString()),
     ])
 
     for (const p of enCaminoRes.data ?? []) {
@@ -63,10 +68,16 @@ export default async function DomiciliariosPage() {
       if (!paquetesMap[p.domiciliario_id]) paquetesMap[p.domiciliario_id] = { enCamino: 0, entregadosHoy: 0 }
       paquetesMap[p.domiciliario_id].entregadosHoy++
     }
-    for (const m of manualesRes.data ?? []) {
+    for (const m of manualesPendientesRes.data ?? []) {
       if (!m.domiciliario_id) continue
       if (!manualesMap[m.domiciliario_id]) manualesMap[m.domiciliario_id] = []
       manualesMap[m.domiciliario_id].push(m)
+    }
+    // Sumar domicilios manuales completados hoy al contador
+    for (const m of manualesEntregadosRes.data ?? []) {
+      if (!m.domiciliario_id) continue
+      if (!paquetesMap[m.domiciliario_id]) paquetesMap[m.domiciliario_id] = { enCamino: 0, entregadosHoy: 0 }
+      paquetesMap[m.domiciliario_id].entregadosHoy++
     }
   }
 

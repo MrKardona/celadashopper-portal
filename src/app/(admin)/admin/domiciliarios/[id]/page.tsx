@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-import { Bike, Phone, Package, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Bike, Phone, Package, ArrowLeft, CheckCircle2, History } from 'lucide-react'
 import Link from 'next/link'
 import OrdenarRutaPanel, { type ParadaRuta } from '@/components/admin/OrdenarRutaPanel'
 
@@ -165,11 +165,18 @@ export default async function AdminDomiciliarioDetallePage({ params }: Props) {
           style={{ color: `${tw}0.35)` }}>
           <ArrowLeft className="h-3.5 w-3.5" /> Volver
         </Link>
-        <Link href={`/admin/listos-entrega?domiciliario=${id}`}
-          className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-70"
-          style={{ color: `${tw}0.35)` }}>
-          <Package className="h-3.5 w-3.5" /> Listos para entrega
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={`/admin/domiciliarios/${id}/historial`}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+            <History className="h-3.5 w-3.5" /> Historial de entregas
+          </Link>
+          <Link href={`/admin/listos-entrega?domiciliario=${id}`}
+            className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-70"
+            style={{ color: `${tw}0.35)` }}>
+            <Package className="h-3.5 w-3.5" /> Listos para entrega
+          </Link>
+        </div>
       </div>
     </div>
   )
