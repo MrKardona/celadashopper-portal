@@ -223,9 +223,9 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
   ]
 
   return (
-    <div className="flex gap-6 items-start">
+    <div className="relative">
       {/* ── Lista de cajas ────────────────────────────────────── */}
-      <div className={`flex-1 space-y-6 min-w-0 transition-all duration-300 ${selectedId ? 'max-w-[calc(100%-420px)]' : ''}`}>
+      <div className="space-y-6">
 
         {activas.length === 0 ? (
           <div className="glass-card p-10 text-center">
@@ -323,53 +323,71 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
         )}
       </div>
 
-      {/* ── Panel deslizante derecho ──────────────────────────── */}
+      {/* ── Modal overlay ─────────────────────────────────────── */}
       <AnimatePresence>
         {selectedId && (
-          <motion.div
-            key="panel-caja"
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40 }}
-            transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="w-[400px] flex-shrink-0 sticky top-6"
-            style={{ maxHeight: 'calc(100vh - 48px)', overflowY: 'auto' }}
-          >
-            <div className="rounded-2xl overflow-hidden"
-              style={{
-                background: 'rgba(10,10,25,0.95)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-              }}>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop-caja"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[70]"
+              style={{ background: 'rgba(0,0,8,0.72)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+              onClick={cerrar}
+            />
 
-              {/* Cargando */}
-              {cargando && (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <Loader2 className="h-7 w-7 animate-spin" style={{ color: '#F5B800' }} />
-                  <p className="text-sm" style={{ color: `${tw}0.4)` }}>Cargando caja...</p>
-                </div>
-              )}
+            {/* Modal */}
+            <motion.div
+              key="modal-caja"
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              transition={{ duration: 0.26, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="fixed z-[71] inset-0 flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div
+                className="pointer-events-auto w-full max-w-lg rounded-2xl overflow-hidden"
+                style={{
+                  background: 'rgba(10,10,25,0.97)',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: '0 32px 80px rgba(0,0,0,0.65)',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Cargando */}
+                {cargando && (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <Loader2 className="h-7 w-7 animate-spin" style={{ color: '#F5B800' }} />
+                    <p className="text-sm" style={{ color: `${tw}0.4)` }}>Cargando caja...</p>
+                  </div>
+                )}
 
-              {/* Error */}
-              {!cargando && error && (
-                <div className="p-6 flex items-center gap-2 text-sm" style={{ color: '#f87171' }}>
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  {error}
-                </div>
-              )}
+                {/* Error */}
+                {!cargando && error && (
+                  <div className="p-6 flex items-center gap-2 text-sm" style={{ color: '#f87171' }}>
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    {error}
+                  </div>
+                )}
 
-              {/* Contenido */}
-              {!cargando && !error && detalle && (
-                <PanelDetalle
-                  caja={detalle.caja}
-                  paquetes={detalle.paquetes}
-                  onCerrar={cerrar}
-                />
-              )}
-            </div>
-          </motion.div>
+                {/* Contenido */}
+                {!cargando && !error && detalle && (
+                  <PanelDetalle
+                    caja={detalle.caja}
+                    paquetes={detalle.paquetes}
+                    onCerrar={cerrar}
+                  />
+                )}
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
