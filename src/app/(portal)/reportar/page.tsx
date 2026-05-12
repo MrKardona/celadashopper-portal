@@ -222,7 +222,7 @@ export default function ReportarPage() {
     setExito({ tracking: data.tracking_casilla ?? '', match: data.match })
   }
 
-  /* ���� Pantalla de éxito ���� */
+  /* ── Pantalla de éxito ── */
   if (exito) {
     return (
       <div className="max-w-lg mx-auto space-y-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -235,7 +235,7 @@ export default function ReportarPage() {
             <div>
               {exito.match ? (
                 <>
-                  <h2 className="text-xl font-bold text-white">¡Tu paquete ya está aquí! �x}0</h2>
+                  <h2 className="text-xl font-bold text-white">¡Tu paquete ya está aquí! 🎉</h2>
                   <p className="mt-1 text-sm" style={{ color: `${tw}0.6)` }}>
                     Encontramos tu paquete en nuestra bodega de Miami. Te enviamos una notificación por WhatsApp con los detalles.
                   </p>
@@ -276,7 +276,7 @@ export default function ReportarPage() {
     )
   }
 
-  /* ���� Formulario ���� */
+  /* ── Formulario ── */
   return (
     <div className="max-w-2xl mx-auto space-y-5" style={{ fontFamily: "'Outfit', sans-serif" }}>
 
@@ -381,8 +381,8 @@ export default function ReportarPage() {
                       onChange={e => setForm(prev => ({ ...prev, condicion: e.target.value as 'nuevo' | 'usado' }))}
                       placeholder="¿Es nuevo o usado?"
                     >
-                      <option value="nuevo">�S� Nuevo (en caja / sin usar)</option>
-                      <option value="usado">�x Usado</option>
+                      <option value="nuevo">✨ Nuevo (en caja / sin usar)</option>
+                      <option value="usado">🔄 Usado</option>
                     </GlassSelect>
                   </div>
 
@@ -397,41 +397,41 @@ export default function ReportarPage() {
                 {/* Pistas por categoría */}
                 {form.categoria === 'celular' && form.condicion === 'usado' && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    �x� Celular usado: 1-4 uds = $55/u · 5-9 uds = $45/u · 10+ uds = $40/u
+                    💡 Celular usado: 1-4 uds = $55/u · 5-9 uds = $45/u · 10+ uds = $40/u
                   </p>
                 )}
                 {form.categoria === 'celular' && form.condicion === 'nuevo' && (
-                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>�x� Celular nuevo: $75 por unidad</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>💡 Celular nuevo: $75 por unidad</p>
                 )}
                 {form.categoria === 'celular' && !form.condicion && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    �x� Selecciona la condición para ver la tarifa exacta (nuevo $75/u · usado desde $40/u)
+                    💡 Selecciona la condición para ver la tarifa exacta (nuevo $75/u · usado desde $40/u)
                   </p>
                 )}
                 {form.categoria === 'computador' && form.condicion === 'nuevo' && (
-                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>�x� Computador nuevo: $75/u + 4% del valor declarado</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>💡 Computador nuevo: $75/u + 4% del valor declarado</p>
                 )}
                 {form.categoria === 'computador' && form.condicion === 'usado' && (
-                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>�x� Computador usado: $55/u + 4% del valor declarado</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>💡 Computador usado: $55/u + 4% del valor declarado</p>
                 )}
                 {form.categoria === 'computador' && !form.condicion && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    �x� Selecciona la condición para ver la tarifa (nuevo $75/u · usado $55/u, ambos + 4% seguro)
+                    💡 Selecciona la condición para ver la tarifa (nuevo $75/u · usado $55/u, ambos + 4% seguro)
                   </p>
                 )}
                 {form.categoria === 'ipad_tablet' && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    �x� Valor &gt; $200 �  $45/u + 4% seguro · Valor �0� $200 �  $18 fijo + $2.20/lb
+                    💡 Valor &gt; $200 → $45/u + 4% seguro · Valor ≤ $200 → $18 fijo + $2.20/lb
                   </p>
                 )}
                 {form.categoria === 'calzado' && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    �x� 1 par = $20 · 2 o más pares = $17.50 cada par
+                    💡 1 par = $20 · 2 o más pares = $17.50 cada par
                   </p>
                 )}
                 {['ropa_accesorios', 'cosmeticos', 'perfumeria', 'suplementos', 'libros', 'electrodomestico'].includes(form.categoria) && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    �x� Hasta 6 uds y valor �0� $200: $18 fijo + $2.20/lb · 7+ uds o valor &gt; $200: $6.50/lb (mín 5 lb)
+                    💡 Hasta 6 uds y valor ≤ $200: $18 fijo + $2.20/lb · 7+ uds o valor &gt; $200: $6.50/lb (mín 5 lb)
                   </p>
                 )}
 
@@ -590,8 +590,8 @@ export default function ReportarPage() {
                 value={direccionOpcion}
                 onChange={e => setDireccionOpcion(e.target.value as 'guardada' | 'otra')}
               >
-                {direccionPerfil?.direccion && <option value="guardada">�x� Mi dirección guardada</option>}
-                <option value="otra">�S�️ Otra dirección (puntual)</option>
+                {direccionPerfil?.direccion && <option value="guardada">📍 Mi dirección guardada</option>}
+                <option value="otra">✏️ Otra dirección (puntual)</option>
               </GlassSelect>
 
               {direccionOpcion === 'guardada' && direccionPerfil?.direccion && (
@@ -605,7 +605,7 @@ export default function ReportarPage() {
                     </p>
                   )}
                   <Link href="/perfil" className="inline-block mt-2 text-[11px] font-medium hover:underline" style={{ color: '#F5B800' }}>
-                    Cambiar dirección guardada en mi perfil � 
+                    Cambiar dirección guardada en mi perfil →
                   </Link>
                 </div>
               )}
@@ -659,7 +659,7 @@ export default function ReportarPage() {
                   style={{ accentColor: '#8899ff' }}
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">�x� Necesito consolidar este paquete con otros</p>
+                  <p className="text-sm font-medium text-white">📦 Necesito consolidar este paquete con otros</p>
                   <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: `${tw}0.55)` }}>
                     Marca esta opción si vas a enviar más paquetes y quieres que esperemos a tener todos antes de despacharlos juntos.
                   </p>
@@ -729,7 +729,7 @@ export default function ReportarPage() {
       {/* Cómo funciona */}
       <div className="glass-section-blue p-4">
         <div className="flex gap-3">
-          <div className="mt-0.5">��️</div>
+          <div className="mt-0.5">ℹ️</div>
           <div className="text-sm" style={{ color: `${tw}0.7)` }}>
             <p className="font-medium mb-1 text-white">¿Cómo funciona?</p>
             <ol className="space-y-1 list-decimal list-inside" style={{ color: `${tw}0.6)` }}>

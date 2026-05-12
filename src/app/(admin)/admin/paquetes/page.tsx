@@ -93,7 +93,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     if (thumb) fotosMap[pid] = thumb.url
   }
 
-  // Build consolidacionMap: cliente_id �  count of packages in US states
+  // Build consolidacionMap: cliente_id → count of packages in US states
   const consolidacionMap: Record<string, number> = {}
   for (const row of (consolidacionUsaRes.data ?? []) as { cliente_id: string | null }[]) {
     if (!row.cliente_id) continue
@@ -136,7 +136,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
         </div>
         {cliente_id && (
           <Link href="/admin/clientes" className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ color: `${tw}0.6)`, border: `1px solid ${tw}0.12)` }}>
-            � � Volver a clientes
+            ← Volver a clientes
           </Link>
         )}
       </div>
@@ -163,12 +163,12 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
         <select name="asignacion" defaultValue={asignacion ?? ''} className={selectClass}>
           <option value="">Asignados y sin asignar</option>
           <option value="sin_asignar">⏳ Solo sin asignar</option>
-          <option value="asignados">�S Solo asignados</option>
+          <option value="asignados">✓ Solo asignados</option>
         </select>
         <select name="consolidacion" defaultValue={consolidacion ?? ''} className={selectClass}>
           <option value="">Consolidación: cualquiera</option>
-          <option value="requiere">�x� Requiere consolidar</option>
-          <option value="despachable">�xa� Listo para despachar</option>
+          <option value="requiere">📦 Requiere consolidar</option>
+          <option value="despachable">🚀 Listo para despachar</option>
         </select>
         <button type="submit" className="btn-gold px-4 py-2 rounded-xl text-sm font-semibold">Filtrar</button>
         {(estado || bodega || q || asignacion || consolidacion || cliente_id) && (

@@ -102,11 +102,11 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
         {gruposConsolidar.length > 0 && (
           <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(52,211,153,0.22)' }}>
             <div className="px-5 py-3.5 flex items-center gap-2" style={{ background: 'rgba(52,211,153,0.05)', borderBottom: '1px solid rgba(52,211,153,0.12)' }}>
-              <span style={{ color: '#34d399', fontSize: 16 }}>�x�</span>
+              <span style={{ color: '#34d399', fontSize: 16 }}>📦</span>
               <p className="text-sm font-semibold" style={{ color: '#34d399' }}>
                 {gruposConsolidar.length === 1
-                  ? '1 cliente con varios paquetes en bodega � coordinar entrega conjunta'
-                  : `${gruposConsolidar.length} clientes con varios paquetes en bodega � coordinar entrega conjunta`}
+                  ? '1 cliente con varios paquetes en bodega — coordinar entrega conjunta'
+                  : `${gruposConsolidar.length} clientes con varios paquetes en bodega — coordinar entrega conjunta`}
               </p>
             </div>
             <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
@@ -156,7 +156,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                     {p.cliente_id && clientesConMultiples.has(p.cliente_id) && (
                       <span className="inline-flex text-[11px] font-semibold px-1.5 py-0.5 rounded mt-1"
                         style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
-                        �x� Entregar con otros paquetes del cliente
+                        📦 Entregar con otros paquetes del cliente
                       </span>
                     )}
                     <div className="mt-1.5">

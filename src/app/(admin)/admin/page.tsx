@@ -132,15 +132,15 @@ export default async function AdminDashboard() {
         <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>Vista general de la operación</p>
       </div>
 
-      {/* ���� Alertas (arriba porque son urgentes) ���������������������������������� */}
+      {/* ── Alertas (arriba porque son urgentes) ───────────────── */}
       {alertas.length > 0 && (
         <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(245,184,0,0.22)' }}>
           <div className="px-5 py-3.5 flex items-center gap-2" style={{ borderBottom: `1px solid ${tw}0.06)`, background: 'rgba(245,184,0,0.04)' }}>
             <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
             <h3 className="text-sm font-semibold flex-1" style={{ color: '#F5B800' }}>
-              Sin movimiento +7 días � {alertas.length} paquete{alertas.length !== 1 ? 's' : ''}
+              Sin movimiento +7 días — {alertas.length} paquete{alertas.length !== 1 ? 's' : ''}
             </h3>
-            <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: `${tw}0.35)` }}>Ver todos � </Link>
+            <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: `${tw}0.35)` }}>Ver todos →</Link>
           </div>
           <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
             {alertas.map(p => {
@@ -169,7 +169,7 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      {/* ���� Consolidación alert �������������������������������������������������������������������� */}
+      {/* ── Consolidación alert ────────────────────────────────── */}
       {consolidacionClientes > 0 && (
         <Link href="/admin/consolidacion"
           className="glass-card p-4 flex items-center gap-4 group hover:border-purple-500/30 transition-all"
@@ -192,7 +192,7 @@ export default async function AdminDashboard() {
         </Link>
       )}
 
-      {/* ���� Acciones del día �������������������������������������������������������������������������� */}
+      {/* ── Acciones del día ───────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Link href="/admin/recibir"
           className="glass-card p-4 flex items-center gap-4 group hover:border-white/[0.18] transition-all">
@@ -242,7 +242,7 @@ export default async function AdminDashboard() {
         </Link>
       </div>
 
-      {/* ���� Stats ���������������������������������������������������������������������������������������������� */}
+      {/* ── Stats ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map(({ label, value, icon: Icon, iconBg, iconColor, href }) => {
           const inner = (
@@ -264,16 +264,16 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      {/* ���� Charts �������������������������������������������������������������������������������������������� */}
+      {/* ── Charts ────────────────────────────────────────────── */}
       <DashboardCharts datosDonut={datosDonut} datosBarras={datosBarras} />
 
-      {/* ���� Distribución por estado ���������������������������������������������������������� */}
+      {/* ── Distribución por estado ───────────────────────────── */}
       <div className="glass-card p-5">
         <h3 className="text-sm font-semibold text-white mb-4">Distribución por estado</h3>
         {[
-          { label: '�x!��x!� En USA',      estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] },
-          { label: '�S�️ En tránsito',  estados: ['en_transito', 'en_colombia'] },
-          { label: '�x!��x!� En Colombia', estados: ['en_bodega_local', 'en_camino_cliente', 'retenido'] },
+          { label: '🇺🇸 En USA',      estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] },
+          { label: '✈️ En tránsito',  estados: ['en_transito', 'en_colombia'] },
+          { label: '🇨🇴 En Colombia', estados: ['en_bodega_local', 'en_camino_cliente', 'retenido'] },
         ].map(grupo => (
           <div key={grupo.label} className="mb-5">
             <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.3)` }}>{grupo.label}</p>
@@ -297,7 +297,7 @@ export default async function AdminDashboard() {
         ))}
 
         <div className="mt-2 pt-4" style={{ borderTop: `1px solid ${tw}0.07)` }}>
-          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.25)` }}>�x9 Historial</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.25)` }}>📋 Historial</p>
           <div className="grid grid-cols-2 gap-2 max-w-xs">
             {[
               { estado: 'entregado', count: totalEntregados, sub: `${entregadosMes} este mes` },
@@ -320,11 +320,11 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* ���� �altimos registros ������������������������������������������������������������������������ */}
+      {/* ── Últimos registros ──────────────────────────────────── */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
-          <h3 className="text-sm font-semibold text-white">�altimos registros</h3>
-          <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: '#F5B800' }}>Ver todos � </Link>
+          <h3 className="text-sm font-semibold text-white">Últimos registros</h3>
+          <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: '#F5B800' }}>Ver todos →</Link>
         </div>
         <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
           {recientes.map(p => (

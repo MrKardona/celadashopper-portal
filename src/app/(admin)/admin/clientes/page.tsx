@@ -115,9 +115,9 @@ export default async function AdminClientesPage({ searchParams }: Props) {
         )}
         <select name="periodo" defaultValue={periodo} className="glass-input text-sm px-3 py-2 rounded-xl">
           <option value="">Todos los registros</option>
-          <option value="7">�altimos 7 días</option>
-          <option value="30">�altimos 30 días</option>
-          <option value="90">�altimos 90 días</option>
+          <option value="7">Últimos 7 días</option>
+          <option value="30">Últimos 30 días</option>
+          <option value="90">Últimos 90 días</option>
         </select>
         <select name="orden" defaultValue={orden} className="glass-input text-sm px-3 py-2 rounded-xl">
           <option value="recientes">Más recientes primero</option>
