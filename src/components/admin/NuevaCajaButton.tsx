@@ -19,6 +19,7 @@ export default function NuevaCajaButton() {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [bodega, setBodega] = useState<string>('medellin')
+  const [tipo, setTipo] = useState<'correo' | 'manejo'>('correo')
   const [courier, setCourier] = useState('')
   const [notas, setNotas] = useState('')
   const [creando, setCreando] = useState(false)
@@ -30,7 +31,7 @@ export default function NuevaCajaButton() {
     const res = await fetch('/api/admin/cajas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bodega_destino: bodega, courier: courier.trim() || null, notas: notas.trim() || null }),
+      body: JSON.stringify({ bodega_destino: bodega, tipo, courier: courier.trim() || null, notas: notas.trim() || null }),
     })
     const data = await res.json() as { ok?: boolean; caja?: { id: string }; error?: string }
     setCreando(false)
@@ -103,6 +104,46 @@ export default function NuevaCajaButton() {
               <p className="text-[11px] mt-1" style={{ color: `${tw}0.35)` }}>
                 Por defecto solo aceptará paquetes con esta ciudad destino. Podrás añadir otros con confirmación.
               </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium block mb-2" style={labelStyle}>Tipo de caja *</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTipo('correo')}
+                  className="py-2.5 px-3 rounded-xl text-sm font-semibold transition-all border flex flex-col items-center gap-0.5"
+                  style={tipo === 'correo' ? {
+                    background: 'rgba(34,197,94,0.12)',
+                    border: '1px solid rgba(34,197,94,0.45)',
+                    color: '#4ade80',
+                  } : {
+                    background: 'transparent',
+                    border: `1px solid ${tw}0.1)`,
+                    color: `${tw}0.4)`,
+                  }}
+                >
+                  <span>Correo</span>
+                  <span className="text-[10px] font-normal opacity-70">≤ $200 USD</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipo('manejo')}
+                  className="py-2.5 px-3 rounded-xl text-sm font-semibold transition-all border flex flex-col items-center gap-0.5"
+                  style={tipo === 'manejo' ? {
+                    background: 'rgba(249,115,22,0.12)',
+                    border: '1px solid rgba(249,115,22,0.45)',
+                    color: '#fb923c',
+                  } : {
+                    background: 'transparent',
+                    border: `1px solid ${tw}0.1)`,
+                    color: `${tw}0.4)`,
+                  }}
+                >
+                  <span>Manejo</span>
+                  <span className="text-[10px] font-normal opacity-70">&gt; $200 USD</span>
+                </button>
+              </div>
             </div>
 
             <div>

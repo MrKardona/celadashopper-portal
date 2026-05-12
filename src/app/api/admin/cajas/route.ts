@@ -74,20 +74,24 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as {
     bodega_destino?: string
+    tipo?: string
     courier?: string
     notas?: string
   }
+
+  const tipoValido = ['correo', 'manejo'].includes(body.tipo ?? '') ? body.tipo : 'correo'
 
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
     .from('cajas_consolidacion')
     .insert({
       bodega_destino: body.bodega_destino ?? 'medellin',
+      tipo: tipoValido,
       courier: body.courier ?? null,
       notas: body.notas ?? null,
       creada_por: user.id,
     })
-    .select('id, codigo_interno, bodega_destino, estado, created_at')
+    .select('id, codigo_interno, bodega_destino, tipo, estado, created_at')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
