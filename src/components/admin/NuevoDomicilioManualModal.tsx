@@ -19,7 +19,7 @@ export default function NuevoDomicilioManualModal({ domiciliarioId, domiciliario
       <button
         onClick={() => setAbierto(true)}
         className="flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all w-full"
-        style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)', color: '#818cf8' }}
+        style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#34d399' }}
       >
         <MapPin className="h-3.5 w-3.5" />
         Agregar domicilio manual
