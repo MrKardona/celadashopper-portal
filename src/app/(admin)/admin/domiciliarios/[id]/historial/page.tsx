@@ -71,10 +71,13 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
   if (paqIds.length > 0) {
     const { data: fotos } = await admin
       .from('fotos_paquetes')
-      .select('paquete_id, url, tipo')
+      .select('paquete_id, url')
       .in('paquete_id', paqIds)
-      .eq('tipo', 'entrega')
-    for (const f of fotos ?? []) fotosMap[f.paquete_id] = f.url
+      .order('created_at', { ascending: false })
+    // Keep only the most recent photo per package (delivery proof)
+    for (const f of fotos ?? []) {
+      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+    }
   }
 
   // Nombres de clientes
