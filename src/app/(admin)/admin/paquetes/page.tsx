@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import PaquetesTablaClient from '@/components/admin/PaquetesTablaClient'
+import LimitSelector from '@/components/ui/LimitSelector'
 
 const ESTADO_LABELS_LOCAL: Record<string, string> = {
   reportado: 'Reportado', recibido_usa: 'Recibido USA', en_consolidacion: 'En consolidación',
@@ -26,12 +27,13 @@ const BODEGA_LABELS: Record<string, string> = {
 const tw = 'rgba(255,255,255,'
 
 interface Props {
-  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string; consolidacion?: string; cliente_id?: string }>
+  searchParams: Promise<{ estado?: string; bodega?: string; q?: string; asignacion?: string; consolidacion?: string; cliente_id?: string; limite?: string }>
 }
 
 export default async function AdminPaquetesPage({ searchParams }: Props) {
   const params = await searchParams
   const { estado, bodega, q, asignacion, consolidacion, cliente_id } = params
+  const limite = [10, 50, 100].includes(Number(params.limite)) ? Number(params.limite) : 50
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +45,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     .from('paquetes')
     .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id')
     .order('created_at', { ascending: false })
-    .limit(200)
+    .limit(limite)
 
   if (estado) q1 = q1.eq('estado', estado)
   if (bodega) q1 = q1.eq('bodega_destino', bodega)
@@ -151,7 +153,8 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
             {nombreCliente && <span style={{ color: '#F5B800' }}> · {nombreCliente}</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <LimitSelector actual={limite} />
           <Link
             href="/admin/paquetes/eliminados"
             className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5"

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { ClipboardList, MapPin, User, Package, CheckCircle2 } from 'lucide-react'
+import LimitSelector from '@/components/ui/LimitSelector'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
@@ -46,6 +47,8 @@ function agruparPorFecha(paquetes: EntregaRow[]): { label: string; items: Entreg
   }).map(([label, items]) => ({ label, items }))
 }
 
+interface Props { searchParams: Promise<{ limite?: string }> }
+
 interface EntregaRow {
   id: string
   tracking_casilla: string | null
@@ -59,7 +62,10 @@ interface EntregaRow {
   fecha_asignacion_domiciliario: string | null
 }
 
-export default async function HistorialPage() {
+export default async function HistorialPage({ searchParams }: Props) {
+  const { limite: limiteParam } = await searchParams
+  const limite = [10, 50, 100].includes(Number(limiteParam)) ? Number(limiteParam) : 10
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -75,7 +81,7 @@ export default async function HistorialPage() {
     .eq('estado', 'entregado')
     .is('paquete_origen_id', null)
     .order('updated_at', { ascending: false })
-    .limit(200)
+    .limit(limite)
 
   const lista: EntregaRow[] = paquetes ?? []
 
@@ -113,9 +119,10 @@ export default async function HistorialPage() {
           <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>
             {lista.length === 0
               ? 'Aún no tienes entregas registradas'
-              : `${lista.length} entrega${lista.length !== 1 ? 's' : ''} en total`}
+              : `Mostrando ${lista.length} entrega${lista.length !== 1 ? 's' : ''}`}
           </p>
         </div>
+        <LimitSelector actual={limite} />
       </div>
 
       {/* Stats */}

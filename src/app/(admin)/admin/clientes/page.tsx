@@ -5,16 +5,18 @@ import Link from 'next/link'
 import { Search } from 'lucide-react'
 import ClientesTabla, { type ClienteRow } from '@/components/admin/ClientesTabla'
 import NuevoClienteModal from '@/components/admin/NuevoClienteModal'
+import LimitSelector from '@/components/ui/LimitSelector'
 
 interface Props {
-  searchParams: Promise<{ q?: string; ciudad?: string; orden?: string; periodo?: string }>
+  searchParams: Promise<{ q?: string; ciudad?: string; orden?: string; periodo?: string; limite?: string }>
 }
 
 export default async function AdminClientesPage({ searchParams }: Props) {
   const params = await searchParams
   const { q, ciudad } = params
-  const orden = params.orden ?? 'recientes' // default: últimos registrados
-  const periodo = params.periodo ?? '' // '7', '30', '90' o vacío (todos)
+  const orden = params.orden ?? 'recientes'
+  const periodo = params.periodo ?? ''
+  const limite = [10, 50, 100].includes(Number(params.limite)) ? Number(params.limite) : 50
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,7 +48,7 @@ export default async function AdminClientesPage({ searchParams }: Props) {
     q1 = q1.gte('created_at', desde)
   }
 
-  const { data: clientes } = await q1
+  const { data: clientes } = await q1.limit(limite)
   const lista = clientes ?? []
 
   // Query 2: conteo de paquetes por cliente
@@ -88,10 +90,13 @@ export default async function AdminClientesPage({ searchParams }: Props) {
           <h1 className="text-2xl font-bold text-white">Clientes</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}
-            {periodo && ` registrados en los últimos ${periodo} días`}
+            {periodo && ` · últimos ${periodo} días`}
           </p>
         </div>
-        <NuevoClienteModal />
+        <div className="flex items-center gap-3 flex-wrap">
+          <LimitSelector actual={limite} />
+          <NuevoClienteModal />
+        </div>
       </div>
 
       {/* Filtros */}

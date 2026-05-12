@@ -6,6 +6,7 @@ import Link from 'next/link'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 import AsignarDomiciliarioButton from '@/components/admin/AsignarDomiciliarioButton'
+import LimitSelector from '@/components/ui/LimitSelector'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
@@ -13,10 +14,12 @@ const BODEGA_LABELS: Record<string, string> = {
 
 const tw = 'rgba(255,255,255,'
 
-interface Props { searchParams: Promise<{ ciudad?: string; domiciliario?: string }> }
+interface Props { searchParams: Promise<{ ciudad?: string; domiciliario?: string; limite?: string }> }
 
 export default async function ListosEntregaPage({ searchParams }: Props) {
-  const { ciudad, domiciliario: filtroDomiciliario } = await searchParams
+  const params = await searchParams
+  const { ciudad, domiciliario: filtroDomiciliario } = params
+  const limite = [10, 50, 100].includes(Number(params.limite)) ? Number(params.limite) : 50
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +37,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
 
   if (ciudad) q = q.eq('bodega_destino', ciudad)
   if (filtroDomiciliario) q = q.eq('domiciliario_id', filtroDomiciliario)
-  const { data: paquetes } = await q
+  const { data: paquetes } = await q.limit(limite)
   const lista = paquetes ?? []
 
   // Cargar domiciliarios activos para el selector
@@ -121,6 +124,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
             {lista.length} paquete{lista.length !== 1 ? 's' : ''} en bodega Colombia esperando entrega al cliente
           </p>
         </div>
+        <LimitSelector actual={limite} />
       </div>
 
       {ciudades.length > 1 && (
