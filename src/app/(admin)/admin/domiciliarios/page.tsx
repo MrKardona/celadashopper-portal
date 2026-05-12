@@ -97,6 +97,7 @@ export default async function DomiciliariosPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {lista.map(d => {
             const stats = paquetesMap[d.id] ?? { enCamino: 0, entregadosHoy: 0 }
+            const totalEnCamino = stats.enCamino + (manualesMap[d.id]?.length ?? 0)
             const tel = d.whatsapp ?? d.telefono
 
             return (
@@ -121,9 +122,9 @@ export default async function DomiciliariosPage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-xl px-3 py-2.5 text-center"
-                    style={{ background: stats.enCamino > 0 ? 'rgba(99,102,241,0.1)' : `${tw}0.04)`, border: `1px solid ${stats.enCamino > 0 ? 'rgba(99,102,241,0.2)' : `${tw}0.07)`}` }}>
-                    <p className="text-2xl font-bold" style={{ color: stats.enCamino > 0 ? '#818cf8' : `${tw}0.3)` }}>
-                      {stats.enCamino}
+                    style={{ background: totalEnCamino > 0 ? 'rgba(99,102,241,0.1)' : `${tw}0.04)`, border: `1px solid ${totalEnCamino > 0 ? 'rgba(99,102,241,0.2)' : `${tw}0.07)`}` }}>
+                    <p className="text-2xl font-bold" style={{ color: totalEnCamino > 0 ? '#818cf8' : `${tw}0.3)` }}>
+                      {totalEnCamino}
                     </p>
                     <p className="text-[11px] mt-0.5" style={{ color: `${tw}0.35)` }}>En camino</p>
                   </div>
