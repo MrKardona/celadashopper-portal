@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
   const necesitaRol =
     (user && (pathname === '/login' || pathname === '/register')) ||
     (user && pathname === '/dashboard') ||
-    (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente')))
+    (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente') || pathname.startsWith('/domiciliario')))
 
   if (necesitaRol) {
     const { data: perfil } = await supabaseAdmin
@@ -69,6 +69,7 @@ export async function middleware(request: NextRequest) {
     if (pathname === '/login' || pathname === '/register') {
       if (rol === 'admin') return NextResponse.redirect(new URL('/admin/paquetes', request.url))
       if (rol === 'agente_usa') return NextResponse.redirect(new URL('/agente', request.url))
+      if (rol === 'domiciliario') return NextResponse.redirect(new URL('/domiciliario', request.url))
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
@@ -81,12 +82,18 @@ export async function middleware(request: NextRequest) {
     if (pathname === '/dashboard' && rol === 'agente_usa') {
       return NextResponse.redirect(new URL('/agente', request.url))
     }
+    if (pathname === '/dashboard' && rol === 'domiciliario') {
+      return NextResponse.redirect(new URL('/domiciliario', request.url))
+    }
 
-    // Proteger rutas /admin y /agente
+    // Proteger rutas /admin, /agente y /domiciliario
     if (pathname.startsWith('/admin') && rol !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     if (pathname.startsWith('/agente') && !['admin', 'agente_usa'].includes(rol)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    if (pathname.startsWith('/domiciliario') && !['admin', 'domiciliario'].includes(rol)) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

@@ -5,6 +5,7 @@ import { CheckCircle2, Package, MapPin, User, Phone, ExternalLink, AlertTriangle
 import Link from 'next/link'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
+import AsignarDomiciliarioButton from '@/components/admin/AsignarDomiciliarioButton'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
@@ -12,10 +13,10 @@ const BODEGA_LABELS: Record<string, string> = {
 
 const tw = 'rgba(255,255,255,'
 
-interface Props { searchParams: Promise<{ ciudad?: string }> }
+interface Props { searchParams: Promise<{ ciudad?: string; domiciliario?: string }> }
 
 export default async function ListosEntregaPage({ searchParams }: Props) {
-  const { ciudad } = await searchParams
+  const { ciudad, domiciliario: filtroDomiciliario } = await searchParams
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,14 +26,28 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
 
   let q = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega')
-    .eq('estado', 'en_bodega_local')
+    .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega, domiciliario_id')
+    .in('estado', ['en_bodega_local', 'en_camino_cliente'])
     .eq('visible_cliente', true)   // excluir sub-paquetes internos (divisiones)
     .order('fecha_llegada_colombia', { ascending: true })
 
   if (ciudad) q = q.eq('bodega_destino', ciudad)
+  if (filtroDomiciliario) q = q.eq('domiciliario_id', filtroDomiciliario)
   const { data: paquetes } = await q
   const lista = paquetes ?? []
+
+  // Cargar domiciliarios activos para el selector
+  const { data: domiciliariosData } = await supabase
+    .from('perfiles')
+    .select('id, nombre_completo')
+    .eq('rol', 'domiciliario')
+    .eq('activo', true)
+    .order('nombre_completo')
+  const domiciliarios = domiciliariosData ?? []
+
+  // Mapa domiciliario_id → nombre
+  const domMap: Record<string, string> = {}
+  for (const d of domiciliarios) domMap[d.id] = d.nombre_completo
 
   const clienteIds = [...new Set(lista.map(p => p.cliente_id).filter(Boolean))] as string[]
   const perfilesMap: Record<string, {
@@ -300,6 +315,18 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                     </span>
                   )}
                 </div>
+
+                {/* Asignar domiciliario */}
+                {domiciliarios.length > 0 && (
+                  <AsignarDomiciliarioButton
+                    paqueteId={p.id}
+                    descripcion={p.descripcion ?? ''}
+                    domiciliarios={domiciliarios}
+                    domiciliarioActual={p.domiciliario_id
+                      ? { id: p.domiciliario_id, nombre_completo: domMap[p.domiciliario_id] ?? 'Domiciliario' }
+                      : null}
+                  />
+                )}
 
                 <EntregarPaqueteButton
                   paqueteId={p.id}
