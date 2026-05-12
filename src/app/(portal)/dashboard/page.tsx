@@ -38,10 +38,12 @@ export default async function DashboardPage() {
 
   const { data: paquetes } = await supabase
     .from('paquetes').select('*').eq('cliente_id', user!.id)
+    .is('paquete_origen_id', null)   // excluir divisiones
     .order('created_at', { ascending: false }).limit(5)
 
   const { data: todos } = await supabase
     .from('paquetes').select('estado').eq('cliente_id', user!.id)
+    .is('paquete_origen_id', null)   // excluir divisiones de los contadores
 
   const stats = {
     total:       todos?.length ?? 0,
