@@ -113,12 +113,14 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     peso_estimado?: number | null
     peso_real?: number | null
     bodega_destino?: string
+    tipo?: string
     costo_total_usaco?: number | null
     tracking_usaco?: string | null
     estado?: string
   }
 
   const ESTADOS_VALIDOS = ['abierta', 'cerrada', 'despachada', 'recibida_colombia']
+  const TIPOS_VALIDOS = ['correo', 'manejo']
   const admin = getSupabaseAdmin()
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.notas !== undefined) updates.notas = body.notas
@@ -126,6 +128,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (body.peso_estimado !== undefined) updates.peso_estimado = body.peso_estimado
   if (body.peso_real !== undefined) updates.peso_real = body.peso_real
   if (body.bodega_destino !== undefined) updates.bodega_destino = body.bodega_destino
+  if (body.tipo !== undefined && TIPOS_VALIDOS.includes(body.tipo)) updates.tipo = body.tipo
   if (body.costo_total_usaco !== undefined) updates.costo_total_usaco = body.costo_total_usaco
   if (body.tracking_usaco !== undefined) updates.tracking_usaco = body.tracking_usaco?.trim() || null
   if (body.estado !== undefined && ESTADOS_VALIDOS.includes(body.estado)) updates.estado = body.estado

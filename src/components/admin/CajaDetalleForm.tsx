@@ -56,6 +56,7 @@ export interface CajaDetalle {
   tracking_usaco: string | null
   courier: string | null
   bodega_destino: string
+  tipo: 'correo' | 'manejo' | null
   peso_estimado: number | string | null
   peso_real: number | string | null
   costo_total_usaco: number | string | null
@@ -818,6 +819,7 @@ const ESTADOS_CAJA = [
 
 function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose: () => void; onDone: () => void }) {
   const [estado, setEstado] = useState(caja.estado)
+  const [tipo, setTipo] = useState<'correo' | 'manejo'>(caja.tipo ?? 'correo')
   const [bodega, setBodega] = useState(caja.bodega_destino)
   const [courier, setCourier] = useState(caja.courier ?? '')
   const [trackingUsaco, setTrackingUsaco] = useState(caja.tracking_usaco ?? '')
@@ -834,6 +836,7 @@ function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         estado,
+        tipo,
         bodega_destino: bodega, courier: courier.trim() || null,
         tracking_usaco: trackingUsaco.trim() || null,
         peso_estimado: pesoEstimado ? parseFloat(pesoEstimado) : null,
@@ -881,6 +884,25 @@ function ModalEditarCaja({ caja, onClose, onDone }: { caja: CajaDetalle; onClose
                 }
               >
                 {estado === e.value ? '● ' : '○ '}{e.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium block mb-2" style={labelStyle}>Tipo de mercancía</label>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: 'correo', label: 'Correo', sub: '≤ $200 USD', color: '#4ade80', bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.45)' },
+              { value: 'manejo', label: 'Manejo', sub: '> $200 USD', color: '#fb923c', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.45)' },
+            ] as const).map(opt => (
+              <button key={opt.value} type="button" onClick={() => setTipo(opt.value)}
+                className="py-2.5 px-3 rounded-xl text-sm font-semibold transition-all border flex flex-col items-center gap-0.5"
+                style={tipo === opt.value
+                  ? { background: opt.bg, border: `1px solid ${opt.border}`, color: opt.color }
+                  : { background: 'transparent', border: `1px solid ${tw}0.1)`, color: `${tw}0.4)` }}>
+                <span>{opt.label}</span>
+                <span className="text-[10px] font-normal opacity-70">{opt.sub}</span>
               </button>
             ))}
           </div>
