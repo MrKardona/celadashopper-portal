@@ -31,6 +31,7 @@ interface VariablesPlantilla {
   fecha_compra?: string
   fecha_estimada_llegada?: string
   notas_cliente?: string
+  notas_entrega?: string   // quién recibió / notas del domiciliario
   estadoActual?: string
   tarifaCalculada?: TarifaCalculada
 }
@@ -574,6 +575,7 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
       ${vars.bodega ? bloqueDatos('&#128205; Bodega', vars.bodega) : ''}
+      ${vars.notas_entrega ? bloqueDatos('&#128221; Recibido por', vars.notas_entrega) : ''}
     `)}
 
     <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:20px 0 0 0;">

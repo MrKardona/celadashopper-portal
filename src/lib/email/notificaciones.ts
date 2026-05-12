@@ -51,6 +51,7 @@ interface DatosEmail {
   fecha_compra?: string | null
   fecha_estimada_llegada?: string | null
   notas_cliente?: string | null
+  notas_entrega?: string | null   // quién recibió el paquete (domiciliario)
   estadoActual?: string | null
   // Tarifa calculada al recibir en USA (incluye desglose)
   tarifaCalculada?: TarifaCalculadaDatos | null
@@ -82,6 +83,7 @@ function buildVars(d: DatosEmail) {
     fecha_compra: d.fecha_compra ?? undefined,
     fecha_estimada_llegada: d.fecha_estimada_llegada ?? undefined,
     notas_cliente: d.notas_cliente ?? undefined,
+    notas_entrega: d.notas_entrega ?? undefined,
     estadoActual: d.estadoActual ?? undefined,
     tarifaCalculada: d.tarifaCalculada ?? undefined,
   }

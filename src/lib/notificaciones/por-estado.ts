@@ -537,11 +537,18 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
           .limit(10)
 
         if (estadoNuevo === 'entregado') {
-          // Para entregado: priorizar la foto de entrega más reciente
+          // Para entregado: priorizar la foto con descripcion 'entrega', fallback a la más reciente
           const fotoEntrega = fotos?.find(f =>
             (f.descripcion ?? '').toLowerCase().includes('entrega')
           )
-          fotoUrlContenido = fotoEntrega?.url ?? null
+          // Fallback: última foto guardada (puede ser foto de galería sin descripción específica)
+          const fotaMasReciente = fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null
+          fotoUrlContenido = fotoEntrega?.url ?? fotaMasReciente?.url ?? null
+          if (fotoUrlContenido) {
+            console.log(`[notif entregado] foto comprobante: ${fotoUrlContenido.slice(-40)}`)
+          } else {
+            console.log('[notif entregado] sin foto de comprobante — email sin imagen')
+          }
         } else {
           // recibido_usa: 2 fotos — empaque (con guía) y contenido
           const fotoEmpaque = fotos?.find(f =>
@@ -580,6 +587,24 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         }
       }
 
+      // Para entregado: obtener notas del domiciliario desde el último evento
+      let notasEntrega: string | null = null
+      if (estadoNuevo === 'entregado') {
+        const { data: ultimoEvento } = await supabase
+          .from('eventos_paquete')
+          .select('descripcion')
+          .eq('paquete_id', paqueteId)
+          .eq('estado_nuevo', 'entregado')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (ultimoEvento?.descripcion) {
+          // Extraer notas: "Entregado por domiciliario X. NOTAS" → sacar lo de después del primer punto
+          const partes = ultimoEvento.descripcion.split('. ')
+          if (partes.length > 1) notasEntrega = partes.slice(1).join('. ').trim() || null
+        }
+      }
+
       emailRes = await enviarEmailPorEstado(estadoNuevo, {
         emailDestino: ctx.perfil.email,
         nombre: ctx.vars.nombre,
@@ -595,6 +620,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         fotoUrlContenido,
         fotoUrlEmpaque,
         tarifaCalculada,
+        notas_entrega: notasEntrega ?? undefined,
       })
       console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailRes.ok} msg_id=${emailRes.messageId ?? '?'}`)
     } else {
