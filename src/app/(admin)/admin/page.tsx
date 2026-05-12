@@ -39,7 +39,7 @@ export default async function AdminDashboard() {
   const [
     conteoRes, recientesRes, alertasRes, clientesRes,
     entregadosTotalRes, entregadosMesRes, recepcionesUsaRes, devueltosTotalRes,
-    cajasActivasRes, consolidacionRes,
+    cajasActivasRes, consolidacionRes, entregadosRecientesRes,
   ] = await Promise.all([
     supabase.from('paquetes').select('estado').not('estado', 'in', '("entregado","devuelto")'),
     supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(8),
@@ -55,17 +55,19 @@ export default async function AdminDashboard() {
       .select('cliente_id')
       .in('estado', ['recibido_usa', 'en_consolidacion', 'listo_envio'])
       .not('cliente_id', 'is', null),
+    supabase.from('paquetes').select('updated_at').eq('estado', 'entregado').gte('updated_at', hace30Dias),
   ])
 
-  const paquetes        = conteoRes.data ?? []
-  const recientes       = recientesRes.data ?? []
-  const alertas         = alertasRes.data ?? []
-  const totalClientes   = clientesRes.count ?? 0
-  const totalEntregados = entregadosTotalRes.count ?? 0
-  const entregadosMes   = entregadosMesRes.count ?? 0
-  const recepcionesUsa  = recepcionesUsaRes.data ?? []
-  const totalDevueltos  = devueltosTotalRes.count ?? 0
-  const cajasActivas    = cajasActivasRes.count ?? 0
+  const paquetes            = conteoRes.data ?? []
+  const recientes           = recientesRes.data ?? []
+  const alertas             = alertasRes.data ?? []
+  const totalClientes       = clientesRes.count ?? 0
+  const totalEntregados     = entregadosTotalRes.count ?? 0
+  const entregadosMes       = entregadosMesRes.count ?? 0
+  const recepcionesUsa      = recepcionesUsaRes.data ?? []
+  const totalDevueltos      = devueltosTotalRes.count ?? 0
+  const cajasActivas        = cajasActivasRes.count ?? 0
+  const entregadosRecientes = entregadosRecientesRes.data ?? []
 
   // Count clients with 2+ packages in US states
   const consolidacionRows = consolidacionRes.data ?? []
@@ -106,13 +108,16 @@ export default async function AdminDashboard() {
     { label: 'Clientes activos',   value: totalClientes,     icon: Users,        iconBg: 'rgba(52,211,153,0.12)', iconColor: '#6ee7b7' },
   ]
 
+  const reportados = conteo['reportado'] ?? 0
+  const recibidosUsa = (conteo['recibido_usa'] ?? 0) + (conteo['en_consolidacion'] ?? 0) + (conteo['listo_envio'] ?? 0)
+
   const datosDonut = [
-    { nombre: 'En USA',       valor: enUsa,         color: '#eab308' },
-    { nombre: 'En tránsito',  valor: enTransito,    color: '#a855f7' },
-    { nombre: 'En bodega CO', valor: enBodegaLocal, color: '#F5B800' },
-    { nombre: 'Entregados (30d)', valor: entregadosMes, color: '#10b981' },
+    { nombre: 'Reportados',        valor: reportados,   color: '#94a3b8' },
+    { nombre: 'Recibidos en USA',  valor: recibidosUsa, color: '#22c55e' },
+    { nombre: 'En tránsito intl.', valor: enTransito,   color: '#a855f7' },
   ].filter(d => d.valor > 0)
 
+  // Recepciones USA — últimos 14 días
   const recepcionesPorDia: Record<string, number> = {}
   for (let i = 13; i >= 0; i--) {
     const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
@@ -124,6 +129,19 @@ export default async function AdminDashboard() {
     if (key in recepcionesPorDia) recepcionesPorDia[key]++
   }
   const datosBarras = Object.entries(recepcionesPorDia).map(([fecha, count]) => ({ fecha: fecha.slice(5), count }))
+
+  // Entregados — últimos 30 días por día
+  const entregadosPorDia: Record<string, number> = {}
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+    entregadosPorDia[d.toISOString().slice(0, 10)] = 0
+  }
+  for (const r of entregadosRecientes) {
+    if (!r.updated_at) continue
+    const key = r.updated_at.slice(0, 10)
+    if (key in entregadosPorDia) entregadosPorDia[key]++
+  }
+  const datosEntregados = Object.entries(entregadosPorDia).map(([fecha, count]) => ({ fecha: fecha.slice(5), count }))
 
   return (
     <div className="space-y-6">
@@ -265,7 +283,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* ── Charts ────────────────────────────────────────────── */}
-      <DashboardCharts datosDonut={datosDonut} datosBarras={datosBarras} />
+      <DashboardCharts datosDonut={datosDonut} datosBarras={datosBarras} datosEntregados={datosEntregados} totalEntregados={totalEntregados} />
 
       {/* ── Distribución por estado ───────────────────────────── */}
       <div className="glass-card p-5">
