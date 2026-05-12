@@ -48,7 +48,15 @@ export default async function AdminClientesPage({ searchParams }: Props) {
     q1 = q1.gte('created_at', desde)
   }
 
-  const { data: clientes } = await q1.limit(limite)
+  // Búsqueda en la BD (no filtrado local) — busca en todos los clientes
+  if (q) {
+    const term = `%${q.replace(/[%_\\]/g, '\\$&').trim()}%`
+    q1 = q1.or(
+      `nombre_completo.ilike.${term},email.ilike.${term},numero_casilla.ilike.${term},whatsapp.ilike.${term},telefono.ilike.${term}`
+    )
+  }
+
+  const { data: clientes } = await q1.limit(q ? 200 : limite)
   const lista = clientes ?? []
 
   // Query 2: conteo de paquetes por cliente
@@ -73,14 +81,7 @@ export default async function AdminClientesPage({ searchParams }: Props) {
     }
   }
 
-  // Filtro texto
-  const filtrados: ClienteRow[] = (q
-    ? lista.filter(c => {
-        const txt = `${c.nombre_completo} ${c.email} ${c.numero_casilla} ${c.ciudad ?? ''}`.toLowerCase()
-        return txt.includes(q.toLowerCase())
-      })
-    : lista) as ClienteRow[]
-
+  const filtrados: ClienteRow[] = lista as ClienteRow[]
   const ciudades = [...new Set(lista.map(c => c.ciudad).filter(Boolean))]
 
   return (
