@@ -99,7 +99,7 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   const eraReasignacion = paquete.cliente_id !== null && paquete.cliente_id !== clienteId
 
-  // Actualizar paquete — incluir bodega_destino si viene calculada
+  // Actualizar paquete principal — incluir bodega_destino si viene calculada
   const updatePayload: Record<string, unknown> = {
     cliente_id: clienteId,
     updated_at: new Date().toISOString(),
@@ -116,14 +116,29 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 })
   }
 
-  // Registrar evento
+  // Propagar cliente (y bodega) a todas las divisiones del paquete padre
+  const { data: divisiones } = await admin
+    .from('paquetes')
+    .select('id')
+    .eq('paquete_origen_id', id)
+
+  if (divisiones && divisiones.length > 0) {
+    await admin
+      .from('paquetes')
+      .update(updatePayload)
+      .eq('paquete_origen_id', id)
+
+    console.log(`[asignar] ${divisiones.length} divisiones actualizadas con cliente_id=${clienteId}`)
+  }
+
+  // Registrar evento en paquete principal
   await admin.from('eventos_paquete').insert({
     paquete_id: id,
     estado_anterior: paquete.estado,
     estado_nuevo: paquete.estado,
     descripcion: eraReasignacion
-      ? `Reasignado manualmente al cliente ${cliente.nombre_completo}`
-      : `Asignado manualmente al cliente ${cliente.nombre_completo}`,
+      ? `Reasignado manualmente al cliente ${cliente.nombre_completo}${divisiones?.length ? ` (+ ${divisiones.length} divisiones)` : ''}`
+      : `Asignado manualmente al cliente ${cliente.nombre_completo}${divisiones?.length ? ` (+ ${divisiones.length} divisiones)` : ''}`,
   }).then(() => {/* ok */}, (e) => console.error('[asignar] evento:', e))
 
   // Notificar WhatsApp al cliente
@@ -187,6 +202,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   return NextResponse.json({
     ok: true,
     cliente: { nombre: cliente.nombre_completo, casilla: cliente.numero_casilla },
+    divisiones_actualizadas: divisiones?.length ?? 0,
     notificacion: {
       intentada: debeNotificar && (!!phoneCliente || !!cliente.email),
       enviada: envioOk,
