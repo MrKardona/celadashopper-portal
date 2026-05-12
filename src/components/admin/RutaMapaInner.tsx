@@ -7,10 +7,10 @@ import 'leaflet/dist/leaflet.css'
 
 const tw = 'rgba(255,255,255,'
 
-// Punto de salida fijo: Celada Shopper, Itagüí
+// Punto de salida fijo — sin ", Colombia" al final porque geocodificar lo agrega
 const CELADA_ORIGEN = {
   label: 'Celada Shopper — Salida',
-  direccion: 'Celada Personal Shopper, Itagüí, Antioquia, Colombia',
+  direccion: 'Celada Personal Shopper, Itagüí, Antioquia',
 }
 
 interface Parada {
@@ -25,7 +25,6 @@ interface GeoParada extends Parada {
   lng: number
 }
 
-// Ajusta el mapa a los bounds de los marcadores
 function FitBounds({ puntos }: { puntos: [number, number][] }) {
   const map = useMap()
   useEffect(() => {
@@ -87,14 +86,13 @@ async function geocodificar(direccion: string): Promise<[number, number] | null>
 }
 
 export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
-  const [origenCoords, setOrigenCoords]   = useState<[number, number] | null>(null)
-  const [geocoded,     setGeocoded]       = useState<GeoParada[]>([])
-  const [cargando,     setCargando]       = useState(false)
-  const [progreso,     setProgreso]       = useState(0)
+  const [origenCoords, setOrigenCoords] = useState<[number, number] | null>(null)
+  const [geocoded,     setGeocoded]     = useState<GeoParada[]>([])
+  const [cargando,     setCargando]     = useState(true) // empieza en true: geocodificamos origen siempre
+  const [progreso,     setProgreso]     = useState(0)
   const abortRef = useRef(false)
 
   useEffect(() => {
-    if (paradas.length === 0) { setGeocoded([]); setOrigenCoords(null); return }
     abortRef.current = false
     setCargando(true)
     setProgreso(0)
@@ -102,21 +100,22 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
     setOrigenCoords(null)
 
     ;(async () => {
-      // 1. Geocodificar punto de salida (Celada Shopper, Itagüí)
+      // 1. Geocodificar Celada Shopper (siempre, sea cual sea el nº de paradas)
       const oc = await geocodificar(CELADA_ORIGEN.direccion)
-      if (abortRef.current) return
+      if (abortRef.current) { setCargando(false); return }
       setOrigenCoords(oc)
 
-      // 2. Geocodificar paradas con rate-limit de Nominatim (1 req/seg)
+      // 2. Geocodificar paradas de entrega (rate-limit Nominatim: 1 req/seg)
       const resultados: GeoParada[] = []
       for (let i = 0; i < paradas.length; i++) {
         if (abortRef.current) break
         await new Promise(r => setTimeout(r, 1050))
-        const p = paradas[i]
-        const coords = await geocodificar(p.direccion)
+        if (abortRef.current) break
+        const coords = await geocodificar(paradas[i].direccion)
         setProgreso(Math.round(((i + 1) / paradas.length) * 100))
-        if (coords) resultados.push({ ...p, lat: coords[0], lng: coords[1] })
+        if (coords) resultados.push({ ...paradas[i], lat: coords[0], lng: coords[1] })
       }
+
       if (!abortRef.current) setGeocoded(resultados)
       setCargando(false)
     })()
@@ -124,13 +123,17 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
     return () => { abortRef.current = true }
   }, [paradas])
 
-  // Polilínea: origen → paradas en orden
-  const puntoOrigen: [number, number][] = origenCoords ? [origenCoords] : []
+  const puntoOrigen: [number, number][]   = origenCoords ? [origenCoords] : []
   const puntosParadas: [number, number][] = geocoded.map(g => [g.lat, g.lng])
   const todosLosPuntos: [number, number][] = [...puntoOrigen, ...puntosParadas]
 
-  // URL Google Maps: origen fijo → todas las paradas en orden
-  const googleMapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(CELADA_ORIGEN.direccion)}/${paradas.map(p => encodeURIComponent(p.direccion)).join('/')}`
+  // El mapa se muestra en cuanto hay CUALQUIER dato geocodificado (origen o paradas)
+  const hayDatos = origenCoords !== null || geocoded.length > 0
+
+  // Google Maps: salida desde Celada Shopper
+  const googleMapsUrl = paradas.length > 0
+    ? `https://www.google.com/maps/dir/${encodeURIComponent(CELADA_ORIGEN.direccion + ', Colombia')}/${paradas.map(p => encodeURIComponent(p.direccion)).join('/')}`
+    : `https://www.google.com/maps/search/${encodeURIComponent(CELADA_ORIGEN.direccion + ', Colombia')}`
 
   return (
     <div className="space-y-3">
@@ -141,47 +144,47 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
           </p>
           {cargando && (
             <span className="text-[11px]" style={{ color: `${tw}0.35)` }}>
-              Geocodificando... {progreso}%
+              {paradas.length > 0
+                ? `Geocodificando... ${progreso}%`
+                : 'Cargando origen...'}
             </span>
           )}
           {!cargando && geocoded.length > 0 && (
             <span className="text-[11px]" style={{ color: `${tw}0.3)` }}>
-              {geocoded.length}/{paradas.length} ubicadas
+              {geocoded.length}/{paradas.length} paradas ubicadas
             </span>
           )}
         </div>
-        {paradas.length > 0 && (
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
-          >
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-            Ver en Google Maps
-          </a>
-        )}
+        <a
+          href={googleMapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-opacity hover:opacity-80"
+          style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+          Ver en Google Maps
+        </a>
       </div>
 
       <div className="rounded-2xl overflow-hidden" style={{ height: 340, border: '1px solid rgba(255,255,255,0.08)' }}>
-        {geocoded.length === 0 && !cargando ? (
+        {cargando && !hayDatos ? (
+          /* Spinner mientras carga el origen por primera vez */
+          <div className="h-full flex flex-col items-center justify-center gap-2"
+            style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div className="h-5 w-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs" style={{ color: `${tw}0.3)` }}>Cargando mapa...</p>
+          </div>
+        ) : !hayDatos ? (
+          /* Sin datos: origen falló y sin paradas */
           <div className="h-full flex flex-col items-center justify-center gap-2"
             style={{ background: 'rgba(255,255,255,0.03)' }}>
             <svg className="h-8 w-8 opacity-20" viewBox="0 0 24 24" fill="white">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
             </svg>
-            <p className="text-xs" style={{ color: `${tw}0.25)` }}>
-              {paradas.length === 0 ? 'Sin paradas con dirección' : 'Agregue direcciones para ver el mapa'}
-            </p>
-          </div>
-        ) : cargando && geocoded.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center gap-2"
-            style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <div className="h-5 w-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs" style={{ color: `${tw}0.3)` }}>Cargando mapa...</p>
+            <p className="text-xs" style={{ color: `${tw}0.25)` }}>No se pudo cargar el mapa</p>
           </div>
         ) : (
           <MapContainer
@@ -204,7 +207,7 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
               />
             )}
 
-            {/* Marcador de salida (Celada Shopper) */}
+            {/* Marcador de Celada Shopper */}
             {origenCoords && (
               <Marker position={origenCoords} icon={origenIcon()}>
                 <Popup>
@@ -232,17 +235,21 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
       </div>
 
       {/* Leyenda */}
-      {(origenCoords || geocoded.length > 0) && (
+      {hayDatos && (
         <div className="flex items-center gap-4 text-[11px]" style={{ color: `${tw}0.35)` }}>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#34d399' }} /> Celada Shopper (salida)
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#F5B800' }} /> Paquete sistema
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#818cf8' }} /> Domicilio manual
-          </span>
+          {geocoded.some(g => g.tipo === 'paquete') && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#F5B800' }} /> Paquete
+            </span>
+          )}
+          {geocoded.some(g => g.tipo === 'manual') && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-3 rounded-full" style={{ background: '#818cf8' }} /> Domicilio manual
+            </span>
+          )}
         </div>
       )}
     </div>
