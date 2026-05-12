@@ -95,7 +95,7 @@ export default function FotoThumb({
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center p-6"
           style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
-          onClick={() => setOpen(false)}
+          onClick={e => { e.stopPropagation(); setOpen(false) }}
         >
           <button
             type="button"
@@ -103,7 +103,7 @@ export default function FotoThumb({
             style={{ background: 'rgba(255,255,255,0.1)', color: 'white' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            onClick={() => setOpen(false)}
+            onClick={e => { e.stopPropagation(); setOpen(false) }}
           >
             <X className="h-5 w-5" />
           </button>
