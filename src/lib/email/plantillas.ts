@@ -239,6 +239,71 @@ function badgeTracking(label: string, valor: string): string {
   `
 }
 
+// ─── Sección unificada de números de tracking ────────────────────────────────
+// Muestra siempre el número CeladaShopper (casilla) y, si existe,
+// el tracking del courier con el que llegó el paquete a bodega.
+function seccionTracking(vars: Pick<VariablesPlantilla, 'tracking' | 'tracking_origen' | 'tracking_usaco'>, opts?: { mostrarUsaco?: boolean }): string {
+  const filas: string[] = []
+
+  // Número CeladaShopper — siempre visible, badge principal
+  filas.push(`
+    <tr>
+      <td style="padding-bottom:${vars.tracking_origen || (opts?.mostrarUsaco && vars.tracking_usaco) ? '12px' : '0'};">
+        <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:14px 18px;">
+          <p style="margin:0 0 3px 0;color:${GOLD};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+            &#128278; Tu número CeladaShopper
+          </p>
+          <p style="margin:0;color:${GOLD};font-size:22px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:2px;">
+            ${vars.tracking}
+          </p>
+        </div>
+      </td>
+    </tr>
+  `)
+
+  // Guía del courier (tracking_origen) — mostrar cuando existe
+  if (vars.tracking_origen) {
+    filas.push(`
+      <tr>
+        <td style="padding-bottom:${opts?.mostrarUsaco && vars.tracking_usaco ? '12px' : '0'};">
+          <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:14px 18px;">
+            <p style="margin:0 0 3px 0;color:${TEXT_MUTE};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+              &#128666; Guía del courier (llegada a bodega)
+            </p>
+            <p style="margin:0;color:${TEXT_PRIM};font-size:16px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:1.5px;">
+              ${vars.tracking_origen}
+            </p>
+          </div>
+        </td>
+      </tr>
+    `)
+  }
+
+  // Guía USACO — solo si se pide explícitamente y existe
+  if (opts?.mostrarUsaco && vars.tracking_usaco) {
+    filas.push(`
+      <tr>
+        <td>
+          <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:14px 18px;">
+            <p style="margin:0 0 3px 0;color:${TEXT_MUTE};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+              &#9992;&#65039; Guía de transporte USACO
+            </p>
+            <p style="margin:0;color:${TEXT_PRIM};font-size:16px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:1.5px;">
+              ${vars.tracking_usaco}
+            </p>
+          </div>
+        </td>
+      </tr>
+    `)
+  }
+
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;">
+      ${filas.join('')}
+    </table>
+  `
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -288,6 +353,8 @@ export function plantillaPaqueteReportado(vars: VariablesPlantilla): { subject: 
 
     ${trackerProgreso('reportado')}
 
+    ${seccionTracking(vars)}
+
     <p style="color:${GOLD};font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;margin:0 0 4px 0;">
       Detalles del pedido
     </p>
@@ -298,9 +365,7 @@ export function plantillaPaqueteReportado(vars: VariablesPlantilla): { subject: 
       ${vars.valor ? bloqueDatos('&#128181; Valor declarado', vars.valor) : ''}
       ${fechaCompra ? bloqueDatos('&#128722; Fecha de compra', fechaCompra) : ''}
       ${fechaLlegada ? bloqueDatos('&#128197; Llegada estimada a Miami', fechaLlegada) : ''}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Tracking del courier', vars.tracking_origen) : ''}
       ${vars.bodega ? bloqueDatos('&#128205; Ciudad destino', vars.bodega) : ''}
-      ${bloqueDatos('&#128278; Tu número CeladaShopper', vars.tracking)}
     `)}
 
     ${vars.notas_cliente ? `
@@ -339,6 +404,8 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
 
     ${trackerProgreso('recibido_usa')}
 
+    ${seccionTracking(vars)}
+
     ${(vars.fotoUrlEmpaque || vars.fotoUrlContenido) ? `
       <p style="color:${TEXT_MUTE};font-size:10px;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;text-align:center;">
         Fotos de tu paquete
@@ -368,9 +435,7 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
     </p>
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía de llegada', vars.tracking_origen) : ''}
       ${vars.peso ? bloqueDatos('&#9878;&#65039; Peso', vars.peso) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
 
     ${vars.tarifaCalculada && vars.tarifaCalculada.metodo !== 'sin_tarifa' && vars.tarifaCalculada.total > 0 ? `
@@ -439,21 +504,11 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
 
     ${trackerProgreso('en_transito')}
 
-    ${vars.tracking_usaco ? `
-      <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;margin:20px 0;">
-        <p style="color:${GOLD};font-size:10px;margin:0 0 6px 0;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-          &#128666; Guía de transporte
-        </p>
-        <p style="color:${GOLD};font-size:22px;font-weight:bold;margin:0 0 6px 0;font-family:'Courier New',monospace;letter-spacing:2px;">${vars.tracking_usaco}</p>
-        <p style="color:${TEXT_MUTE};font-size:11px;margin:0;">Usa este número para rastrear el paquete en la transportadora local.</p>
-      </div>
-    ` : ''}
+    ${seccionTracking(vars, { mostrarUsaco: true })}
 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía de llegada a Miami', vars.tracking_origen) : ''}
       ${vars.bodega ? bloqueDatos('&#128205; Ciudad destino', vars.bodega) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
 
     <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:20px 0 0 0;">
@@ -482,22 +537,13 @@ export function plantillaPaqueteListoRecoger(vars: VariablesPlantilla): { subjec
 
     ${trackerProgreso('en_bodega_local')}
 
-    ${vars.tracking_usaco ? `
-      <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;margin:20px 0;">
-        <p style="color:${GOLD};font-size:10px;margin:0 0 6px 0;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-          &#128666; Guía
-        </p>
-        <p style="color:${GOLD};font-size:22px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:2px;">${vars.tracking_usaco}</p>
-      </div>
-    ` : ''}
+    ${seccionTracking(vars, { mostrarUsaco: true })}
 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía del courier', vars.tracking_origen) : ''}
       ${vars.peso ? bloqueDatos('&#9878;&#65039; Peso', vars.peso) : ''}
       ${vars.costo ? bloqueDatos('&#128176; Costo del servicio', vars.costo) : ''}
       ${vars.bodega ? bloqueDatos('&#128205; Bodega', vars.bodega) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
 
     <div style="background-color:${BG_INNER};border:1px solid ${GREEN};border-radius:10px;padding:14px 16px;margin:20px 0;">
@@ -528,6 +574,8 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
 
     ${trackerProgreso('entregado')}
 
+    ${seccionTracking(vars, { mostrarUsaco: true })}
+
     ${vars.fotoUrlContenido ? `
       <div style="margin:20px 0;text-align:center;">
         <p style="color:${TEXT_MUTE};font-size:10px;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;">Comprobante de entrega</p>
@@ -538,10 +586,7 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía del courier', vars.tracking_origen) : ''}
-      ${vars.tracking_usaco ? bloqueDatos('&#128666; Guía', vars.tracking_usaco) : ''}
       ${vars.bodega ? bloqueDatos('&#128205; Bodega', vars.bodega) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
 
     <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:20px 0 0 0;">
@@ -575,10 +620,10 @@ export function plantillaCostoCalculado(vars: VariablesPlantilla): { subject: st
       ${vars.peso ? `<p style="color:${TEXT_MUTE};font-size:12px;margin:10px 0 0 0;">Peso: ${vars.peso}</p>` : ''}
     </div>
 
+    ${seccionTracking(vars)}
+
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía del courier', vars.tracking_origen) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
 
     <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:0 0 0 0;">
@@ -621,19 +666,10 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
 
     ${trackerProgreso(estado)}
 
-    ${vars.tracking_usaco ? `
-      <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;margin:20px 0;">
-        <p style="color:${GOLD};font-size:10px;margin:0 0 6px 0;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-          &#128666; Guía
-        </p>
-        <p style="color:${GOLD};font-size:22px;font-weight:bold;margin:0;font-family:'Courier New',monospace;letter-spacing:2px;">${vars.tracking_usaco}</p>
-      </div>
-    ` : ''}
+    ${seccionTracking(vars, { mostrarUsaco: true })}
 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía de llegada', vars.tracking_origen) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
       ${vars.bodega ? bloqueDatos('&#128205; Bodega', vars.bodega) : ''}
     `)}
 
@@ -657,12 +693,10 @@ export function plantillaTrackingActualizado(vars: VariablesPlantilla): { subjec
       Tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> ya tiene número de seguimiento asignado.
     </p>
 
-    ${badgeTracking('Tu número CeladaShopper', vars.tracking)}
+    ${seccionTracking(vars)}
 
     ${cardDatos(`
       ${bloqueDatos('&#128230; Producto', vars.descripcion)}
-      ${vars.tracking_origen ? bloqueDatos('&#128666; Guía de llegada', vars.tracking_origen) : ''}
-      ${bloqueDatos('&#128278; Número CeladaShopper', vars.tracking)}
     `)}
 
     <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:20px 0 0 0;">
