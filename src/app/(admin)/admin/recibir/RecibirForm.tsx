@@ -155,10 +155,12 @@ export default function RecibirForm() {
   // Sugerencias de clientes cuando lo ingresado no es un tracking sino un casillero/nombre
   const [clientesSugeridos, setClientesSugeridos] = useState<ClienteSugerido[]>([])
 
-  // --- OCR automático en modo normal (extrae tracking + descripción de las fotos del paquete encontrado) ---
-  const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; descripcion: string | null; analizado: boolean }>({ tracking: null, descripcion: null, analizado: false })
+  // --- OCR automático en modo normal (extrae tracking + descripción + cantidad de las fotos del paquete encontrado) ---
+  const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; descripcion: string | null; cantidad: number | null; analizado: boolean }>({ tracking: null, descripcion: null, cantidad: null, analizado: false })
   const [analizandoOcrNormal, setAnalizandoOcrNormal] = useState(false)
   const [descripcionOcr, setDescripcionOcr] = useState('')
+  // Estado para rastrear si la cantidad detectada por OCR (manual) ha sido modificada por el agente
+  const [ocrCantidadManual, setOcrCantidadManual] = useState<number | null>(null)
 
   // --- Panel de registro de cliente nuevo ---
   const [mostrarRegistro, setMostrarRegistro] = useState(false)
@@ -215,6 +217,14 @@ export default function RecibirForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ocrNormal.descripcion])
 
+  // Auto-llenar cantidad cuando OCR la detecta (modo normal)
+  useEffect(() => {
+    if (ocrNormal.cantidad && ocrNormal.cantidad > 1) {
+      setCantidad(ocrNormal.cantidad)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocrNormal.cantidad])
+
   useEffect(() => {
     if (modoManual) {
       setFormManual(prev => ({ ...prev, tracking_courier: tracking }))
@@ -255,6 +265,7 @@ export default function RecibirForm() {
         setOcrNormal({
           tracking:    (res.ok && data.ok) ? (data.etiqueta?.tracking_origen ?? null) : null,
           descripcion: (res.ok && data.ok) ? (data.contenido?.descripcion ?? null) : null,
+          cantidad:    (res.ok && data.ok) ? (data.contenido?.cantidad ?? data.etiqueta?.cantidad ?? null) : null,
           analizado: true,
         })
       } catch {
@@ -520,7 +531,8 @@ export default function RecibirForm() {
     setOcrResultado(null)
     setOcrError('')
     setNombreEtiqueta(null)
-    setOcrNormal({ tracking: null, descripcion: null, analizado: false })
+    setOcrNormal({ tracking: null, descripcion: null, cantidad: null, analizado: false })
+    setOcrCantidadManual(null)
     setDescripcionOcr('')
     setMostrarRegistro(false)
     setFormRegistro({ nombre: '', email: '', whatsapp: '', ciudad: '' })
@@ -553,7 +565,7 @@ export default function RecibirForm() {
           foto2_url: foto2.url || undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
           valor_declarado: valorDeclarado.trim() ? parseFloat(valorDeclarado) : undefined,
-          cantidad: PER_UNIT_CATEGORIAS.has(paquete.categoria) ? cantidad : 1,
+          cantidad: cantidad,
           condicion: condicion || undefined,
           tracking_origen_ocr: trackingCourier.trim() || ocrNormal.tracking || undefined,
           descripcion_ocr: descripcionOcr.trim() || undefined,
@@ -636,6 +648,8 @@ export default function RecibirForm() {
       // Pre-llenar formulario manual con lo extraído (el agente puede editar)
       const catOCR = data.contenido!.categoria
       const condOCR = data.contenido!.condicion ?? ''
+      const cantidadOCR = Math.max(1, data.contenido!.cantidad || 1, data.etiqueta!.cantidad || 1)
+      setOcrCantidadManual(cantidadOCR)
       setFormManual(prev => ({
         ...prev,
         descripcion: data.contenido!.descripcion || prev.descripcion,
@@ -643,9 +657,7 @@ export default function RecibirForm() {
         condicion: (condOCR as 'nuevo' | 'usado' | '') || prev.condicion,
         tienda: data.etiqueta!.tienda ?? prev.tienda,
         tracking_courier: data.etiqueta!.tracking_origen ?? prev.tracking_courier,
-        cantidad: PER_UNIT_CATEGORIAS.has(catOCR)
-          ? Math.max(1, data.contenido!.cantidad || 1, data.etiqueta!.cantidad || 1)
-          : 1,
+        cantidad: cantidadOCR,
       }))
 
       // Pre-asignar cliente si hubo match
@@ -717,7 +729,7 @@ export default function RecibirForm() {
           cliente_id: clienteManual?.id ?? undefined,
           nombre_etiqueta: nombreEtiqueta || undefined,
           valor_declarado: formManual.valor_declarado.trim() ? parseFloat(formManual.valor_declarado) : undefined,
-          cantidad: PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) ? formManual.cantidad : 1,
+          cantidad: formManual.cantidad,
           condicion: formManual.condicion || undefined,
         }),
       })
@@ -1595,34 +1607,47 @@ export default function RecibirForm() {
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>USD</span>
               </div>
             </div>
-            {PER_UNIT_CATEGORIAS.has(paquete.categoria) && (
-              <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                  Cantidad en {unidadLabel(paquete.categoria)} <span style={{ color: '#f87171' }}>*</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCantidad(c => Math.max(1, c - 1))}
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
-                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
-                  >−</button>
-                  <input
-                    type="number" min="1" max="50"
-                    value={cantidad}
-                    onChange={e => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="glass-input w-16 text-center px-2 py-2 text-lg font-bold"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setCantidad(c => Math.min(50, c + 1))}
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
-                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
-                  >+</button>
-                  <span className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>{unidadLabel(paquete.categoria)}</span>
-                </div>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Cantidad en {unidadLabel(paquete.categoria)}
+                {PER_UNIT_CATEGORIAS.has(paquete.categoria) && <span style={{ color: '#f87171' }}>*</span>}
+                {analizandoOcrNormal && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: '#c084fc' }}>
+                    <Loader2 className="h-3 w-3 animate-spin" /> Detectando...
+                  </span>
+                )}
+                {ocrNormal.analizado && ocrNormal.cantidad !== null && cantidad === ocrNormal.cantidad && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> detectado por IA
+                  </span>
+                )}
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCantidad(c => Math.max(1, c - 1))}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
+                >−</button>
+                <input
+                  type="number" min="1" max="50"
+                  value={cantidad}
+                  onChange={e => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="glass-input w-16 text-center px-2 py-2 text-lg font-bold"
+                  style={ocrNormal.cantidad !== null && cantidad === ocrNormal.cantidad
+                    ? { borderColor: 'rgba(245,184,0,0.45)', background: 'rgba(245,184,0,0.04)' }
+                    : {}}
+                />
+                <button
+                  type="button"
+                  onClick={() => setCantidad(c => Math.min(50, c + 1))}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
+                >+</button>
+                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>{unidadLabel(paquete.categoria)}</span>
               </div>
-            )}
+            </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
                 Condición <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(opcional)</span>
@@ -1823,34 +1848,44 @@ export default function RecibirForm() {
                 ))}
               </div>
             </div>
-            {PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && (
-              <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-                  Cantidad en {unidadLabel(formManual.categoria)} <span style={{ color: '#f87171' }}>*</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormManual(p => ({ ...p, cantidad: Math.max(1, p.cantidad - 1) }))}
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
-                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
-                  >−</button>
-                  <input
-                    type="number" min="1" max="50"
-                    value={formManual.cantidad}
-                    onChange={e => setFormManual(p => ({ ...p, cantidad: Math.max(1, parseInt(e.target.value) || 1) }))}
-                    className="glass-input w-16 text-center px-2 py-2 text-lg font-bold"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setFormManual(p => ({ ...p, cantidad: Math.min(50, p.cantidad + 1) }))}
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
-                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
-                  >+</button>
-                  <span className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>{unidadLabel(formManual.categoria)}</span>
-                </div>
+            <div className="space-y-1.5 col-span-2 sm:col-span-1">
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Cantidad en {formManual.categoria ? unidadLabel(formManual.categoria as CategoriaProducto) : 'unidades'}
+                {PER_UNIT_CATEGORIAS.has(formManual.categoria as CategoriaProducto) && <span style={{ color: '#f87171' }}>*</span>}
+                {ocrCantidadManual !== null && formManual.cantidad === ocrCantidadManual && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> detectado por IA
+                  </span>
+                )}
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormManual(p => ({ ...p, cantidad: Math.max(1, p.cantidad - 1) }))}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
+                >−</button>
+                <input
+                  type="number" min="1" max="50"
+                  value={formManual.cantidad}
+                  onChange={e => setFormManual(p => ({ ...p, cantidad: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  className="glass-input w-16 text-center px-2 py-2 text-lg font-bold"
+                  style={ocrCantidadManual !== null && formManual.cantidad === ocrCantidadManual
+                    ? { borderColor: 'rgba(245,184,0,0.45)', background: 'rgba(245,184,0,0.04)' }
+                    : {}}
+                />
+                <button
+                  type="button"
+                  onClick={() => setFormManual(p => ({ ...p, cantidad: Math.min(50, p.cantidad + 1) }))}
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-lg font-bold"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', border: '1px solid rgba(255,255,255,0.12)' }}
+                >+</button>
+                <span className="text-sm" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  {formManual.categoria ? unidadLabel(formManual.categoria as CategoriaProducto) : 'unidades'}
+                </span>
               </div>
-            )}
+            </div>
             <div className="space-y-1.5 col-span-2">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Descripción física <span style={{ color: '#f87171' }}>*</span></label>
               <input type="text" value={formManual.descripcion}
