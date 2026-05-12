@@ -103,6 +103,21 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  // Excluir padres divididos: paquetes cuyo id aparece como paquete_origen_id en algún hijo
+  if (paquetes.length > 0) {
+    const ids = paquetes.map(p => p.id)
+    const { data: hijos } = await admin
+      .from('paquetes')
+      .select('paquete_origen_id')
+      .in('paquete_origen_id', ids)
+    const padresDivididos = new Set(
+      (hijos ?? []).map(h => h.paquete_origen_id).filter(Boolean) as string[]
+    )
+    if (padresDivididos.size > 0) {
+      paquetes = paquetes.filter(p => !padresDivididos.has(p.id))
+    }
+  }
+
   // Cargar perfiles
   const clienteIds = [...new Set(paquetes.map(p => p.cliente_id).filter(Boolean))] as string[]
   const perfilesMap: Record<string, { nombre_completo: string; numero_casilla: string | null }> = {}
