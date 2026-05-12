@@ -239,38 +239,41 @@ function badgeTracking(label: string, valor: string): string {
   `
 }
 
-// ─── Sección unificada de números de tracking ────────────────────────────────
-// Muestra siempre el número CeladaShopper (casilla) y, si existe,
-// el tracking del courier con el que llegó el paquete a bodega.
+// ─── Sección de tracking ────────────────────────────────────────────────────
+// - Guía de envío internacional (tracking_usaco): badge amarillo prominente
+// - Guía del courier (tracking_origen): badge secundario gris
+// - Número CeladaShopper: eliminado del cuerpo del correo
 function seccionTracking(vars: Pick<VariablesPlantilla, 'tracking' | 'tracking_origen' | 'tracking_usaco'>, opts?: { mostrarUsaco?: boolean }): string {
   const filas: string[] = []
 
-  // Número CeladaShopper — siempre visible, badge principal
-  filas.push(`
-    <tr>
-      <td style="padding-bottom:${vars.tracking_origen || (opts?.mostrarUsaco && vars.tracking_usaco) ? '12px' : '0'};">
-        <div style="background-color:${BG_INNER};border:1px solid ${GOLD_DIM};border-radius:10px;padding:14px 18px;">
-          <p style="margin:0 0 3px 0;color:${GOLD};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-            &#128278; Tu número CeladaShopper
-          </p>
-          <p style="margin:0;color:${GOLD};font-size:22px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:2px;">
-            ${vars.tracking}
-          </p>
-        </div>
-      </td>
-    </tr>
-  `)
+  // Guía de envío internacional — badge principal amarillo cuando está disponible
+  if (opts?.mostrarUsaco && vars.tracking_usaco) {
+    filas.push(`
+      <tr>
+        <td style="padding-bottom:${vars.tracking_origen ? '12px' : '0'};">
+          <div style="background-color:${BG_INNER};border:2px solid ${GOLD_DIM};border-radius:10px;padding:16px 20px;">
+            <p style="margin:0 0 4px 0;color:${GOLD};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
+              &#9992;&#65039; Guía de envío internacional
+            </p>
+            <p style="margin:0;color:${GOLD};font-size:28px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:3px;">
+              ${vars.tracking_usaco}
+            </p>
+          </div>
+        </td>
+      </tr>
+    `)
+  }
 
-  // Guía del courier (tracking_origen) — mostrar cuando existe
+  // Guía del courier (tracking_origen) — badge secundario gris
   if (vars.tracking_origen) {
     filas.push(`
       <tr>
-        <td style="padding-bottom:${opts?.mostrarUsaco && vars.tracking_usaco ? '12px' : '0'};">
+        <td>
           <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:14px 18px;">
             <p style="margin:0 0 3px 0;color:${TEXT_MUTE};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-              &#128666; Guía del courier (llegada a bodega)
+              &#128666; Guía del courier
             </p>
-            <p style="margin:0;color:${TEXT_PRIM};font-size:16px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:1.5px;">
+            <p style="margin:0;color:${TEXT_PRIM};font-size:15px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:1.5px;">
               ${vars.tracking_origen}
             </p>
           </div>
@@ -279,23 +282,7 @@ function seccionTracking(vars: Pick<VariablesPlantilla, 'tracking' | 'tracking_o
     `)
   }
 
-  // Guía USACO — solo si se pide explícitamente y existe
-  if (opts?.mostrarUsaco && vars.tracking_usaco) {
-    filas.push(`
-      <tr>
-        <td>
-          <div style="background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:10px;padding:14px 18px;">
-            <p style="margin:0 0 3px 0;color:${TEXT_MUTE};font-size:10px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">
-              &#9992;&#65039; Guía de transporte USACO
-            </p>
-            <p style="margin:0;color:${TEXT_PRIM};font-size:16px;font-weight:bold;font-family:'Courier New',monospace;letter-spacing:1.5px;">
-              ${vars.tracking_usaco}
-            </p>
-          </div>
-        </td>
-      </tr>
-    `)
-  }
+  if (filas.length === 0) return ''
 
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;">
@@ -404,7 +391,7 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
 
     ${trackerProgreso('recibido_usa')}
 
-    ${seccionTracking(vars)}
+    ${seccionTracking(vars, { mostrarUsaco: true })}
 
     ${(vars.fotoUrlEmpaque || vars.fotoUrlContenido) ? `
       <p style="color:${TEXT_MUTE};font-size:10px;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:1.5px;font-weight:bold;text-align:center;">
