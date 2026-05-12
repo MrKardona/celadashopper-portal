@@ -607,6 +607,7 @@ export default function RecibirForm() {
           numero_casilla: string | null
           nombre_destinatario: string | null
           tienda: string | null
+          cantidad: number | null
           confianza: 'alta' | 'media' | 'baja'
           notas: string | null
         }
@@ -642,7 +643,9 @@ export default function RecibirForm() {
         condicion: (condOCR as 'nuevo' | 'usado' | '') || prev.condicion,
         tienda: data.etiqueta!.tienda ?? prev.tienda,
         tracking_courier: data.etiqueta!.tracking_origen ?? prev.tracking_courier,
-        cantidad: PER_UNIT_CATEGORIAS.has(catOCR) ? Math.max(1, data.contenido!.cantidad || 1) : 1,
+        cantidad: PER_UNIT_CATEGORIAS.has(catOCR)
+          ? Math.max(1, data.contenido!.cantidad || 1, data.etiqueta!.cantidad || 1)
+          : 1,
       }))
 
       // Pre-asignar cliente si hubo match

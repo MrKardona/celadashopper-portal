@@ -14,6 +14,7 @@ const EtiquetaSchema = z.object({
   numero_casilla: z.string().nullable(),
   nombre_destinatario: z.string().nullable(),
   tienda: z.string().nullable(),
+  cantidad: z.number().int().min(1).nullable(),
   confianza: z.enum(['alta', 'media', 'baja']),
   notas: z.string().nullable(),
 })
@@ -42,6 +43,7 @@ CAMPOS A IDENTIFICAR:
 - numero_casilla: identificador del cliente CeladaShopper. Formato: "CS-NNNN" o "CS NNNN" o solo "NNNN" precedido por "Casillero" o "Suite" o "Apt". Está en la línea de dirección.
 - nombre_destinatario: nombre completo de la persona en la etiqueta (línea "TO:" o "Ship To:" o similar).
 - tienda: si la etiqueta menciona la tienda de origen (Amazon, Nike, Walmart, etc.). Si no aparece claro, devuelve null.
+- cantidad: si la etiqueta o la caja muestran claramente la cantidad de unidades del producto (ej: "Pack of 6", "Qty: 3", "x4", "Count: 12", o un número impreso junto al nombre del producto), extrae ese número entero. Si no aparece cantidad visible, devuelve null.
 
 REGLAS:
 - Si NO ves un dato con seguridad, devuelve null. NUNCA inventes valores.
@@ -57,6 +59,7 @@ DEVUELVE ÚNICAMENTE JSON VÁLIDO, sin markdown, con esta forma exacta:
   "numero_casilla": string | null,
   "nombre_destinatario": string | null,
   "tienda": string | null,
+  "cantidad": number | null,
   "confianza": "alta" | "media" | "baja",
   "notas": string | null
 }`
@@ -64,7 +67,7 @@ DEVUELVE ÚNICAMENTE JSON VÁLIDO, sin markdown, con esta forma exacta:
 const PROMPT_CONTENIDO = `Eres un asistente de bodega de CeladaShopper. Te paso la foto del contenido de un paquete abierto. Describe lo que ves para registrar el envío.
 
 CAMPOS:
-- descripcion: descripción CORTA y concreta del producto en español (máx 100 caracteres). Ej: "Tenis Nike Air Max blancos talla 42, 1 par".
+- descripcion: descripción CORTA y concreta del producto en español (máx 100 caracteres). **SIEMPRE incluye la cantidad cuando hay más de 1 unidad.** Ej: "Tenis Nike Air Max blancos talla 42, 1 par" / "Perfume Acqua di Gio 3 unidades" / "Vitamina D3 5000 IU, 4 frascos" / "Camisetas blancas talla M, 6 unidades".
 - categoria: una de estas categorías exactas:
   - "celular" → smartphones
   - "computador" → laptops, PCs
@@ -80,7 +83,7 @@ CAMPOS:
   - "otro" → si no encaja en ninguna anterior
   - "tarifa_especial" → SOLO si se ve que es algo de alto valor o muy poco común que requiere análisis manual del admin
 - condicion: "nuevo" si está sellado en caja original o se ve sin uso; "usado" si se ve usado, sin caja, o claramente de segunda mano. null si no se puede determinar.
-- cantidad: número de unidades visibles del MISMO producto (ej: 3 pares de tenis = 3, 5 perfumes iguales = 5). Si hay variedad mixta, cuenta el ítem principal.
+- cantidad: número total de unidades del producto principal que se ven en la foto o que indica el empaque (ej: "Pack of 6" = 6, 3 cajas de suplementos = 3, 2 pares de zapatos = 2). Lee también cualquier texto en el empaque que indique cantidad: "Count: 90", "x4", "Pack of 12", etc. Si hay un solo ítem, devuelve 1.
 - confianza: "alta" si la foto es clara y se ve todo; "media" si parcialmente; "baja" si está borrosa, mal iluminada o no se distingue.
 
 DEVUELVE ÚNICAMENTE JSON VÁLIDO, sin markdown, con esta forma exacta:
