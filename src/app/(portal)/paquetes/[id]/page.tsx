@@ -48,7 +48,11 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
   const paquete = paqueteRes.data
   if (!paquete) notFound()
 
-  paquete.fotos_paquetes  = fotosRes.data ?? []
+  const todasLasFotos     = fotosRes.data ?? []
+  // Separar foto(s) de entrega del resto de fotos del paquete
+  const fotosEntrega      = todasLasFotos.filter(f => (f.descripcion ?? '').toLowerCase().includes('entrega'))
+  const fotosRegulares    = todasLasFotos.filter(f => !(f.descripcion ?? '').toLowerCase().includes('entrega'))
+  paquete.fotos_paquetes  = fotosRegulares
   paquete.eventos_paquete = eventosRes.data ?? []
   const trackingEventos   = trackingRes.data ?? []
 
@@ -161,7 +165,20 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
         </div>
       </FadeUp>
 
-      {/* Fotos */}
+      {/* Comprobante de entrega — foto tomada por el domiciliario */}
+      {fotosEntrega.length > 0 && (
+        <FadeUpScroll>
+          <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(52,211,153,0.22)' }}>
+            <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(52,211,153,0.12)', background: 'rgba(52,211,153,0.04)' }}>
+              <span className="text-base">📸</span>
+              <h2 className="font-semibold" style={{ color: '#34d399' }}>Comprobante de entrega</h2>
+            </div>
+            <FotoGaleria fotos={fotosEntrega} />
+          </div>
+        </FadeUpScroll>
+      )}
+
+      {/* Fotos del paquete (empaque / contenido — tomadas en bodega USA) */}
       {paquete.fotos_paquetes && paquete.fotos_paquetes.length > 0 && (
         <FadeUpScroll>
           <div className="glass-card overflow-hidden">

@@ -96,6 +96,22 @@ export default async function HistorialPage({ searchParams }: Props) {
     for (const p of pfs ?? []) perfilesMap[p.id] = p.nombre_completo
   }
 
+  // Foto de entrega por paquete (descripcion contiene 'entrega')
+  const paqueteIds = lista.map(p => p.id)
+  const fotosEntregaMap: Record<string, string> = {}
+  if (paqueteIds.length > 0) {
+    const { data: fotos } = await admin
+      .from('fotos_paquetes')
+      .select('paquete_id, url, descripcion')
+      .in('paquete_id', paqueteIds)
+      .ilike('descripcion', '%entrega%')
+    for (const f of fotos ?? []) {
+      if (f.paquete_id && !fotosEntregaMap[f.paquete_id]) {
+        fotosEntregaMap[f.paquete_id] = f.url
+      }
+    }
+  }
+
   // Stats rápidas
   const hoy = new Date(); hoy.setHours(0,0,0,0)
   const entregadosHoy = lista.filter(p => {
@@ -165,7 +181,23 @@ export default async function HistorialPage({ searchParams }: Props) {
                     : null
 
                   return (
-                    <div key={p.id} className="glass-card p-4 space-y-2.5">
+                    <div key={p.id} className="glass-card overflow-hidden">
+                      {/* Foto de entrega — thumbnail arriba si existe */}
+                      {fotosEntregaMap[p.id] && (
+                        <div className="relative w-full" style={{ aspectRatio: '16/7', background: 'rgba(0,0,0,0.3)' }}>
+                          <img
+                            src={fotosEntregaMap[p.id]}
+                            alt="Comprobante de entrega"
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ background: 'rgba(52,211,153,0.85)', color: 'white' }}>
+                            📸 Comprobante
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="p-4 space-y-2.5">
                       {/* Tracking + hora */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -210,6 +242,7 @@ export default async function HistorialPage({ searchParams }: Props) {
                           {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
                         </p>
                       )}
+                      </div>{/* cierre p-4 */}
                     </div>
                   )
                 })}
