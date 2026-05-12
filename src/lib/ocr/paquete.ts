@@ -125,7 +125,7 @@ export async function analizarEtiqueta(fotoUrl: string): Promise<EtiquetaOCR> {
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
+    max_tokens: 1024,
     messages: [{
       role: 'user',
       content: [
@@ -142,6 +142,9 @@ export async function analizarEtiqueta(fotoUrl: string): Promise<EtiquetaOCR> {
     }],
   })
 
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error('La respuesta de la IA fue cortada (max_tokens). Intenta de nuevo.')
+  }
   const texto = message.content[0].type === 'text' ? message.content[0].text : ''
   const parsed = parsearJSON(texto)
   return EtiquetaSchema.parse(parsed)
@@ -154,7 +157,7 @@ export async function analizarContenido(fotoUrl: string): Promise<ContenidoOCR> 
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
+    max_tokens: 1024,
     messages: [{
       role: 'user',
       content: [
@@ -171,6 +174,9 @@ export async function analizarContenido(fotoUrl: string): Promise<ContenidoOCR> 
     }],
   })
 
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error('La respuesta de la IA fue cortada (max_tokens). Intenta de nuevo.')
+  }
   const texto = message.content[0].type === 'text' ? message.content[0].text : ''
   const parsed = parsearJSON(texto)
   return ContenidoSchema.parse(parsed)
