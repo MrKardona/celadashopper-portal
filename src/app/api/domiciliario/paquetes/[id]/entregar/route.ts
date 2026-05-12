@@ -83,10 +83,14 @@ export async function POST(req: NextRequest, { params }: Props) {
     ubicacion: 'Colombia',
   }).then(() => {}, (e) => console.error('[domiciliario/entregar] evento:', e))
 
-  // Notificar al cliente
+  // Notificar al cliente — pasamos foto y notas directamente para evitar
+  // que la notificación haga un nuevo lookup y traiga la foto equivocada.
   if (body.notificar !== false && paquete.cliente_id) {
     try {
-      await notificarCambioEstado(paqueteId, 'entregado')
+      await notificarCambioEstado(paqueteId, 'entregado', {
+        fotoEntregaUrl: body.foto_url ?? null,
+        notasEntrega: body.notas ?? null,
+      })
     } catch (err) {
       console.error('[domiciliario/entregar] notif:', err)
     }

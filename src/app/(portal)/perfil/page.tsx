@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import PerfilForm from '@/components/portal/PerfilForm'
-import { User, Package } from 'lucide-react'
+import { User, Package, LayoutDashboard } from 'lucide-react'
 import { FadeUp, FadeUpScroll } from '@/components/portal/AnimateIn'
+import Link from 'next/link'
 
 const tw = 'rgba(255,255,255,'
 
@@ -13,7 +14,7 @@ export default async function PerfilPage() {
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('email, nombre_completo, telefono, whatsapp, ciudad, numero_casilla, direccion, barrio, referencia')
+    .select('email, nombre_completo, telefono, whatsapp, ciudad, numero_casilla, direccion, barrio, referencia, rol')
     .eq('id', user!.id)
     .single()
 
@@ -28,6 +29,25 @@ export default async function PerfilPage() {
           </p>
         </div>
       </FadeUp>
+
+      {/* Botón al portal de domiciliario — solo si el usuario tiene ese rol */}
+      {perfil?.rol === 'domiciliario' && (
+        <FadeUp delay={0.05}>
+          <Link
+            href="/domiciliario"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl w-full transition-all"
+            style={{
+              background: 'rgba(129,140,248,0.1)',
+              border: '1px solid rgba(129,140,248,0.25)',
+              color: '#818cf8',
+            }}
+          >
+            <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+            <span className="text-sm font-semibold flex-1">Ir a mi panel de domiciliario</span>
+            <span className="text-xs opacity-60">→</span>
+          </Link>
+        </FadeUp>
+      )}
 
       {perfil?.numero_casilla && (
         <FadeUp delay={0.08}>

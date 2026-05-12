@@ -414,7 +414,16 @@ async function logNotificacion(
 }
 
 // ─── Notificar cambio de estado ──────────────────────────────────────────────
-export async function notificarCambioEstado(paqueteId: string, estadoNuevo: string): Promise<void> {
+export async function notificarCambioEstado(
+  paqueteId: string,
+  estadoNuevo: string,
+  opts?: {
+    /** URL de la foto de entrega tomada por el domiciliario — evita buscar en DB */
+    fotoEntregaUrl?: string | null
+    /** Notas del domiciliario (quién recibió) — evita parsear el evento */
+    notasEntrega?: string | null
+  },
+): Promise<void> {
   const evento = ESTADO_A_EVENTO[estadoNuevo]
   const supabase = getSupabase()
 
@@ -496,9 +505,19 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
       const tmplOk = await enviarMetaTemplate(ctx.phone, templateDef.name, params, imageMediaId)
       envioOk = tmplOk
-      fotosEnviadas = tmplOk && imageMediaId ? 1 : 0
+
+      // Para entregas: enviar la foto del domiciliario como mensaje de imagen aparte
+      // después del template de texto (el template aprobado no tiene header IMAGE)
+      if (tmplOk && estadoNuevo === 'entregado' && opts?.fotoEntregaUrl) {
+        const imgOk = await enviarImagenMeta(ctx.phone, opts.fotoEntregaUrl, '📸 Comprobante de entrega')
+        if (imgOk) fotosEnviadas++
+        console.log('[notif entregado] foto WhatsApp enviada:', imgOk)
+      } else {
+        fotosEnviadas = tmplOk && imageMediaId ? 1 : 0
+      }
+
       viaUsada = tmplOk
-        ? (imageMediaId ? 'meta_template_con_foto' : 'meta_template')
+        ? (imageMediaId || fotosEnviadas > 0 ? 'meta_template_con_foto' : 'meta_template')
         : 'meta_template_falló'
     }
     // Si !puedeEnviarWa: no hay template aprobado → solo email, sin WA
@@ -537,17 +556,23 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
           .limit(10)
 
         if (estadoNuevo === 'entregado') {
-          // Para entregado: priorizar la foto con descripcion 'entrega', fallback a la más reciente
-          const fotoEntrega = fotos?.find(f =>
-            (f.descripcion ?? '').toLowerCase().includes('entrega')
-          )
-          // Fallback: última foto guardada (puede ser foto de galería sin descripción específica)
-          const fotaMasReciente = fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null
-          fotoUrlContenido = fotoEntrega?.url ?? fotaMasReciente?.url ?? null
-          if (fotoUrlContenido) {
-            console.log(`[notif entregado] foto comprobante: ${fotoUrlContenido.slice(-40)}`)
+          // Prioridad 1: foto pasada directamente desde el domiciliario (más confiable)
+          if (opts?.fotoEntregaUrl) {
+            fotoUrlContenido = opts.fotoEntregaUrl
+            console.log(`[notif entregado] foto comprobante (directo): ${opts.fotoEntregaUrl.slice(-40)}`)
           } else {
-            console.log('[notif entregado] sin foto de comprobante — email sin imagen')
+            // Prioridad 2: buscar en DB por descripción 'entrega'
+            const fotoEntrega = fotos?.find(f =>
+              (f.descripcion ?? '').toLowerCase().includes('entrega')
+            )
+            // Fallback: última foto guardada
+            const fotaMasReciente = fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null
+            fotoUrlContenido = fotoEntrega?.url ?? fotaMasReciente?.url ?? null
+            if (fotoUrlContenido) {
+              console.log(`[notif entregado] foto comprobante (DB): ${fotoUrlContenido.slice(-40)}`)
+            } else {
+              console.log('[notif entregado] sin foto de comprobante — email sin imagen')
+            }
           }
         } else {
           // recibido_usa: 2 fotos — empaque (con guía) y contenido
@@ -587,21 +612,38 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         }
       }
 
-      // Para entregado: obtener notas del domiciliario desde el último evento
+      // Para entregado: notas del domiciliario (quién recibió)
       let notasEntrega: string | null = null
       if (estadoNuevo === 'entregado') {
-        const { data: ultimoEvento } = await supabase
-          .from('eventos_paquete')
-          .select('descripcion')
-          .eq('paquete_id', paqueteId)
-          .eq('estado_nuevo', 'entregado')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (ultimoEvento?.descripcion) {
-          // Extraer notas: "Entregado por domiciliario X. NOTAS" → sacar lo de después del primer punto
-          const partes = ultimoEvento.descripcion.split('. ')
-          if (partes.length > 1) notasEntrega = partes.slice(1).join('. ').trim() || null
+        if (opts?.notasEntrega != null) {
+          // Vienen directo desde el domiciliario — más confiable
+          notasEntrega = opts.notasEntrega || null
+        } else {
+          // Fallback: buscar en el último evento del paquete
+          const { data: ultimoEvento } = await supabase
+            .from('eventos_paquete')
+            .select('descripcion')
+            .eq('paquete_id', paqueteId)
+            .eq('estado_nuevo', 'entregado')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (ultimoEvento?.descripcion) {
+            const partes = ultimoEvento.descripcion.split('. ')
+            if (partes.length > 1) notasEntrega = partes.slice(1).join('. ').trim() || null
+          }
+        }
+      }
+
+      // Dirección de entrega del paquete (campo específico o del perfil del cliente)
+      let direccionEntrega: string | null = null
+      if (estadoNuevo === 'entregado') {
+        const partesDireccion = [
+          ctx.paquete.direccion_entrega,
+          ctx.paquete.barrio_entrega,
+        ].filter(Boolean)
+        if (partesDireccion.length > 0) {
+          direccionEntrega = partesDireccion.join(' · ')
         }
       }
 
@@ -621,6 +663,7 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
         fotoUrlEmpaque,
         tarifaCalculada,
         notas_entrega: notasEntrega ?? undefined,
+        direccion_entrega: direccionEntrega ?? undefined,
       })
       console.log(`[notificarCambioEstado] EMAIL paquete=${paqueteId} estado=${estadoNuevo} ok=${emailRes.ok} msg_id=${emailRes.messageId ?? '?'}`)
     } else {
