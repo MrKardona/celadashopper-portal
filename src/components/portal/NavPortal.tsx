@@ -17,7 +17,9 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
     router.refresh()
   }
 
-  const dashboardHref = perfil?.rol === 'admin' ? '/dashboard?as=client' : '/dashboard'
+  // Roles que tienen su propio panel y necesitan ?as=client para acceder al portal de cliente
+  const rolesConPanelPropio = ['admin', 'domiciliario']
+  const dashboardHref = rolesConPanelPropio.includes(perfil?.rol ?? '') ? '/dashboard?as=client' : '/dashboard'
 
   const navItems = [
     { href: dashboardHref, label: 'Mi Panel', icon: LayoutDashboard },
