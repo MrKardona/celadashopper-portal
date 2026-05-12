@@ -163,6 +163,7 @@ export default function RecibirForm() {
   const [ocrCantidadManual, setOcrCantidadManual] = useState<number | null>(null)
   const [ocrCategoriaManual, setOcrCategoriaManual] = useState<string | null>(null)
   const [ocrBodegaManual, setOcrBodegaManual] = useState<string | null>(null)
+  const [ocrDescripcionManual, setOcrDescripcionManual] = useState<string | null>(null)
 
   // --- Panel de registro de cliente nuevo ---
   const [mostrarRegistro, setMostrarRegistro] = useState(false)
@@ -537,6 +538,7 @@ export default function RecibirForm() {
     setOcrCantidadManual(null)
     setOcrCategoriaManual(null)
     setOcrBodegaManual(null)
+    setOcrDescripcionManual(null)
     setDescripcionOcr('')
     setMostrarRegistro(false)
     setFormRegistro({ nombre: '', email: '', whatsapp: '', ciudad: '' })
@@ -657,6 +659,7 @@ export default function RecibirForm() {
       const bodegaOCR = catOCR === 'celular' ? 'bogota' : null
       setOcrCantidadManual(cantidadOCR)
       setOcrCategoriaManual(catOCR)
+      setOcrDescripcionManual(data.contenido!.descripcion || null)
       if (bodegaOCR) setOcrBodegaManual(bodegaOCR)
       setFormManual(prev => ({
         ...prev,
@@ -1916,11 +1919,22 @@ export default function RecibirForm() {
               </div>
             </div>
             <div className="space-y-1.5 col-span-2">
-              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Descripción física <span style={{ color: '#f87171' }}>*</span></label>
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Descripción física <span style={{ color: '#f87171' }}>*</span>
+                {ocrDescripcionManual && formManual.descripcion === ocrDescripcionManual && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(192,132,252,0.15)', color: '#c084fc', border: '1px solid rgba(192,132,252,0.3)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> detectado por IA
+                  </span>
+                )}
+              </label>
               <input type="text" value={formManual.descripcion}
                 onChange={e => setFormManual(p => ({ ...p, descripcion: e.target.value }))}
                 placeholder="Ej: Caja mediana Amazon, posible zapatillas" required
-                className="glass-input w-full px-4 py-2.5 text-sm" />
+                className="glass-input w-full px-4 py-2.5 text-sm"
+                style={ocrDescripcionManual && formManual.descripcion === ocrDescripcionManual
+                  ? { borderColor: 'rgba(192,132,252,0.4)', background: 'rgba(192,132,252,0.04)' }
+                  : {}} />
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
               <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Tienda <span className="font-normal" style={{ color: 'rgba(255,255,255,0.35)' }}>(si se ve)</span></label>
