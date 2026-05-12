@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
-import { CheckCircle2, Package, MapPin, User, Phone, ExternalLink } from 'lucide-react'
+import { CheckCircle2, Package, MapPin, User, Phone, ExternalLink, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
@@ -55,6 +55,22 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
   }
   const gruposConsolidar = Object.values(paquetesPorCliente).filter(g => g.length >= 2)
   const clientesConMultiples = new Set(gruposConsolidar.flatMap(g => g.map(p => p.cliente_id).filter(Boolean)))
+
+  // Detectar clientes con paquetes que aún no llegaron a Colombia
+  const ESTADOS_PENDIENTES = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio', 'en_transito']
+  const pendientesPorCliente: Record<string, number> = {}
+  if (clienteIds.length > 0) {
+    const { data: pendientes } = await supabase
+      .from('paquetes')
+      .select('cliente_id')
+      .in('cliente_id', clienteIds)
+      .in('estado', ESTADOS_PENDIENTES)
+      .eq('visible_cliente', true)
+    for (const p of pendientes ?? []) {
+      if (!p.cliente_id) continue
+      pendientesPorCliente[p.cliente_id] = (pendientesPorCliente[p.cliente_id] ?? 0) + 1
+    }
+  }
 
   const ciudades = [...new Set(lista.map(p => p.bodega_destino).filter(Boolean))]
 
@@ -138,9 +154,11 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
             const barrio = p.barrio_entrega ?? cli?.barrio ?? null
             const referencia = p.referencia_entrega ?? cli?.referencia ?? null
             const tel = cli?.whatsapp ?? cli?.telefono ?? null
+            const nPendientes = p.cliente_id ? (pendientesPorCliente[p.cliente_id] ?? 0) : 0
 
             return (
-              <div key={p.id} className="glass-card p-4 space-y-3">
+              <div key={p.id} className="glass-card p-4 space-y-3"
+                style={nPendientes > 0 ? { borderColor: 'rgba(239,68,68,0.35)' } : undefined}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -173,6 +191,18 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                     {BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}
                   </span>
                 </div>
+
+                {/* Alerta: paquetes pendientes por llegar */}
+                {nPendientes > 0 && (
+                  <div className="flex items-start gap-2 rounded-xl px-3 py-2.5"
+                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+                    <p className="text-xs leading-relaxed" style={{ color: '#f87171' }}>
+                      <strong>Este cliente tiene {nPendientes} paquete{nPendientes !== 1 ? 's' : ''} pendiente{nPendientes !== 1 ? 's' : ''} por recibir.</strong>{' '}
+                      Coordina si esperan antes de la entrega.
+                    </p>
+                  </div>
+                )}
 
                 {/* Cliente */}
                 <div className="rounded-xl p-3 space-y-1" style={{ background: `${tw}0.05)`, border: `1px solid ${tw}0.08)` }}>
