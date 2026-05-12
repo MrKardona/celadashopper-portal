@@ -159,8 +159,10 @@ export default function RecibirForm() {
   const [ocrNormal, setOcrNormal] = useState<{ tracking: string | null; descripcion: string | null; cantidad: number | null; analizado: boolean }>({ tracking: null, descripcion: null, cantidad: null, analizado: false })
   const [analizandoOcrNormal, setAnalizandoOcrNormal] = useState(false)
   const [descripcionOcr, setDescripcionOcr] = useState('')
-  // Estado para rastrear si la cantidad detectada por OCR (manual) ha sido modificada por el agente
+  // Estados para rastrear qué campos vinieron del OCR (modo manual) — permiten mostrar el badge IA
   const [ocrCantidadManual, setOcrCantidadManual] = useState<number | null>(null)
+  const [ocrCategoriaManual, setOcrCategoriaManual] = useState<string | null>(null)
+  const [ocrBodegaManual, setOcrBodegaManual] = useState<string | null>(null)
 
   // --- Panel de registro de cliente nuevo ---
   const [mostrarRegistro, setMostrarRegistro] = useState(false)
@@ -533,6 +535,8 @@ export default function RecibirForm() {
     setNombreEtiqueta(null)
     setOcrNormal({ tracking: null, descripcion: null, cantidad: null, analizado: false })
     setOcrCantidadManual(null)
+    setOcrCategoriaManual(null)
+    setOcrBodegaManual(null)
     setDescripcionOcr('')
     setMostrarRegistro(false)
     setFormRegistro({ nombre: '', email: '', whatsapp: '', ciudad: '' })
@@ -649,7 +653,11 @@ export default function RecibirForm() {
       const catOCR = data.contenido!.categoria
       const condOCR = data.contenido!.condicion ?? ''
       const cantidadOCR = Math.max(1, data.contenido!.cantidad || 1, data.etiqueta!.cantidad || 1)
+      // Regla de bodega: celulares siempre van a Bogotá por defecto
+      const bodegaOCR = catOCR === 'celular' ? 'bogota' : null
       setOcrCantidadManual(cantidadOCR)
+      setOcrCategoriaManual(catOCR)
+      if (bodegaOCR) setOcrBodegaManual(bodegaOCR)
       setFormManual(prev => ({
         ...prev,
         descripcion: data.contenido!.descripcion || prev.descripcion,
@@ -658,6 +666,7 @@ export default function RecibirForm() {
         tienda: data.etiqueta!.tienda ?? prev.tienda,
         tracking_courier: data.etiqueta!.tracking_origen ?? prev.tracking_courier,
         cantidad: cantidadOCR,
+        ...(bodegaOCR ? { bodega_destino: bodegaOCR } : {}),
       }))
 
       // Pre-asignar cliente si hubo match
@@ -1798,13 +1807,33 @@ export default function RecibirForm() {
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Categoría <span style={{ color: '#f87171' }}>*</span></label>
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Categoría <span style={{ color: '#f87171' }}>*</span>
+                {ocrCategoriaManual && formManual.categoria === ocrCategoriaManual && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> detectado por IA
+                  </span>
+                )}
+              </label>
               <select
                 value={formManual.categoria}
-                onChange={e => setFormManual(p => ({ ...p, categoria: e.target.value as CategoriaProducto, cantidad: 1, condicion: '' }))}
+                onChange={e => {
+                  const cat = e.target.value as CategoriaProducto
+                  // Si el agente cambia la categoría manualmente, aplicar regla de bodega para celulares
+                  const nuevaBodega = cat === 'celular' ? 'bogota' : formManual.bodega_destino
+                  if (cat === 'celular') setOcrBodegaManual('bogota')
+                  setFormManual(p => ({ ...p, categoria: cat, cantidad: 1, condicion: '', bodega_destino: nuevaBodega }))
+                }}
                 required
                 className="glass-input w-full px-3 py-2.5 text-sm"
-                style={{ colorScheme: 'dark', background: 'rgba(18,18,30,0.97)' }}
+                style={{
+                  colorScheme: 'dark',
+                  background: 'rgba(18,18,30,0.97)',
+                  ...(ocrCategoriaManual && formManual.categoria === ocrCategoriaManual
+                    ? { borderColor: 'rgba(245,184,0,0.45)' }
+                    : {}),
+                }}
               >
                 <option value="">Seleccionar...</option>
                 {CATEGORIAS.map(([val, label]) => (
@@ -1952,10 +1981,25 @@ export default function RecibirForm() {
               />
             </div>
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>Bodega destino</label>
+              <label className="text-sm font-medium flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                Bodega destino
+                {ocrBodegaManual && formManual.bodega_destino === ocrBodegaManual && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.25)' }}>
+                    <Sparkles className="h-2.5 w-2.5" /> IA · celular → Bogotá
+                  </span>
+                )}
+              </label>
               <select value={formManual.bodega_destino}
-                onChange={e => setFormManual(p => ({ ...p, bodega_destino: e.target.value }))}
-                className="glass-input w-full px-3 py-2.5 text-sm">
+                onChange={e => { setOcrBodegaManual(null); setFormManual(p => ({ ...p, bodega_destino: e.target.value })) }}
+                className="glass-input w-full px-3 py-2.5 text-sm"
+                style={{
+                  colorScheme: 'dark',
+                  background: 'rgba(18,18,30,0.97)',
+                  ...(ocrBodegaManual && formManual.bodega_destino === ocrBodegaManual
+                    ? { borderColor: 'rgba(245,184,0,0.45)' }
+                    : {}),
+                }}>
                 {BODEGAS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
               </select>
             </div>
