@@ -122,7 +122,7 @@ export default function FotoThumb({
           ref={containerRef}
           className="fixed inset-0 flex items-center justify-center p-6 select-none"
           style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)', zIndex: 9999 }}
-          onClick={() => setOpen(false)}
+          onClick={e => { e.stopPropagation(); setOpen(false) }}
         >
           {/* Cerrar */}
           <button
@@ -131,7 +131,7 @@ export default function FotoThumb({
             style={{ background: 'rgba(255,255,255,0.1)', color: 'white', zIndex: 10000 }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-            onClick={() => setOpen(false)}
+            onClick={e => { e.stopPropagation(); setOpen(false) }}
           >
             <X className="h-5 w-5" />
           </button>
