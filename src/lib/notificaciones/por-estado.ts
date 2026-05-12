@@ -53,11 +53,15 @@ const BODEGA_LABELS: Record<string, string> = {
 type PaqRaw = Record<string, unknown>
 const EVENTO_A_TEMPLATE: Record<string, {
   name: string
+  headerImagen?: boolean   // true → el template tiene header IMAGE variable
   params: (vars: Record<string, string>, paq: PaqRaw) => string[]
 }> = {
   paquete_recibido_usa: {
-    name: 'cs_paquete_recibido_usa_n9bz7s',
-    // "📦 ¡Hola {{1}}! Tu paquete llegó a nuestra bodega en Miami, USA\n*{{2}}*\n📌 Tracking: {{3}}\n⚖️ Peso: {{4}} lb\n💵 Costo de servicio aproximado: ${{5}} USD"
+    // Template con header IMAGE aprobado — activa headerImagen cuando esté listo
+    // name: 'cs_paquete_recibido_usa_foto',   // ← descomentar al aprobar
+    // headerImagen: true,                      // ← descomentar al aprobar
+    name: 'cs_paquete_recibido_usa_n9bz7s',    // ← comentar al aprobar
+    // "📦 ¡Hola {{1}}! Tu paquete llegó a nuestra bodega en Miami, USA\n*{{2}}*\n📌 Tracking: {{3}}\n⚖️ Peso: {{4}} lb\n💵 Costo aproximado: ${{5}} USD"
     params: (vars, paq) => [
       vars.nombre,
       vars.descripcion || 'tu paquete',
@@ -102,6 +106,7 @@ async function enviarMetaTemplate(
   phone: string,
   templateName: string,
   params: string[],
+  imageMediaId?: string,   // media_id subido a Meta — va en el header IMAGE del template
 ): Promise<boolean> {
   __ultimoMetaInfo = {}
   const phoneId = process.env.META_WA_PHONE_ID
@@ -115,6 +120,19 @@ async function enviarMetaTemplate(
   const dest = numero.startsWith('57') ? numero : `57${numero}`
   __ultimoMetaInfo.destino = dest
 
+  // Armar componentes: header IMAGE opcional + body
+  const components: object[] = []
+  if (imageMediaId) {
+    components.push({
+      type: 'header',
+      parameters: [{ type: 'image', image: { id: imageMediaId } }],
+    })
+  }
+  components.push({
+    type: 'body',
+    parameters: params.map(p => ({ type: 'text', text: p })),
+  })
+
   try {
     const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
       method: 'POST',
@@ -126,12 +144,7 @@ async function enviarMetaTemplate(
         template: {
           name: templateName,
           language: { code: 'es' },
-          components: [
-            {
-              type: 'body',
-              parameters: params.map(p => ({ type: 'text', text: p })),
-            },
-          ],
+          components,
         },
       }),
     })
@@ -451,14 +464,35 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
 
     if (puedeEnviarWa) {
       const params = templateDef.params(ctx.vars, ctx.paquete as PaqRaw)
-      const tmplOk = await enviarMetaTemplate(ctx.phone, templateDef.name, params)
-      envioOk = tmplOk
-      viaUsada = tmplOk ? 'meta_template' : 'meta_template_falló'
 
-      // recibido_usa con foto: requiere template con header IMAGE aprobado por Meta.
-      // type:'image' fuera de ventana 24h viola TOS → no enviar mensajes libres.
-      // TODO: una vez aprobado cs_paquete_recibido_usa_foto, subir foto 2 aquí y
-      //       pasarla como header parameter al enviarMetaTemplate.
+      // Si el template tiene header IMAGE, subir foto 2 del paquete a Meta
+      let imageMediaId: string | undefined
+      if (templateDef.headerImagen) {
+        const { data: fotos } = await ctx.supabase
+          .from('fotos_paquetes')
+          .select('url')
+          .eq('paquete_id', paqueteId)
+          .order('created_at', { ascending: true })
+          .limit(2)
+        // Foto 2 (contenido); fallback a foto 1 si solo hay una
+        const fotoUrl = fotos?.[1]?.url ?? fotos?.[0]?.url ?? null
+        if (fotoUrl) {
+          const mediaId = await subirMedia(fotoUrl)
+          if (mediaId) {
+            imageMediaId = mediaId
+            console.log('[notif] Foto 2 subida a Meta para header:', mediaId)
+          } else {
+            console.warn('[notif] subirMedia falló — template se enviará sin imagen')
+          }
+        }
+      }
+
+      const tmplOk = await enviarMetaTemplate(ctx.phone, templateDef.name, params, imageMediaId)
+      envioOk = tmplOk
+      fotosEnviadas = tmplOk && imageMediaId ? 1 : 0
+      viaUsada = tmplOk
+        ? (imageMediaId ? 'meta_template_con_foto' : 'meta_template')
+        : 'meta_template_falló'
     }
     // Si !puedeEnviarWa: no hay template aprobado → solo email, sin WA
 
