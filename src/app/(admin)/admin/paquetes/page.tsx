@@ -134,11 +134,20 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
             {nombreCliente && <span style={{ color: '#F5B800' }}> · {nombreCliente}</span>}
           </p>
         </div>
-        {cliente_id && (
-          <Link href="/admin/clientes" className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ color: `${tw}0.6)`, border: `1px solid ${tw}0.12)` }}>
-            ← Volver a clientes
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/paquetes/eliminados"
+            className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5"
+            style={{ color: `${tw}0.25)`, border: `1px solid ${tw}0.08)` }}
+          >
+            🗑 Log eliminados
           </Link>
-        )}
+          {cliente_id && (
+            <Link href="/admin/clientes" className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all" style={{ color: `${tw}0.6)`, border: `1px solid ${tw}0.12)` }}>
+              ← Volver a clientes
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}

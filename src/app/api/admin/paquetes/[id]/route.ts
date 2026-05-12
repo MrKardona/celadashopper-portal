@@ -203,12 +203,54 @@ export async function DELETE(req: NextRequest, { params }: Props) {
 
   const { data: perfil } = await supabaseAdmin
     .from('perfiles')
-    .select('rol')
+    .select('rol, nombre_completo')
     .eq('id', user.id)
     .single()
 
   if (!perfil || perfil.rol !== 'admin') {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+  }
+
+  // Capturar datos del paquete antes de borrar
+  const { data: paquete } = await supabaseAdmin
+    .from('paquetes')
+    .select('tracking_casilla, tracking_origen, descripcion, estado, categoria, tienda, cliente_id, peso_libras, costo_servicio, valor_declarado')
+    .eq('id', id)
+    .single()
+
+  // Contar divisiones
+  const { count: divCount } = await supabaseAdmin
+    .from('paquetes')
+    .select('id', { count: 'exact', head: true })
+    .eq('paquete_origen_id', id)
+
+  // Nombre del cliente si existe
+  let clienteNombre: string | null = null
+  if (paquete?.cliente_id) {
+    const { data: cli } = await supabaseAdmin
+      .from('perfiles').select('nombre_completo').eq('id', paquete.cliente_id).single()
+    clienteNombre = cli?.nombre_completo ?? null
+  }
+
+  // Registrar en log antes de borrar
+  if (paquete) {
+    await supabaseAdmin.from('paquetes_eliminados').insert({
+      paquete_id:          id,
+      tracking_casilla:    paquete.tracking_casilla,
+      tracking_origen:     paquete.tracking_origen,
+      descripcion:         paquete.descripcion,
+      estado:              paquete.estado,
+      categoria:           paquete.categoria,
+      tienda:              paquete.tienda,
+      cliente_id:          paquete.cliente_id,
+      cliente_nombre:      clienteNombre,
+      peso_libras:         paquete.peso_libras,
+      costo_servicio:      paquete.costo_servicio,
+      valor_declarado:     paquete.valor_declarado,
+      cantidad_divisiones: divCount ?? 0,
+      eliminado_por:       user.id,
+      eliminado_por_nombre: perfil.nombre_completo ?? null,
+    }).then(() => {/* ok */}, (e) => console.error('[DELETE] log eliminado:', e))
   }
 
   // Borrar notificaciones (no tienen CASCADE) — fotos_paquetes y eventos_paquete sí
