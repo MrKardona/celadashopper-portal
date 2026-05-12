@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const badges = { listosEntrega: listosRes.count ?? 0 }
 
   return (
-    <div className="portal-bg min-h-screen flex" style={{ fontFamily: "'Outfit', sans-serif" }}>
+    <div className="portal-bg h-screen overflow-hidden flex" style={{ fontFamily: "'Outfit', sans-serif" }}>
       <NavAdmin nombreAdmin={perfil.nombre_completo} badges={badges} />
       <div className="flex-1 flex flex-col min-w-0" style={{ background: 'linear-gradient(135deg, #07070f 0%, #0b0b1d 40%, #080c14 100%)' }}>
         <main className="flex-1 p-6 overflow-auto">

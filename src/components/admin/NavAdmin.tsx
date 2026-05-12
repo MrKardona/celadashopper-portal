@@ -154,7 +154,7 @@ export default function NavAdmin({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-56 flex-shrink-0" style={sidebarStyle}>
+      <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 overflow-hidden" style={sidebarStyle}>
         <SidebarContent />
       </aside>
 
