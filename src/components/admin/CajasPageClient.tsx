@@ -62,6 +62,7 @@ export interface CajaResumen {
   tracking_usaco: string | null
   courier: string | null
   bodega_destino: string
+  tipo: 'correo' | 'manejo' | null
   peso_estimado: number | null
   peso_real: number | null
   estado: string
@@ -162,10 +163,24 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
                 <p className="font-mono text-sm font-bold text-white">{caja.codigo_interno}</p>
               )}
             </div>
-            <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap flex-shrink-0 mr-8"
-              style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
-              {s.label}
-            </span>
+            <div className="flex items-center gap-1.5 flex-shrink-0 mr-8">
+              {caja.tipo === 'manejo' && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap"
+                  style={{ background: 'rgba(249,115,22,0.12)', color: '#fb923c', border: '1px solid rgba(249,115,22,0.3)' }}>
+                  Manejo
+                </span>
+              )}
+              {(!caja.tipo || caja.tipo === 'correo') && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap"
+                  style={{ background: 'rgba(34,197,94,0.1)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.25)' }}>
+                  Correo
+                </span>
+              )}
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+                style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                {s.label}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 text-xs" style={{ color: `${tw}0.5)` }}>

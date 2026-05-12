@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from('cajas_consolidacion')
-    .select('id, codigo_interno, tracking_usaco, courier, bodega_destino, peso_estimado, peso_real, estado, notas, created_at, fecha_cierre, fecha_despacho, fecha_recepcion_colombia')
+    .select('id, codigo_interno, tracking_usaco, courier, bodega_destino, tipo, peso_estimado, peso_real, estado, notas, created_at, fecha_cierre, fecha_despacho, fecha_recepcion_colombia')
     .order('created_at', { ascending: false })
     .limit(100)
 
