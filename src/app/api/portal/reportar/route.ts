@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { enviarEmailPedidoReportado } from '@/lib/email/notificaciones'
+import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
 function getSupabaseAdmin() {
   return createAdmin(
@@ -15,63 +16,6 @@ function getSupabaseAdmin() {
   )
 }
 
-async function enviarWhatsappTexto(phone: string, texto: string): Promise<{ ok: boolean; error?: string }> {
-  const phoneId = process.env.META_WA_PHONE_ID
-  const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) return { ok: false, error: 'META_WA_PHONE_ID/TOKEN no configurados' }
-
-  const numero = phone.replace(/\D/g, '')
-  const dest = numero.startsWith('57') ? numero : `57${numero}`
-
-  try {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: dest,
-        type: 'text',
-        text: { body: texto },
-      }),
-    })
-    if (!res.ok) {
-      const body = await res.text()
-      return { ok: false, error: `Meta ${res.status}: ${body.slice(0, 300)}` }
-    }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-}
-
-async function enviarWhatsappImagen(phone: string, imageUrl: string, caption: string): Promise<{ ok: boolean; error?: string }> {
-  const phoneId = process.env.META_WA_PHONE_ID
-  const token = process.env.META_WA_TOKEN
-  if (!phoneId || !token) return { ok: false, error: 'META_WA_PHONE_ID/TOKEN no configurados' }
-
-  const numero = phone.replace(/\D/g, '')
-  const dest = numero.startsWith('57') ? numero : `57${numero}`
-
-  try {
-    const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: dest,
-        type: 'image',
-        image: { link: imageUrl, caption },
-      }),
-    })
-    if (!res.ok) {
-      const body = await res.text()
-      return { ok: false, error: `Meta ${res.status}: ${body.slice(0, 300)}` }
-    }
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -102,12 +46,11 @@ export async function POST(req: NextRequest) {
   // ── Obtener perfil del cliente (nombre + whatsapp) ────────────────────────
   const { data: perfil } = await admin
     .from('perfiles')
-    .select('nombre_completo, whatsapp, telefono, email')
+    .select('nombre_completo, email')
     .eq('id', user.id)
     .single()
 
   const nombreCorto = perfil?.nombre_completo?.split(' ')[0] ?? 'cliente'
-  const phoneCliente = perfil?.whatsapp ?? perfil?.telefono ?? null
 
   // ── Verificar duplicados y buscar match con sin_asignar ───────────────────
   const trackingOrigen = body.tracking_origen?.trim() || null
@@ -203,64 +146,12 @@ export async function POST(req: NextRequest) {
       ubicacion: 'Miami, USA',
     })
 
-    // Notificar por WhatsApp (texto + foto si existe)
-    if (phoneCliente) {
-      // Buscar foto del paquete
-      const { data: fotos } = await admin
-        .from('fotos_paquetes')
-        .select('url')
-        .eq('paquete_id', matchId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-
-      const fotoUrl = fotos?.[0]?.url ?? null
-
-      const linkSeguimiento = `https://portal.celadashopper.com/paquetes/${matchId}`
-
-      const captionOTexto =
-        `¡Hola ${nombreCorto}! 🎉\n\n` +
-        `*Tu paquete ya está en nuestra bodega de Miami* y lo acabamos de asociar a tu cuenta.\n\n` +
-        `📦 *${body.descripcion}*\n` +
-        (trackingOrigen ? `🚚 Tracking courier: *${trackingOrigen}*\n` : '') +
-        `🔖 Tu número CeladaShopper: *${matchTracking}*\n\n` +
-        `👉 Sigue tu paquete aquí:\n${linkSeguimiento}\n\n` +
-        `Lo despacharemos pronto a Colombia. ✈️`
-
-      let envioOk = false
-      let envioError: string | undefined
-      let envioMetodo = 'texto'
-
-      if (fotoUrl) {
-        // Intentar imagen primero
-        envioMetodo = 'imagen'
-        const r = await enviarWhatsappImagen(phoneCliente, fotoUrl, captionOTexto)
-        envioOk = r.ok
-        envioError = r.error
-        // Si falla la imagen, fallback a texto
-        if (!envioOk) {
-          console.warn('[match] Imagen falló, fallback a texto:', r.error)
-          envioMetodo = 'texto_fallback'
-          const t = await enviarWhatsappTexto(phoneCliente, captionOTexto)
-          envioOk = t.ok
-          envioError = t.error ?? envioError
-        }
-      } else {
-        const t = await enviarWhatsappTexto(phoneCliente, captionOTexto)
-        envioOk = t.ok
-        envioError = t.error
-      }
-
-      // Registrar la notificación de match
-      await admin.from('notificaciones').insert({
-        cliente_id: user.id,
-        paquete_id: matchId,
-        tipo: 'paquete_match',
-        titulo: `Paquete asignado por match (${envioMetodo})`,
-        mensaje: envioOk
-          ? captionOTexto
-          : `${captionOTexto}\n\n[ERROR DE ENVÍO]: ${envioError ?? 'desconocido'}`,
-        enviada_whatsapp: envioOk,
-      }).then(() => {/* ok */}, () => {/* swallow */})
+    // Notificar al cliente via template Meta aprobado + email
+    // notificarCambioEstado centraliza: WA template cs_paquete_recibido_usa + foto + email
+    try {
+      await notificarCambioEstado(matchId, 'recibido_usa')
+    } catch (err) {
+      console.error('[reportar match] notificarCambioEstado:', err)
     }
 
     return NextResponse.json({
@@ -300,37 +191,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertErr.message }, { status: 500 })
   }
 
-  // ── Texto base para WhatsApp y log ──
-  const linkSeguimiento = `https://portal.celadashopper.com/paquetes`
-  const textoConfirmacion =
-    `¡Hola ${nombreCorto}! 👋\n\n` +
-    `*Recibimos tu pedido en CeladaShopper* ✅\n\n` +
-    `📦 *${body.descripcion}*\n` +
-    `🏬 ${body.tienda}\n` +
-    (trackingOrigen ? `🚚 Tracking del courier: *${trackingOrigen}*\n` : '') +
-    `🔖 Tu número CeladaShopper: *${nuevo.tracking_casilla}*\n\n` +
-    `Te avisaremos cuando tu paquete:\n` +
-    `• Llegue a nuestra bodega de Miami 📍\n` +
-    `• Esté en camino a Colombia ✈️\n` +
-    `• Esté listo para recoger 🎉\n\n` +
-    `👉 Sigue tus paquetes aquí:\n${linkSeguimiento}`
-
-  // ── Enviar WhatsApp (best-effort, solo si hay teléfono) ──
-  let whatsappEnviado = false
-  let whatsappError: string | undefined
-  if (phoneCliente) {
-    try {
-      const r = await enviarWhatsappTexto(phoneCliente, textoConfirmacion)
-      whatsappEnviado = r.ok
-      whatsappError = r.error
-      if (!r.ok) console.error('[reportar] WhatsApp falló:', r.error)
-    } catch (err) {
-      console.error('[reportar] Error enviando WhatsApp:', err)
-      whatsappError = err instanceof Error ? err.message : String(err)
-    }
-  }
-
   // ── Enviar EMAIL (canal principal, siempre que haya email del cliente) ──
+  // WhatsApp: no hay template Meta aprobado para "paquete reportado", se notifica por WA
+  // cuando el paquete llegue a bodega (recibido_usa) a través de notificarCambioEstado
   let emailOk = false
   let emailMsgId: string | undefined
   let emailErr: string | undefined
@@ -367,8 +230,8 @@ export async function POST(req: NextRequest) {
     paquete_id: nuevo.id,
     tipo: 'paquete_reportado',
     titulo: `Pedido reportado: ${nuevo.tracking_casilla}`,
-    mensaje: textoConfirmacion + (whatsappError ? `\n\n[WhatsApp ERROR] ${whatsappError}` : ''),
-    enviada_whatsapp: whatsappEnviado,
+    mensaje: `Paquete reportado por el cliente. Bodega: ${body.bodega_destino}. Tracking courier: ${trackingOrigen ?? 'no informado'}.`,
+    enviada_whatsapp: false,
     enviada_email: emailOk,
     email_message_id: emailMsgId ?? null,
     email_error: emailErr ?? null,
@@ -379,6 +242,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     match: false,
     tracking_casilla: nuevo.tracking_casilla,
-    whatsapp_enviado: whatsappEnviado,
+    whatsapp_enviado: false,
   })
 }

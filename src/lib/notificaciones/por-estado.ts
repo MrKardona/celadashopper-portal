@@ -445,7 +445,6 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
     const templateDef = EVENTO_A_TEMPLATE[evento]
     const puedeEnviarWa = !!ctx.phone && !!templateDef
 
-    const enviaFotos = estadoNuevo === 'recibido_usa'
     let fotosEnviadas = 0
     let envioOk = false
     let viaUsada = puedeEnviarWa ? 'meta_template' : 'sin_whatsapp'
@@ -456,25 +455,10 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
       envioOk = tmplOk
       viaUsada = tmplOk ? 'meta_template' : 'meta_template_falló'
 
-      // recibido_usa: foto del contenido como mensaje separado tras el template
-      if (tmplOk && enviaFotos) {
-        const { data: fotos } = await supabase
-          .from('fotos_paquetes')
-          .select('url, descripcion')
-          .eq('paquete_id', paqueteId)
-          .order('created_at', { ascending: true })
-          .limit(5)
-        const fotoContenido = fotos?.find(f =>
-          (f.descripcion ?? '').toLowerCase().includes('contenido')
-        ) ?? (fotos && fotos.length > 0 ? fotos[fotos.length - 1] : null)
-        if (fotoContenido) {
-          const fotoOk = await enviarImagenMeta(ctx.phone, fotoContenido.url)
-          if (fotoOk) {
-            fotosEnviadas = 1
-            console.log('[notif] Foto contenido enviada tras template OK:', fotoContenido.url)
-          }
-        }
-      }
+      // recibido_usa con foto: requiere template con header IMAGE aprobado por Meta.
+      // type:'image' fuera de ventana 24h viola TOS → no enviar mensajes libres.
+      // TODO: una vez aprobado cs_paquete_recibido_usa_foto, subir foto 2 aquí y
+      //       pasarla como header parameter al enviarMetaTemplate.
     }
     // Si !puedeEnviarWa: no hay template aprobado → solo email, sin WA
 
