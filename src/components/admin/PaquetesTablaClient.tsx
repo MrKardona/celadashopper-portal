@@ -191,14 +191,19 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
   const [fusionError, setFusionError] = useState('')
   const [fusionPending, setFusionPending] = useState(false)
 
-  // División: ocultar padre mientras los hijos no han llegado todos a Colombia
+  // División: fusión automática visual cuando todos los sub-paquetes llegaron a Colombia
   const visiblePaquetes = paquetes.filter(p => {
-    // Los hijos siempre se muestran
-    if (p.paquete_origen_id) return true
-    // Los paquetes sin hijos se muestran normalmente
+    if (p.paquete_origen_id) {
+      // Sub-paquete: ocultarlo cuando TODOS sus hermanos ya están en Colombia
+      // (el padre toma el relevo — fusión automática)
+      const hermanos = childrenByParent[p.paquete_origen_id]
+      if (!hermanos || hermanos.length === 0) return true // sin datos, mostrarlo
+      return !hermanos.every(h => ESTADOS_COLOMBIA.has(h.estado))
+    }
+    // Paquete normal o padre: ocultar mientras algún hijo sigue en tránsito
     const hijos = childrenByParent[p.id]
     if (!hijos || hijos.length === 0) return true
-    // Padre con hijos: solo visible si TODOS los hijos llegaron a Colombia
+    // Padre con hijos: solo visible cuando TODOS los hijos llegaron a Colombia
     return hijos.every(h => ESTADOS_COLOMBIA.has(h.estado))
   })
 
