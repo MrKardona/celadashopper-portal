@@ -58,17 +58,35 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
 
   // Detectar clientes con paquetes que aún no llegaron a Colombia
   const ESTADOS_PENDIENTES = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio', 'en_transito']
-  const pendientesPorCliente: Record<string, number> = {}
+  const ESTADO_LABELS_PENDIENTE: Record<string, string> = {
+    reportado: 'Reportado',
+    recibido_usa: 'Recibido en USA',
+    en_consolidacion: 'En consolidación',
+    listo_envio: 'Listo para envío',
+    en_transito: 'En tránsito',
+  }
+
+  interface PaqPendiente {
+    id: string
+    descripcion: string | null
+    tracking_casilla: string | null
+    tracking_origen: string | null
+    estado: string
+    bodega_destino: string | null
+  }
+  const pendientesPorCliente: Record<string, PaqPendiente[]> = {}
   if (clienteIds.length > 0) {
     const { data: pendientes } = await supabase
       .from('paquetes')
-      .select('cliente_id')
+      .select('id, cliente_id, descripcion, tracking_casilla, tracking_origen, estado, bodega_destino')
       .in('cliente_id', clienteIds)
       .in('estado', ESTADOS_PENDIENTES)
       .eq('visible_cliente', true)
+      .order('created_at', { ascending: true })
     for (const p of pendientes ?? []) {
       if (!p.cliente_id) continue
-      pendientesPorCliente[p.cliente_id] = (pendientesPorCliente[p.cliente_id] ?? 0) + 1
+      if (!pendientesPorCliente[p.cliente_id]) pendientesPorCliente[p.cliente_id] = []
+      pendientesPorCliente[p.cliente_id].push(p)
     }
   }
 
@@ -154,7 +172,8 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
             const barrio = p.barrio_entrega ?? cli?.barrio ?? null
             const referencia = p.referencia_entrega ?? cli?.referencia ?? null
             const tel = cli?.whatsapp ?? cli?.telefono ?? null
-            const nPendientes = p.cliente_id ? (pendientesPorCliente[p.cliente_id] ?? 0) : 0
+            const paqPendientes = p.cliente_id ? (pendientesPorCliente[p.cliente_id] ?? []) : []
+            const nPendientes = paqPendientes.length
 
             return (
               <div key={p.id} className="glass-card p-4 space-y-3"
@@ -192,16 +211,39 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                   </span>
                 </div>
 
-                {/* Alerta: paquetes pendientes por llegar */}
+                {/* Alerta: paquetes pendientes por llegar — expandible */}
                 {nPendientes > 0 && (
-                  <div className="flex items-start gap-2 rounded-xl px-3 py-2.5"
-                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
-                    <p className="text-xs leading-relaxed" style={{ color: '#f87171' }}>
-                      <strong>Este cliente tiene {nPendientes} paquete{nPendientes !== 1 ? 's' : ''} pendiente{nPendientes !== 1 ? 's' : ''} por recibir.</strong>{' '}
-                      Coordina si esperan antes de la entrega.
-                    </p>
-                  </div>
+                  <details className="rounded-xl overflow-hidden group"
+                    style={{ border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer select-none list-none"
+                      style={{ background: 'rgba(239,68,68,0.08)' }}>
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#f87171' }} />
+                      <p className="text-xs flex-1 leading-snug" style={{ color: '#f87171' }}>
+                        <strong>{nPendientes} paquete{nPendientes !== 1 ? 's' : ''} pendiente{nPendientes !== 1 ? 's' : ''} por llegar</strong>
+                        {' '}· clic para ver
+                      </p>
+                      <span className="text-[10px] font-mono flex-shrink-0" style={{ color: 'rgba(248,113,113,0.6)' }}>▼</span>
+                    </summary>
+                    <div className="divide-y" style={{ borderTop: '1px solid rgba(239,68,68,0.2)', borderColor: 'rgba(239,68,68,0.15)' }}>
+                      {paqPendientes.map(pp => (
+                        <Link key={pp.id} href={`/admin/paquetes/${pp.id}`}
+                          className="flex items-center gap-3 px-3 py-2.5 hover:opacity-80 transition-opacity"
+                          style={{ background: 'rgba(239,68,68,0.04)' }}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate text-white">{pp.descripcion ?? 'Sin descripción'}</p>
+                            <p className="text-[11px] mt-0.5 font-mono" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                              {pp.tracking_origen ?? pp.tracking_casilla ?? '—'}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0"
+                            style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>
+                            {ESTADO_LABELS_PENDIENTE[pp.estado] ?? pp.estado}
+                          </span>
+                          <ExternalLink className="h-3 w-3 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                        </Link>
+                      ))}
+                    </div>
+                  </details>
                 )}
 
                 {/* Cliente */}
