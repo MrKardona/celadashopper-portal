@@ -27,6 +27,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
     .from('paquetes')
     .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega')
     .eq('estado', 'en_bodega_local')
+    .eq('visible_cliente', true)   // excluir sub-paquetes internos (divisiones)
     .order('fecha_llegada_colombia', { ascending: true })
 
   if (ciudad) q = q.eq('bodega_destino', ciudad)
