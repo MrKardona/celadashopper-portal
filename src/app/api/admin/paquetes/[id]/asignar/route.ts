@@ -89,7 +89,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   // Cargar paquete actual (campos completos para el email)
   const { data: paquete } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, cliente_id, estado, tienda, peso_libras, costo_servicio, bodega_destino, tracking_usaco, valor_declarado')
+    .select('id, tracking_casilla, tracking_origen, descripcion, cliente_id, estado, tienda, peso_libras, costo_servicio, bodega_destino, tracking_usaco, valor_declarado')
     .eq('id', id)
     .maybeSingle()
 
@@ -172,6 +172,7 @@ export async function POST(req: NextRequest, { params }: Props) {
         peso_libras: paquete.peso_libras,
         costo_servicio: paquete.costo_servicio,
         bodega_destino: paquete.bodega_destino,
+        tracking_origen: paquete.tracking_origen,
         tracking_usaco: paquete.tracking_usaco,
         valor_declarado: paquete.valor_declarado,
       })
