@@ -88,6 +88,7 @@ export default async function CajaDetallePage({ params }: Props) {
     tracking_usaco: caja.tracking_usaco,
     courier: caja.courier,
     bodega_destino: caja.bodega_destino,
+    tipo: caja.tipo ?? null,
     peso_estimado: caja.peso_estimado,
     peso_real: caja.peso_real,
     costo_total_usaco: caja.costo_total_usaco,
