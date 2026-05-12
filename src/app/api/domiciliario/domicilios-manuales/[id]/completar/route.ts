@@ -21,9 +21,17 @@ export async function POST(_req: NextRequest, { params }: Props) {
 
   const { id } = await params
 
+  let body: { foto_url?: string | null; notas_entrega?: string | null } = {}
+  try { body = await _req.json() } catch { /* body vacío si no envían JSON */ }
+
   const { data, error } = await admin
     .from('domicilios_manuales')
-    .update({ estado: 'completado', completado_at: new Date().toISOString() })
+    .update({
+      estado: 'completado',
+      completado_at: new Date().toISOString(),
+      foto_url: body.foto_url ?? null,
+      notas_entrega: body.notas_entrega ?? null,
+    })
     .eq('id', id)
     .eq('domiciliario_id', user.id)   // solo puede completar los suyos
     .select()

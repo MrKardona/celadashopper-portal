@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
-import { Bike, Package, Phone } from 'lucide-react'
+import { Bike, Package, Phone, Eye } from 'lucide-react'
 import Link from 'next/link'
 import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
 import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
@@ -163,11 +163,18 @@ export default async function DomiciliariosPage() {
                 {/* Acciones */}
                 <div className="space-y-2">
                   <Link
+                    href={`/admin/domiciliarios/${d.id}`}
+                    className="flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all w-full"
+                    style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)', color: '#818cf8' }}>
+                    <Eye className="h-3.5 w-3.5" />
+                    Ver entregas asignadas
+                  </Link>
+                  <Link
                     href={`/admin/listos-entrega?domiciliario=${d.id}`}
                     className="flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all w-full"
                     style={{ border: `1px solid ${tw}0.1)`, color: `${tw}0.5)` }}>
                     <Package className="h-3.5 w-3.5" />
-                    Ver paquetes asignados
+                    Listos para entrega
                   </Link>
                   <NuevoDomicilioManualModal
                     domiciliarioId={d.id}
