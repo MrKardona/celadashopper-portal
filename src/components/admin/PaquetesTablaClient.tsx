@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge } from 'lucide-react'
+import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
@@ -27,6 +27,9 @@ const BODEGA_LABELS: Record<string, string> = {
 
 const tw = 'rgba(255,255,255,'
 
+// Estados que significan "ya llegó a Colombia"
+const ESTADOS_COLOMBIA = new Set(['en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'])
+
 interface PaqueteRow {
   id: string
   tracking_casilla: string | null
@@ -47,6 +50,7 @@ interface PaqueteRow {
   notas_consolidacion: string | null
   nombre_etiqueta: string | null
   fecha_recepcion_usa: string | null
+  paquete_origen_id: string | null
   cliente: { nombre_completo: string; numero_casilla: string } | null
   fotoUrl: string | null
 }
@@ -55,6 +59,7 @@ interface Props {
   paquetes: PaqueteRow[]
   error?: string | null
   consolidacionMap?: Record<string, number>
+  childrenByParent?: Record<string, { id: string; estado: string }[]>
 }
 
 function FotoThumb({ url }: { url: string }) {
@@ -92,7 +97,7 @@ function FotoThumb({ url }: { url: string }) {
   )
 }
 
-export default function PaquetesTablaClient({ paquetes, error, consolidacionMap = {} }: Props) {
+export default function PaquetesTablaClient({ paquetes, error, consolidacionMap = {}, childrenByParent = {} }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
@@ -105,6 +110,17 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
   const [fusionError, setFusionError] = useState('')
   const [fusionPending, setFusionPending] = useState(false)
 
+  // División: ocultar padre mientras los hijos no han llegado todos a Colombia
+  const visiblePaquetes = paquetes.filter(p => {
+    // Los hijos siempre se muestran
+    if (p.paquete_origen_id) return true
+    // Los paquetes sin hijos se muestran normalmente
+    const hijos = childrenByParent[p.id]
+    if (!hijos || hijos.length === 0) return true
+    // Padre con hijos: solo visible si TODOS los hijos llegaron a Colombia
+    return hijos.every(h => ESTADOS_COLOMBIA.has(h.estado))
+  })
+
   const toggleOne = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev)
@@ -114,10 +130,10 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
   }
 
   const toggleAll = () => {
-    if (selected.size === paquetes.length) {
+    if (selected.size === visiblePaquetes.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(paquetes.map(p => p.id)))
+      setSelected(new Set(visiblePaquetes.map(p => p.id)))
     }
   }
 
@@ -139,7 +155,7 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
     startTransition(() => router.refresh())
   }
 
-  const allSelected = paquetes.length > 0 && selected.size === paquetes.length
+  const allSelected = visiblePaquetes.length > 0 && selected.size === visiblePaquetes.length
   const someSelected = selected.size > 0
 
   const selectedPaquetes = paquetes.filter(p => selected.has(p.id))
@@ -347,7 +363,7 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
               </tr>
             </thead>
             <tbody>
-              {paquetes.length === 0 ? (
+              {visiblePaquetes.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12" style={{ color: `${tw}0.3)` }}>
                     <Package className="h-10 w-10 mx-auto mb-2 opacity-20" />
@@ -355,17 +371,37 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                   </td>
                 </tr>
               ) : (
-                paquetes.map(p => {
+                visiblePaquetes.map(p => {
                   const isSelected = selected.has(p.id)
                   const peso = p.peso_facturable ?? p.peso_libras
                   const diasEnBodega = p.fecha_recepcion_usa
                     ? Math.floor((Date.now() - new Date(p.fecha_recepcion_usa).getTime()) / 86_400_000)
                     : null
 
+                  // División: estado del paquete en relación a sus hermanos/padre
+                  const esHijo = !!p.paquete_origen_id
+                  const hermanosDelPadre = esHijo ? (childrenByParent[p.paquete_origen_id!] ?? []) : []
+                  const totalHermanos = hermanosDelPadre.length
+                  const hermanosEnColombia = hermanosDelPadre.filter(h => ESTADOS_COLOMBIA.has(h.estado)).length
+                  const faltanHermanos = esHijo && hermanosEnColombia < totalHermanos
+
+                  // Padre con todos los hijos ya llegados → sugerir fusión
+                  const hijosDelPadre = !esHijo ? (childrenByParent[p.id] ?? []) : []
+                  const esPadreConHijosCompletos = hijosDelPadre.length > 0 &&
+                    hijosDelPadre.every(h => ESTADOS_COLOMBIA.has(h.estado))
+
                   return (
                     <tr
                       key={p.id}
-                      className={`transition-colors ${isSelected ? 'bg-red-500/[0.07]' : `cursor-pointer hover:bg-white/[0.04] ${!p.cliente_id ? 'bg-amber-500/[0.03]' : ''}`}`}
+                      className={`transition-colors ${
+                        isSelected
+                          ? 'bg-red-500/[0.07]'
+                          : faltanHermanos
+                            ? 'bg-red-500/[0.05] hover:bg-red-500/[0.08]'
+                            : esPadreConHijosCompletos
+                              ? 'bg-emerald-500/[0.04] hover:bg-emerald-500/[0.07]'
+                              : `cursor-pointer hover:bg-white/[0.04] ${!p.cliente_id ? 'bg-amber-500/[0.03]' : ''}`
+                      }`}
                       style={{ borderBottom: `1px solid ${tw}0.05)` }}
                     >
                       {/* Checkbox */}
@@ -409,6 +445,30 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                                 📦 Consolidar
                               </span>
                             )}
+                            {/* Hijo con hermanos pendientes */}
+                            {faltanHermanos && (
+                              <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mt-1 w-fit font-semibold"
+                                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                                <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0" />
+                                División · {hermanosEnColombia}/{totalHermanos} partes llegaron
+                              </span>
+                            )}
+                            {/* Hijo cuyas hermanos ya llegaron todos */}
+                            {esHijo && !faltanHermanos && totalHermanos > 0 && (
+                              <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mt-1 w-fit"
+                                style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+                                <Scissors className="h-2.5 w-2.5 flex-shrink-0" />
+                                División completa
+                              </span>
+                            )}
+                            {/* Padre con todos los hijos llegados */}
+                            {esPadreConHijosCompletos && (
+                              <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mt-1 w-fit font-semibold"
+                                style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
+                                <Merge className="h-2.5 w-2.5 flex-shrink-0" />
+                                Listo para fusionar · {hijosDelPadre.length} partes llegaron
+                              </span>
+                            )}
                           </Link>
                         </div>
                       </td>
@@ -439,7 +499,10 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
 
                       <td className="px-4 py-3 hidden md:table-cell">
                         <Link href={`/admin/paquetes/${p.id}`} className="block">
-                          <p className="truncate max-w-[180px]" style={{ color: `${tw}0.8)` }}>{p.descripcion}</p>
+                          <div className="flex items-center gap-1.5">
+                            {esHijo && <Scissors className="h-3 w-3 flex-shrink-0" style={{ color: faltanHermanos ? '#f87171' : `${tw}0.3)` }} />}
+                            <p className="truncate max-w-[180px]" style={{ color: `${tw}0.8)` }}>{p.descripcion}</p>
+                          </div>
                           <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>{p.tienda}</p>
                           {(p.tracking_origen ?? p.tracking_casilla) && (
                             <p className="text-[11px] font-mono mt-0.5" style={{ color: `${tw}0.28)` }}>

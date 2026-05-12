@@ -41,7 +41,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at')
+    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -58,6 +58,22 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   const paqueteIds = lista.map(p => p.id)
   const clienteIds = [...new Set(lista.map(p => p.cliente_id).filter(Boolean))]
+
+  // Fetch all children of packages in the list to know division status
+  const allIds = lista.map(p => p.id)
+  const { data: hijosData } = allIds.length > 0
+    ? await supabase
+        .from('paquetes')
+        .select('id, paquete_origen_id, estado')
+        .in('paquete_origen_id', allIds)
+    : { data: [] as { id: string; paquete_origen_id: string; estado: string }[] }
+
+  const childrenByParent: Record<string, { id: string; estado: string }[]> = {}
+  for (const h of (hijosData ?? [])) {
+    if (!h.paquete_origen_id) continue
+    if (!childrenByParent[h.paquete_origen_id]) childrenByParent[h.paquete_origen_id] = []
+    childrenByParent[h.paquete_origen_id].push({ id: h.id, estado: h.estado })
+  }
 
   const [perfilesRes, fotosRes, consolidacionUsaRes] = await Promise.all([
     clienteIds.length > 0
@@ -112,6 +128,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     ...p,
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
     fotoUrl: fotosMap[p.id] ?? null,
+    paquete_origen_id: p.paquete_origen_id ?? null,
   }))
 
   const selectClass = "glass-input text-sm px-3 py-2 rounded-xl"
@@ -189,6 +206,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
         paquetes={paquetesConCliente}
         error={errPaq?.message ?? null}
         consolidacionMap={consolidacionMap}
+        childrenByParent={childrenByParent}
       />
     </div>
   )
