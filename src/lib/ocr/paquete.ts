@@ -115,7 +115,9 @@ async function imagenABase64(url: string): Promise<{ data: string; mediaType: st
 // ─── Parser de respuesta JSON con limpieza de markdown ───────────────────────
 function parsearJSON(raw: string): unknown {
   const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
-  return JSON.parse(cleaned)
+  const parsed = JSON.parse(cleaned)
+  // Claude a veces envuelve el objeto en un array — desempacar el primero
+  return Array.isArray(parsed) ? parsed[0] : parsed
 }
 
 // ─── Análisis de etiqueta ────────────────────────────────────────────────────
