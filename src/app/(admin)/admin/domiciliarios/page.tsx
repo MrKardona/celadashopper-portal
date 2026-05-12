@@ -28,14 +28,15 @@ export default async function DomiciliariosPage() {
 
   const lista = domiciliarios ?? []
 
-  // Paquetes en camino por domiciliario
+  // Paquetes en camino + domicilios manuales por domiciliario
   const domIds = lista.map(d => d.id)
   const paquetesMap: Record<string, { enCamino: number; entregadosHoy: number }> = {}
+  const manualesMap: Record<string, { id: string; nombre: string; direccion: string; notas: string | null }[]> = {}
 
   if (domIds.length > 0) {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
 
-    const [enCaminoRes, entregadosRes] = await Promise.all([
+    const [enCaminoRes, entregadosRes, manualesRes] = await Promise.all([
       admin.from('paquetes')
         .select('domiciliario_id')
         .in('domiciliario_id', domIds)
@@ -45,6 +46,11 @@ export default async function DomiciliariosPage() {
         .in('domiciliario_id', domIds)
         .eq('estado', 'entregado')
         .gte('updated_at', hoy.toISOString()),
+      admin.from('domicilios_manuales')
+        .select('id, domiciliario_id, nombre, direccion, notas')
+        .in('domiciliario_id', domIds)
+        .eq('estado', 'pendiente')
+        .order('orden'),
     ])
 
     for (const p of enCaminoRes.data ?? []) {
@@ -56,6 +62,11 @@ export default async function DomiciliariosPage() {
       if (!p.domiciliario_id) continue
       if (!paquetesMap[p.domiciliario_id]) paquetesMap[p.domiciliario_id] = { enCamino: 0, entregadosHoy: 0 }
       paquetesMap[p.domiciliario_id].entregadosHoy++
+    }
+    for (const m of manualesRes.data ?? []) {
+      if (!m.domiciliario_id) continue
+      if (!manualesMap[m.domiciliario_id]) manualesMap[m.domiciliario_id] = []
+      manualesMap[m.domiciliario_id].push(m)
     }
   }
 
@@ -124,6 +135,30 @@ export default async function DomiciliariosPage() {
                     <p className="text-[11px] mt-0.5" style={{ color: `${tw}0.35)` }}>Entregados hoy</p>
                   </div>
                 </div>
+
+                {/* Domicilios manuales pendientes */}
+                {(manualesMap[d.id] ?? []).length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                      Domicilios manuales · {manualesMap[d.id].length}
+                    </p>
+                    {manualesMap[d.id].map((m, idx) => (
+                      <div key={m.id} className="flex items-start gap-2 rounded-xl px-3 py-2"
+                        style={{ background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.12)' }}>
+                        <span className="text-[10px] font-bold mt-0.5 flex-shrink-0" style={{ color: '#818cf8' }}>
+                          {idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">{m.nombre}</p>
+                          <p className="text-[11px] truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{m.direccion}</p>
+                          {m.notas && (
+                            <p className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.28)' }}>{m.notas}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Acciones */}
                 <div className="space-y-2">
