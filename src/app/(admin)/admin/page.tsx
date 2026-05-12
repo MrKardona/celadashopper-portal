@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+�export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { Package, MapPin, Plane, AlertTriangle, Users, CheckCircle2, ClipboardList, ScanBarcode, Box, ArrowRight, Layers } from 'lucide-react'
@@ -100,7 +100,7 @@ export default async function AdminDashboard() {
   const stats = [
     { label: 'Total activos',      value: paquetes.length,   icon: Package,      iconBg: 'rgba(99,130,255,0.15)',  iconColor: '#8899ff' },
     { label: 'En USA',             value: enUsa,             icon: ClipboardList, iconBg: 'rgba(245,184,0,0.15)',  iconColor: '#F5B800',  href: '/admin/paquetes?grupo=usa' },
-    { label: 'En trÃ¡nsito',        value: enTransito,        icon: Plane,        iconBg: 'rgba(168,85,247,0.15)', iconColor: '#c084fc',  href: '/admin/paquetes?grupo=transito' },
+    { label: 'En tránsito',        value: enTransito,        icon: Plane,        iconBg: 'rgba(168,85,247,0.15)', iconColor: '#c084fc',  href: '/admin/paquetes?grupo=transito' },
     { label: 'En bodega Colombia', value: enBodegaLocal,     icon: MapPin,       iconBg: 'rgba(245,184,0,0.15)',  iconColor: '#fbbf24',  href: '/admin/listos-entrega' },
     { label: 'Entregados (30d)',   value: entregadosMes,     icon: CheckCircle2, iconBg: 'rgba(52,211,153,0.15)', iconColor: '#34d399' },
     { label: 'Clientes activos',   value: totalClientes,     icon: Users,        iconBg: 'rgba(52,211,153,0.12)', iconColor: '#6ee7b7' },
@@ -108,7 +108,7 @@ export default async function AdminDashboard() {
 
   const datosDonut = [
     { nombre: 'En USA',       valor: enUsa,         color: '#eab308' },
-    { nombre: 'En trÃ¡nsito',  valor: enTransito,    color: '#a855f7' },
+    { nombre: 'En tránsito',  valor: enTransito,    color: '#a855f7' },
     { nombre: 'En bodega CO', valor: enBodegaLocal, color: '#F5B800' },
     { nombre: 'Entregados (30d)', valor: entregadosMes, color: '#10b981' },
   ].filter(d => d.valor > 0)
@@ -129,18 +129,18 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>Vista general de la operaciÃ³n</p>
+        <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>Vista general de la operación</p>
       </div>
 
-      {/* â”€â”€ Alertas (arriba porque son urgentes) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� Alertas (arriba porque son urgentes) ���������������������������������� */}
       {alertas.length > 0 && (
         <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(245,184,0,0.22)' }}>
           <div className="px-5 py-3.5 flex items-center gap-2" style={{ borderBottom: `1px solid ${tw}0.06)`, background: 'rgba(245,184,0,0.04)' }}>
             <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
             <h3 className="text-sm font-semibold flex-1" style={{ color: '#F5B800' }}>
-              Sin movimiento +7 dÃ­as â€” {alertas.length} paquete{alertas.length !== 1 ? 's' : ''}
+              Sin movimiento +7 días � {alertas.length} paquete{alertas.length !== 1 ? 's' : ''}
             </h3>
-            <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: `${tw}0.35)` }}>Ver todos â†’</Link>
+            <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: `${tw}0.35)` }}>Ver todos � </Link>
           </div>
           <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
             {alertas.map(p => {
@@ -152,7 +152,7 @@ export default async function AdminDashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
                     <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
-                      {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'}{(p.tracking_origen ?? p.tracking_casilla) ? ` Â· ${p.tracking_origen ?? p.tracking_casilla}` : ''}
+                      {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'}{(p.tracking_origen ?? p.tracking_casilla) ? ` · ${p.tracking_origen ?? p.tracking_casilla}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 ml-3 flex-shrink-0">
@@ -169,7 +169,7 @@ export default async function AdminDashboard() {
         </div>
       )}
 
-      {/* â”€â”€ ConsolidaciÃ³n alert â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� Consolidación alert �������������������������������������������������������������������� */}
       {consolidacionClientes > 0 && (
         <Link href="/admin/consolidacion"
           className="glass-card p-4 flex items-center gap-4 group hover:border-purple-500/30 transition-all"
@@ -185,14 +185,14 @@ export default async function AdminDashboard() {
                 : `${consolidacionClientes} clientes con varios paquetes en Miami`}
             </p>
             <p className="text-xs mt-0.5" style={{ color: `${tw}0.38)` }}>
-              PodrÃ­an enviarse juntos en la misma caja
+              Podrían enviarse juntos en la misma caja
             </p>
           </div>
           <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" style={{ color: '#c084fc' }} />
         </Link>
       )}
 
-      {/* â”€â”€ Acciones del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� Acciones del día �������������������������������������������������������������������������� */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Link href="/admin/recibir"
           className="glass-card p-4 flex items-center gap-4 group hover:border-white/[0.18] transition-all">
@@ -242,7 +242,7 @@ export default async function AdminDashboard() {
         </Link>
       </div>
 
-      {/* â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� Stats ���������������������������������������������������������������������������������������������� */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map(({ label, value, icon: Icon, iconBg, iconColor, href }) => {
           const inner = (
@@ -264,16 +264,16 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      {/* â”€â”€ Charts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� Charts �������������������������������������������������������������������������������������������� */}
       <DashboardCharts datosDonut={datosDonut} datosBarras={datosBarras} />
 
-      {/* â”€â”€ DistribuciÃ³n por estado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� Distribución por estado ���������������������������������������������������������� */}
       <div className="glass-card p-5">
-        <h3 className="text-sm font-semibold text-white mb-4">DistribuciÃ³n por estado</h3>
+        <h3 className="text-sm font-semibold text-white mb-4">Distribución por estado</h3>
         {[
-          { label: 'ðŸ‡ºðŸ‡¸ En USA',      estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] },
-          { label: 'âœˆï¸ En trÃ¡nsito',  estados: ['en_transito', 'en_colombia'] },
-          { label: 'ðŸ‡¨ðŸ‡´ En Colombia', estados: ['en_bodega_local', 'en_camino_cliente', 'retenido'] },
+          { label: '�x!��x!� En USA',      estados: ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio'] },
+          { label: '�S�️ En tránsito',  estados: ['en_transito', 'en_colombia'] },
+          { label: '�x!��x!� En Colombia', estados: ['en_bodega_local', 'en_camino_cliente', 'retenido'] },
         ].map(grupo => (
           <div key={grupo.label} className="mb-5">
             <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.3)` }}>{grupo.label}</p>
@@ -297,7 +297,7 @@ export default async function AdminDashboard() {
         ))}
 
         <div className="mt-2 pt-4" style={{ borderTop: `1px solid ${tw}0.07)` }}>
-          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.25)` }}>ðŸ“‹ Historial</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: `${tw}0.25)` }}>�x9 Historial</p>
           <div className="grid grid-cols-2 gap-2 max-w-xs">
             {[
               { estado: 'entregado', count: totalEntregados, sub: `${entregadosMes} este mes` },
@@ -320,11 +320,11 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* â”€â”€ Ãšltimos registros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ���� �altimos registros ������������������������������������������������������������������������ */}
       <div className="glass-card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
-          <h3 className="text-sm font-semibold text-white">Ãšltimos registros</h3>
-          <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: '#F5B800' }}>Ver todos â†’</Link>
+          <h3 className="text-sm font-semibold text-white">�altimos registros</h3>
+          <Link href="/admin/paquetes" className="text-xs font-semibold" style={{ color: '#F5B800' }}>Ver todos � </Link>
         </div>
         <div className="divide-y" style={{ borderColor: `${tw}0.05)` }}>
           {recientes.map(p => (
@@ -333,7 +333,7 @@ export default async function AdminDashboard() {
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">{p.descripcion}</p>
                 <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
-                  {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'}{(p.tracking_origen ?? p.tracking_casilla) ? ` Â· ${p.tracking_origen ?? p.tracking_casilla}` : ''}
+                  {p.cliente_id ? nombresMap[p.cliente_id] : 'Sin asignar'}{(p.tracking_origen ?? p.tracking_casilla) ? ` · ${p.tracking_origen ?? p.tracking_casilla}` : ''}
                 </p>
               </div>
               <span

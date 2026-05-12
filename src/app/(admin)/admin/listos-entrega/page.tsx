@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+�export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { CheckCircle2, Package, MapPin, User, Phone, ExternalLink } from 'lucide-react'
@@ -7,7 +7,7 @@ import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
 const BODEGA_LABELS: Record<string, string> = {
-  medellin: 'MedellÃ­n', bogota: 'BogotÃ¡', barranquilla: 'Barranquilla',
+  medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
 }
 
 const tw = 'rgba(255,255,255,'
@@ -95,18 +95,18 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
         <div className="glass-card p-12 text-center">
           <Package className="h-10 w-10 mx-auto mb-2 opacity-20 text-white" />
           <p style={{ color: `${tw}0.4)` }}>No hay paquetes pendientes de entrega</p>
-          <p className="text-xs mt-1" style={{ color: `${tw}0.25)` }}>Cuando recibas cajas en Colombia, los paquetes aparecerÃ¡n aquÃ­</p>
+          <p className="text-xs mt-1" style={{ color: `${tw}0.25)` }}>Cuando recibas cajas en Colombia, los paquetes aparecerán aquí</p>
         </div>
       ) : (
         <>
         {gruposConsolidar.length > 0 && (
           <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(52,211,153,0.22)' }}>
             <div className="px-5 py-3.5 flex items-center gap-2" style={{ background: 'rgba(52,211,153,0.05)', borderBottom: '1px solid rgba(52,211,153,0.12)' }}>
-              <span style={{ color: '#34d399', fontSize: 16 }}>ðŸ“¦</span>
+              <span style={{ color: '#34d399', fontSize: 16 }}>�x�</span>
               <p className="text-sm font-semibold" style={{ color: '#34d399' }}>
                 {gruposConsolidar.length === 1
-                  ? '1 cliente con varios paquetes en bodega â€” coordinar entrega conjunta'
-                  : `${gruposConsolidar.length} clientes con varios paquetes en bodega â€” coordinar entrega conjunta`}
+                  ? '1 cliente con varios paquetes en bodega � coordinar entrega conjunta'
+                  : `${gruposConsolidar.length} clientes con varios paquetes en bodega � coordinar entrega conjunta`}
               </p>
             </div>
             <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
@@ -118,7 +118,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                     <div>
                       <p className="text-sm font-semibold text-white">{cli?.nombre_completo ?? 'Sin asignar'}</p>
                       <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                        {grupo.length} paquetes Â· {bodega}
+                        {grupo.length} paquetes · {bodega}
                       </p>
                     </div>
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
@@ -156,7 +156,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                     {p.cliente_id && clientesConMultiples.has(p.cliente_id) && (
                       <span className="inline-flex text-[11px] font-semibold px-1.5 py-0.5 rounded mt-1"
                         style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
-                        ðŸ“¦ Entregar con otros paquetes del cliente
+                        �x� Entregar con otros paquetes del cliente
                       </span>
                     )}
                     <div className="mt-1.5">
@@ -179,7 +179,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                   <div className="flex items-center gap-2 text-sm">
                     <User className="h-3.5 w-3.5 flex-shrink-0" style={{ color: `${tw}0.4)` }} />
                     <span className="font-semibold text-white truncate">
-                      {cli?.nombre_completo ?? 'â³ Sin asignar'}
+                      {cli?.nombre_completo ?? '⏳ Sin asignar'}
                     </span>
                     {cli?.numero_casilla && (
                       <span className="text-[11px] font-mono" style={{ color: '#F5B800' }}>{cli.numero_casilla}</span>
@@ -194,7 +194,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                   )}
                 </div>
 
-                {/* DirecciÃ³n */}
+                {/* Dirección */}
                 {direccion ? (
                   <div className="text-xs space-y-0.5">
                     <p className="flex items-start gap-1.5" style={{ color: `${tw}0.7)` }}>
@@ -204,7 +204,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                     {(barrio || referencia) && (
                       <p className="text-[11px] ml-5" style={{ color: `${tw}0.4)` }}>
                         {barrio && <span>{barrio}</span>}
-                        {barrio && referencia && <span> Â· </span>}
+                        {barrio && referencia && <span> · </span>}
                         {referencia && <span>{referencia}</span>}
                       </p>
                     )}
@@ -213,7 +213,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                   <p className="text-xs px-2 py-1 rounded flex items-center gap-1"
                     style={{ background: 'rgba(245,184,0,0.08)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
                     <MapPin className="h-3 w-3" />
-                    Sin direcciÃ³n de entrega registrada
+                    Sin dirección de entrega registrada
                   </p>
                 )}
 
@@ -223,7 +223,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                   {p.costo_servicio && <span>${Number(p.costo_servicio).toFixed(2)} USD</span>}
                   {p.fecha_llegada_colombia && (
                     <span className="ml-auto" style={{ color: `${tw}0.3)` }}>
-                      LlegÃ³ hace {Math.floor((Date.now() - new Date(p.fecha_llegada_colombia).getTime()) / (1000 * 60 * 60 * 24))} dÃ­as
+                      Llegó hace {Math.floor((Date.now() - new Date(p.fecha_llegada_colombia).getTime()) / (1000 * 60 * 60 * 24))} días
                     </span>
                   )}
                 </div>

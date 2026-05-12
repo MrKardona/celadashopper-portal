@@ -1,4 +1,4 @@
-﻿'use client'
+�'use client'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,8 +13,8 @@ const TIENDAS_USA = [
 ]
 
 const BODEGAS: { value: BodegaDestino; label: string }[] = [
-  { value: 'medellin',    label: 'MedellÃ­n' },
-  { value: 'bogota',      label: 'BogotÃ¡' },
+  { value: 'medellin',    label: 'Medellín' },
+  { value: 'bogota',      label: 'Bogotá' },
   { value: 'barranquilla', label: 'Barranquilla (celulares)' },
 ]
 
@@ -222,7 +222,7 @@ export default function ReportarPage() {
     setExito({ tracking: data.tracking_casilla ?? '', match: data.match })
   }
 
-  /* â”€â”€ Pantalla de Ã©xito â”€â”€ */
+  /* ���� Pantalla de éxito ���� */
   if (exito) {
     return (
       <div className="max-w-lg mx-auto space-y-4" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -235,22 +235,22 @@ export default function ReportarPage() {
             <div>
               {exito.match ? (
                 <>
-                  <h2 className="text-xl font-bold text-white">Â¡Tu paquete ya estÃ¡ aquÃ­! ðŸŽ‰</h2>
+                  <h2 className="text-xl font-bold text-white">¡Tu paquete ya está aquí! �x}0</h2>
                   <p className="mt-1 text-sm" style={{ color: `${tw}0.6)` }}>
-                    Encontramos tu paquete en nuestra bodega de Miami. Te enviamos una notificaciÃ³n por WhatsApp con los detalles.
+                    Encontramos tu paquete en nuestra bodega de Miami. Te enviamos una notificación por WhatsApp con los detalles.
                   </p>
                 </>
               ) : (
                 <>
-                  <h2 className="text-xl font-bold text-white">Â¡Pedido reportado!</h2>
+                  <h2 className="text-xl font-bold text-white">¡Pedido reportado!</h2>
                   <p className="mt-1 text-sm" style={{ color: `${tw}0.6)` }}>Tu paquete ha sido registrado exitosamente.</p>
                 </>
               )}
             </div>
             <div className="w-full p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${tw}0.08)` }}>
-              <p className="text-xs" style={{ color: `${tw}0.4)` }}>NÃºmero de seguimiento CeladaShopper</p>
+              <p className="text-xs" style={{ color: `${tw}0.4)` }}>Número de seguimiento CeladaShopper</p>
               <p className="text-2xl font-mono font-bold mt-1" style={{ color: '#F5B800' }}>{exito.tracking}</p>
-              <p className="text-xs mt-2" style={{ color: `${tw}0.3)` }}>Guarda este nÃºmero para hacer seguimiento</p>
+              <p className="text-xs mt-2" style={{ color: `${tw}0.3)` }}>Guarda este número para hacer seguimiento</p>
             </div>
             <div className="flex gap-3 w-full">
               <button
@@ -276,7 +276,7 @@ export default function ReportarPage() {
     )
   }
 
-  /* â”€â”€ Formulario â”€â”€ */
+  /* ���� Formulario ���� */
   return (
     <div className="max-w-2xl mx-auto space-y-5" style={{ fontFamily: "'Outfit', sans-serif" }}>
 
@@ -327,7 +327,7 @@ export default function ReportarPage() {
                 </GlassSelect>
                 {tiendaOtros && (
                   <GlassInput
-                    placeholder="Â¿CuÃ¡l tienda?"
+                    placeholder="¿Cuál tienda?"
                     value={form.tienda}
                     onChange={e => setForm(p => ({ ...p, tienda: e.target.value }))}
                     required
@@ -355,13 +355,13 @@ export default function ReportarPage() {
               <div className="glass-section-blue p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#8899ff' }}>Tarifa especial</p>
                 <p className="text-sm mt-1 leading-relaxed" style={{ color: `${tw}0.65)` }}>
-                  El costo de este envÃ­o <strong className="text-white">se calcula al hacer la consolidaciÃ³n completa</strong>.
-                  Un agente revisarÃ¡ el paquete y te confirmarÃ¡ el costo final.
+                  El costo de este envío <strong className="text-white">se calcula al hacer la consolidación completa</strong>.
+                  Un agente revisará el paquete y te confirmará el costo final.
                 </p>
               </div>
             )}
 
-            {/* CondiciÃ³n, cantidad y cotizaciÃ³n */}
+            {/* Condición, cantidad y cotización */}
             {form.categoria && form.categoria !== 'juguetes' && form.categoria !== 'otro' && form.categoria !== 'tarifa_especial' && (
               <div className="glass-section-gold p-3 space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#F5B800' }}>
@@ -371,7 +371,7 @@ export default function ReportarPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 sm:col-span-1">
                     <GlassLabel>
-                      CondiciÃ³n{' '}
+                      Condición{' '}
                       {(form.categoria === 'celular' || form.categoria === 'computador')
                         ? <span style={{ color: '#f87171' }}>*</span>
                         : <span style={{ color: `${tw}0.3)`, fontWeight: 400, fontSize: '0.75rem' }}>(opcional)</span>}
@@ -379,10 +379,10 @@ export default function ReportarPage() {
                     <GlassSelect
                       value={form.condicion}
                       onChange={e => setForm(prev => ({ ...prev, condicion: e.target.value as 'nuevo' | 'usado' }))}
-                      placeholder="Â¿Es nuevo o usado?"
+                      placeholder="¿Es nuevo o usado?"
                     >
-                      <option value="nuevo">âœ¨ Nuevo (en caja / sin usar)</option>
-                      <option value="usado">ðŸ”„ Usado</option>
+                      <option value="nuevo">�S� Nuevo (en caja / sin usar)</option>
+                      <option value="usado">�x Usado</option>
                     </GlassSelect>
                   </div>
 
@@ -394,54 +394,54 @@ export default function ReportarPage() {
                   </div>
                 </div>
 
-                {/* Pistas por categorÃ­a */}
+                {/* Pistas por categoría */}
                 {form.categoria === 'celular' && form.condicion === 'usado' && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    ðŸ’¡ Celular usado: 1-4 uds = $55/u Â· 5-9 uds = $45/u Â· 10+ uds = $40/u
+                    �x� Celular usado: 1-4 uds = $55/u · 5-9 uds = $45/u · 10+ uds = $40/u
                   </p>
                 )}
                 {form.categoria === 'celular' && form.condicion === 'nuevo' && (
-                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>ðŸ’¡ Celular nuevo: $75 por unidad</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>�x� Celular nuevo: $75 por unidad</p>
                 )}
                 {form.categoria === 'celular' && !form.condicion && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    ðŸ’¡ Selecciona la condiciÃ³n para ver la tarifa exacta (nuevo $75/u Â· usado desde $40/u)
+                    �x� Selecciona la condición para ver la tarifa exacta (nuevo $75/u · usado desde $40/u)
                   </p>
                 )}
                 {form.categoria === 'computador' && form.condicion === 'nuevo' && (
-                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>ðŸ’¡ Computador nuevo: $75/u + 4% del valor declarado</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>�x� Computador nuevo: $75/u + 4% del valor declarado</p>
                 )}
                 {form.categoria === 'computador' && form.condicion === 'usado' && (
-                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>ðŸ’¡ Computador usado: $55/u + 4% del valor declarado</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>�x� Computador usado: $55/u + 4% del valor declarado</p>
                 )}
                 {form.categoria === 'computador' && !form.condicion && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    ðŸ’¡ Selecciona la condiciÃ³n para ver la tarifa (nuevo $75/u Â· usado $55/u, ambos + 4% seguro)
+                    �x� Selecciona la condición para ver la tarifa (nuevo $75/u · usado $55/u, ambos + 4% seguro)
                   </p>
                 )}
                 {form.categoria === 'ipad_tablet' && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    ðŸ’¡ Valor &gt; $200 â†’ $45/u + 4% seguro Â· Valor â‰¤ $200 â†’ $18 fijo + $2.20/lb
+                    �x� Valor &gt; $200 �  $45/u + 4% seguro · Valor �0� $200 �  $18 fijo + $2.20/lb
                   </p>
                 )}
                 {form.categoria === 'calzado' && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    ðŸ’¡ 1 par = $20 Â· 2 o mÃ¡s pares = $17.50 cada par
+                    �x� 1 par = $20 · 2 o más pares = $17.50 cada par
                   </p>
                 )}
                 {['ropa_accesorios', 'cosmeticos', 'perfumeria', 'suplementos', 'libros', 'electrodomestico'].includes(form.categoria) && (
                   <p className="text-[11px] leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    ðŸ’¡ Hasta 6 uds y valor â‰¤ $200: $18 fijo + $2.20/lb Â· 7+ uds o valor &gt; $200: $6.50/lb (mÃ­n 5 lb)
+                    �x� Hasta 6 uds y valor �0� $200: $18 fijo + $2.20/lb · 7+ uds o valor &gt; $200: $6.50/lb (mín 5 lb)
                   </p>
                 )}
 
-                {/* CotizaciÃ³n */}
+                {/* Cotización */}
                 {cotizacion && cotizacion.metodo !== 'sin_tarifa' && (
                   <div className="p-3 rounded-xl mt-2" style={{ background: 'rgba(0,0,0,0.25)', border: '2px solid rgba(245,184,0,0.35)' }}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#F5B800' }}>
-                          {cotizacion.requiere_peso ? 'Costo estimado mÃ­nimo' : 'Costo estimado'}
+                          {cotizacion.requiere_peso ? 'Costo estimado mínimo' : 'Costo estimado'}
                         </p>
                         <p className="text-2xl font-bold text-white">
                           {cotizacion.requiere_peso ? 'desde ' : ''}
@@ -451,7 +451,7 @@ export default function ReportarPage() {
                       </div>
                       {!cotizacion.requiere_peso && (
                         <div className="text-right text-[11px]" style={{ color: `${tw}0.5)` }}>
-                          <p>EnvÃ­o: ${cotizacion.subtotal_envio.toFixed(2)}</p>
+                          <p>Envío: ${cotizacion.subtotal_envio.toFixed(2)}</p>
                           {cotizacion.seguro > 0 && <p>Seguro: ${cotizacion.seguro.toFixed(2)}</p>}
                         </div>
                       )}
@@ -465,9 +465,9 @@ export default function ReportarPage() {
               </div>
             )}
 
-            {/* DescripciÃ³n */}
+            {/* Descripción */}
             <div>
-              <GlassLabel htmlFor="descripcion" required>DescripciÃ³n del producto</GlassLabel>
+              <GlassLabel htmlFor="descripcion" required>Descripción del producto</GlassLabel>
               <GlassInput
                 id="descripcion" name="descripcion"
                 placeholder="Ej: Zapatillas Nike Air Max talla 10, color negro"
@@ -509,12 +509,12 @@ export default function ReportarPage() {
                 <div className="flex items-start gap-2.5">
                   <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" style={{ color: '#F5B800' }} />
                   <div>
-                    <p className="text-sm font-semibold text-white">Â¡Este tracking ya estÃ¡ en tu cuenta!</p>
+                    <p className="text-sm font-semibold text-white">¡Este tracking ya está en tu cuenta!</p>
                     <p className="text-xs mt-1 leading-relaxed" style={{ color: `${tw}0.6)` }}>
-                      Ya registraste este nÃºmero de tracking anteriormente:
+                      Ya registraste este número de tracking anteriormente:
                     </p>
                     <div className="mt-2 p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${tw}0.08)` }}>
-                      <p className="text-xs" style={{ color: `${tw}0.4)` }}>NÃºmero CeladaShopper</p>
+                      <p className="text-xs" style={{ color: `${tw}0.4)` }}>Número CeladaShopper</p>
                       <p className="font-mono font-bold" style={{ color: '#F5B800' }}>{duplicado.tracking_casilla}</p>
                       <p className="text-xs mt-0.5 text-white">{duplicado.descripcion}</p>
                       <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>
@@ -541,7 +541,7 @@ export default function ReportarPage() {
                   <div>
                     <p className="text-sm font-semibold text-white">Tracking ya registrado</p>
                     <p className="text-xs mt-1 leading-relaxed" style={{ color: `${tw}0.6)` }}>
-                      Este nÃºmero de tracking ya fue ingresado por otro cliente. Si crees que hay un error, comunÃ­cate con nosotros por WhatsApp.
+                      Este número de tracking ya fue ingresado por otro cliente. Si crees que hay un error, comunícate con nosotros por WhatsApp.
                     </p>
                   </div>
                 </div>
@@ -573,25 +573,25 @@ export default function ReportarPage() {
               {form.categoria === 'celular' && form.bodega_destino !== 'barranquilla' && (
                 <p className="text-xs mt-1 flex items-center gap-1" style={{ color: '#F5B800' }}>
                   <AlertCircle className="h-3 w-3" />
-                  Los celulares normalmente llegan a Barranquilla. Â¿Confirmas MedellÃ­n?
+                  Los celulares normalmente llegan a Barranquilla. ¿Confirmas Medellín?
                 </p>
               )}
             </div>
 
-            {/* DirecciÃ³n de entrega */}
+            {/* Dirección de entrega */}
             <div className="space-y-2">
               <GlassLabel required>
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" style={{ color: '#F5B800' }} />
-                  DirecciÃ³n de entrega
+                  Dirección de entrega
                 </span>
               </GlassLabel>
               <GlassSelect
                 value={direccionOpcion}
                 onChange={e => setDireccionOpcion(e.target.value as 'guardada' | 'otra')}
               >
-                {direccionPerfil?.direccion && <option value="guardada">ðŸ“ Mi direcciÃ³n guardada</option>}
-                <option value="otra">âœï¸ Otra direcciÃ³n (puntual)</option>
+                {direccionPerfil?.direccion && <option value="guardada">�x� Mi dirección guardada</option>}
+                <option value="otra">�S�️ Otra dirección (puntual)</option>
               </GlassSelect>
 
               {direccionOpcion === 'guardada' && direccionPerfil?.direccion && (
@@ -600,28 +600,28 @@ export default function ReportarPage() {
                   {(direccionPerfil.barrio || direccionPerfil.referencia) && (
                     <p className="text-xs mt-1" style={{ color: `${tw}0.5)` }}>
                       {direccionPerfil.barrio && <span>Barrio: {direccionPerfil.barrio}</span>}
-                      {direccionPerfil.barrio && direccionPerfil.referencia && <span> Â· </span>}
+                      {direccionPerfil.barrio && direccionPerfil.referencia && <span> · </span>}
                       {direccionPerfil.referencia && <span>{direccionPerfil.referencia}</span>}
                     </p>
                   )}
                   <Link href="/perfil" className="inline-block mt-2 text-[11px] font-medium hover:underline" style={{ color: '#F5B800' }}>
-                    Cambiar direcciÃ³n guardada en mi perfil â†’
+                    Cambiar dirección guardada en mi perfil � 
                   </Link>
                 </div>
               )}
 
               {direccionOpcion === 'guardada' && !direccionPerfil?.direccion && (
                 <div className="glass-section-amber p-3 text-xs" style={{ color: `${tw}0.7)` }}>
-                  AÃºn no has registrado una direcciÃ³n en tu perfil.{' '}
+                  Aún no has registrado una dirección en tu perfil.{' '}
                   <Link href="/perfil" className="font-semibold underline" style={{ color: '#F5B800' }}>Agregarla</Link>{' '}
-                  o usa la opciÃ³n &quot;Otra direcciÃ³n&quot; para este paquete.
+                  o usa la opción &quot;Otra dirección&quot; para este paquete.
                 </div>
               )}
 
               {direccionOpcion === 'otra' && (
                 <div className="space-y-2 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${tw}0.08)` }}>
                   <div>
-                    <label className="text-xs font-medium mb-1 block" style={{ color: `${tw}0.6)` }}>DirecciÃ³n *</label>
+                    <label className="text-xs font-medium mb-1 block" style={{ color: `${tw}0.6)` }}>Dirección *</label>
                     <GlassTextarea
                       placeholder="Calle 10 #45-20, Apto 502, Torre B" rows={2}
                       value={direccionOtra.direccion}
@@ -642,13 +642,13 @@ export default function ReportarPage() {
                     </div>
                   </div>
                   <p className="text-[11px]" style={{ color: `${tw}0.35)` }}>
-                    Esta direcciÃ³n se usarÃ¡ solo para este paquete. Tu direcciÃ³n del perfil no cambia.
+                    Esta dirección se usará solo para este paquete. Tu dirección del perfil no cambia.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* ConsolidaciÃ³n */}
+            {/* Consolidación */}
             <div className="glass-section-blue p-3 space-y-2">
               <label className="flex items-start gap-2 cursor-pointer">
                 <input
@@ -659,16 +659,16 @@ export default function ReportarPage() {
                   style={{ accentColor: '#8899ff' }}
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">ðŸ“¦ Necesito consolidar este paquete con otros</p>
+                  <p className="text-sm font-medium text-white">�x� Necesito consolidar este paquete con otros</p>
                   <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: `${tw}0.55)` }}>
-                    Marca esta opciÃ³n si vas a enviar mÃ¡s paquetes y quieres que esperemos a tener todos antes de despacharlos juntos.
+                    Marca esta opción si vas a enviar más paquetes y quieres que esperemos a tener todos antes de despacharlos juntos.
                   </p>
                 </div>
               </label>
               {form.requiere_consolidacion && (
                 <GlassTextarea
                   name="notas_consolidacion"
-                  placeholder="Opcional: dinos cuÃ¡ntos paquetes esperas, por cuÃ¡nto tiempo, etc."
+                  placeholder="Opcional: dinos cuántos paquetes esperas, por cuánto tiempo, etc."
                   value={form.notas_consolidacion}
                   onChange={handleChange}
                   rows={2}
@@ -718,7 +718,7 @@ export default function ReportarPage() {
                 className="btn-ghost w-full py-3 text-sm rounded-xl"
                 onClick={() => { setDuplicado(null); setForm(prev => ({ ...prev, tracking_origen: '' })) }}
               >
-                Registrar sin nÃºmero de tracking
+                Registrar sin número de tracking
               </button>
             )}
 
@@ -726,18 +726,18 @@ export default function ReportarPage() {
         </div>
       </div>
 
-      {/* CÃ³mo funciona */}
+      {/* Cómo funciona */}
       <div className="glass-section-blue p-4">
         <div className="flex gap-3">
-          <div className="mt-0.5">â„¹ï¸</div>
+          <div className="mt-0.5">��️</div>
           <div className="text-sm" style={{ color: `${tw}0.7)` }}>
-            <p className="font-medium mb-1 text-white">Â¿CÃ³mo funciona?</p>
+            <p className="font-medium mb-1 text-white">¿Cómo funciona?</p>
             <ol className="space-y-1 list-decimal list-inside" style={{ color: `${tw}0.6)` }}>
-              <li>Reportas tu pedido aquÃ­ con los datos de tu compra</li>
+              <li>Reportas tu pedido aquí con los datos de tu compra</li>
               <li>Tu paquete llega a nuestra bodega en USA</li>
               <li>Te enviamos fotos por WhatsApp cuando llegue</li>
-              <li>Lo despachamos a Colombia en 8-12 dÃ­as hÃ¡biles</li>
-              <li>Te avisamos cuando estÃ© listo para recoger o entrega</li>
+              <li>Lo despachamos a Colombia en 8-12 días hábiles</li>
+              <li>Te avisamos cuando esté listo para recoger o entrega</li>
             </ol>
           </div>
         </div>
