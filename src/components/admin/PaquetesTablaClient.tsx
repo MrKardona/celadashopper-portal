@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle } from 'lucide-react'
+import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
@@ -62,35 +62,116 @@ interface Props {
   childrenByParent?: Record<string, { id: string; estado: string }[]>
 }
 
+const MIN_SCALE_LOCAL = 0.25
+const MAX_SCALE_LOCAL = 5
+const STEP_LOCAL = 0.25
+
 function FotoThumb({ url }: { url: string }) {
   const [open, setOpen] = useState(false)
+  const [scale, setScale] = useState(1)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { if (!open) setScale(1) }, [open])
+
   useEffect(() => {
     if (!open) return
     const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
   }, [open])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !open) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? STEP_LOCAL : -STEP_LOCAL
+      setScale(prev => Math.min(MAX_SCALE_LOCAL, Math.max(MIN_SCALE_LOCAL, +(prev + delta).toFixed(2))))
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [open])
+
+  const zoomIn  = useCallback((e: React.MouseEvent) => { e.stopPropagation(); setScale(s => Math.min(MAX_SCALE_LOCAL, +(s + STEP_LOCAL).toFixed(2))) }, [])
+  const zoomOut = useCallback((e: React.MouseEvent) => { e.stopPropagation(); setScale(s => Math.max(MIN_SCALE_LOCAL, +(s - STEP_LOCAL).toFixed(2))) }, [])
+  const reset   = useCallback((e: React.MouseEvent) => { e.stopPropagation(); setScale(1) }, [])
+
   return (
     <>
       <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(true) }}
-        className="flex-shrink-0 group relative">
+        className="flex-shrink-0 group relative" style={{ cursor: 'zoom-in' }}>
         <img src={url} alt="" className="h-9 w-9 rounded-md object-cover border border-white/10 group-hover:opacity-80 transition-opacity" />
         <div className="absolute inset-0 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity">
           <Camera className="h-3.5 w-3.5 text-white" />
         </div>
       </button>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)' }}
-          onClick={() => setOpen(false)}>
+        <div
+          ref={containerRef}
+          className="fixed inset-0 z-50 flex items-center justify-center select-none"
+          style={{ background: 'rgba(0,0,0,0.90)', backdropFilter: 'blur(10px)' }}
+          onClick={() => setOpen(false)}
+        >
           <button onClick={() => setOpen(false)}
-            className="absolute top-4 right-4 flex items-center justify-center w-10 h-10 rounded-full"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.18)' }}>
-            <X className="h-5 w-5 text-white" />
+            className="absolute top-4 right-4 flex items-center justify-center w-9 h-9 rounded-full transition-colors"
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'white', zIndex: 60 }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}>
+            <X className="h-4 w-4" />
           </button>
-          <img src={url} alt="" onClick={e => e.stopPropagation()}
-            className="max-h-[85vh] max-w-[90vw] object-contain rounded-2xl"
-            style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
+
+          <img src={url} alt="" onClick={e => {
+            e.stopPropagation()
+            if (scale > 1) setScale(s => Math.max(MIN_SCALE_LOCAL, +(s - STEP_LOCAL).toFixed(2)))
+          }}
+            className="max-h-[82vh] max-w-[88vw] object-contain rounded-2xl"
+            style={{
+              border: '1px solid rgba(255,255,255,0.1)',
+              cursor: scale > 1 ? 'zoom-out' : 'default',
+              transform: `scale(${scale})`,
+              transformOrigin: 'center center',
+              transition: 'transform 0.12s ease-out',
+            }}
+          />
+
+          {/* Controles zoom */}
+          <div
+            className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1.5 rounded-full"
+            style={{ background: 'rgba(10,10,18,0.75)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)', zIndex: 60 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button type="button" onClick={zoomOut} disabled={scale <= MIN_SCALE_LOCAL}
+              className="flex items-center justify-center w-7 h-7 rounded-full transition-all disabled:opacity-30"
+              style={{ color: 'rgba(255,255,255,0.7)' }}
+              onMouseEnter={e => { if (scale > MIN_SCALE_LOCAL) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={reset}
+              className="text-xs font-semibold tabular-nums px-2 py-0.5 rounded-full"
+              style={{ color: scale !== 1 ? 'rgba(245,184,0,0.9)' : 'rgba(255,255,255,0.45)', minWidth: '3rem', textAlign: 'center' }}>
+              {Math.round(scale * 100)}%
+            </button>
+            <button type="button" onClick={zoomIn} disabled={scale >= MAX_SCALE_LOCAL}
+              className="flex items-center justify-center w-7 h-7 rounded-full transition-all disabled:opacity-30"
+              style={{ color: 'rgba(255,255,255,0.7)' }}
+              onMouseEnter={e => { if (scale < MAX_SCALE_LOCAL) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            {scale !== 1 && (
+              <>
+                <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
+                <button type="button" onClick={reset}
+                  className="flex items-center justify-center w-7 h-7 rounded-full transition-all"
+                  style={{ color: 'rgba(255,255,255,0.45)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </>
