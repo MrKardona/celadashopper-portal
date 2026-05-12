@@ -1,4 +1,4 @@
-�export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { CheckCircle2, Package, MapPin, User, Phone, ExternalLink } from 'lucide-react'

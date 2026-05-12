@@ -1,4 +1,4 @@
-�export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 import { ScanBarcode } from 'lucide-react'
 import RecibirColombiaForm from '@/components/admin/RecibirColombiaForm'
