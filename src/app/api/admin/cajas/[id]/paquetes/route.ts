@@ -169,8 +169,11 @@ export async function POST(req: NextRequest, { params }: Props) {
         ubicacion: 'Miami, USA',
       }).then(() => {/* ok */}, (e) => console.error('[caja+paquete] evento padre:', e))
 
-      notificarCambioEstado(paquete.paquete_origen_id, 'en_transito')
-        .catch(err => console.error('[caja+paquete] notif padre división:', err))
+      try {
+        await notificarCambioEstado(paquete.paquete_origen_id, 'en_transito')
+      } catch (err) {
+        console.error('[caja+paquete] notif padre división:', err)
+      }
     }
   }
 

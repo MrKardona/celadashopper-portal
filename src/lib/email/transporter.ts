@@ -4,11 +4,7 @@
 import nodemailer from 'nodemailer'
 import type { Transporter, SendMailOptions } from 'nodemailer'
 
-let cached: Transporter | null = null
-
 function getTransporter(): Transporter | null {
-  if (cached) return cached
-
   const host = process.env.SMTP_HOST
   const port = parseInt(process.env.SMTP_PORT ?? '465', 10)
   const user = process.env.SMTP_USER
@@ -19,18 +15,17 @@ function getTransporter(): Transporter | null {
     return null
   }
 
-  cached = nodemailer.createTransport({
+  // Crear una instancia nueva cada vez para evitar que conexiones SMTP
+  // inactivas (idle timeout de Hostinger) fallen silenciosamente en Vercel.
+  return nodemailer.createTransport({
     host,
     port,
     secure: port === 465, // 465 SSL, 587 STARTTLS
     auth: { user, pass },
-    // Hostinger requiere estos timeouts más generosos en Vercel Edge
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 15_000,
   })
-
-  return cached
 }
 
 export interface ResultadoEmail {
