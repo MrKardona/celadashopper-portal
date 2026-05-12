@@ -29,6 +29,7 @@ export default async function DomiciliarioPage() {
     .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, bodega_destino, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega, estado, fecha_asignacion_domiciliario')
     .eq('domiciliario_id', user.id)
     .in('estado', ['en_camino_cliente', 'en_bodega_local'])
+    .is('paquete_origen_id', null)   // excluir divisiones
     .order('fecha_asignacion_domiciliario', { ascending: true })
 
   const lista = paquetes ?? []

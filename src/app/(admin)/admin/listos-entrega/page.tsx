@@ -28,7 +28,8 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
     .from('paquetes')
     .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega, domiciliario_id')
     .in('estado', ['en_bodega_local', 'en_camino_cliente'])
-    .eq('visible_cliente', true)   // excluir sub-paquetes internos (divisiones)
+    .eq('visible_cliente', true)          // excluir sub-paquetes marcados como internos
+    .is('paquete_origen_id', null)        // excluir divisiones (tienen paquete_origen_id)
     .order('fecha_llegada_colombia', { ascending: true })
 
   if (ciudad) q = q.eq('bodega_destino', ciudad)
