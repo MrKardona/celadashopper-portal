@@ -421,10 +421,17 @@ export async function notificarCambioEstado(paqueteId: string, estadoNuevo: stri
   // Cargar cliente_id al inicio para usarlo en cualquier rama (audit trail)
   const { data: paqueteBasico } = await supabase
     .from('paquetes')
-    .select('cliente_id')
+    .select('cliente_id, paquete_origen_id')
     .eq('id', paqueteId)
     .maybeSingle()
   const clienteIdAuditoria = paqueteBasico?.cliente_id ?? null
+
+  // Sub-paquetes (divisiones internas) nunca notifican al cliente directamente.
+  // Las notificaciones siempre se envían usando el paquete padre.
+  if (paqueteBasico?.paquete_origen_id) {
+    console.log(`[notificarCambioEstado] Omitido: paquete ${paqueteId} es sub-paquete (paquete_origen_id=${paqueteBasico.paquete_origen_id})`)
+    return
+  }
 
   // Si no hay evento mapeado, registrar y salir
   if (!evento) {

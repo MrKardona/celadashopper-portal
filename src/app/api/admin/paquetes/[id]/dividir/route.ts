@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
 function getSupabaseAdmin() {
   return createClient(
@@ -146,6 +147,18 @@ export async function POST(
       updated_at: ahora,
     })
     .eq('id', id)
+
+  // Enviar UNA sola notificación al cliente usando los datos del paquete padre.
+  // Las divisiones (sub-paquetes) nunca notifican por sí solas; el cliente
+  // solo debe enterarse del paquete padre.
+  if (origen.cliente_id) {
+    try {
+      await notificarCambioEstado(id, origen.estado)
+    } catch (err) {
+      // No reventar el flujo si la notificación falla
+      console.error('[dividir] notificarCambioEstado falló:', err)
+    }
+  }
 
   return NextResponse.json({ ok: true, sub_paquetes: creados })
 }

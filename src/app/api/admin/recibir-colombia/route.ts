@@ -263,6 +263,9 @@ export async function POST(req: NextRequest) {
       .map(p => p.paquete_origen_id as string)
   )]
 
+  // Rastrear qué padres quedaron completamente reunificados en este batch
+  const origenesReunificados = new Set<string>()
+
   for (const origenId of origenesEnProceso) {
     // Cargar TODOS los sub-paquetes de este origen
     const { data: todosSubPaquetes } = await admin
@@ -299,17 +302,21 @@ export async function POST(req: NextRequest) {
         descripcion: `Paquete reunificado en bodega Colombia: ${todosSubPaquetes.length} sub-paquetes (${Math.round(pesoTotal * 100) / 100} lb total)`,
         ubicacion: 'Colombia',
       }).then(() => {/* ok */}, (e) => console.error('[recibir-colombia] evento reunificar:', e))
+
+      origenesReunificados.add(origenId)
     }
   }
 
   // Notificar a cada cliente vía WhatsApp (con pequeño delay entre cada uno)
-  // Solo paquetes visibles al cliente (no sub-paquetes internos)
+  // Solo paquetes visibles al cliente (no sub-paquetes internos).
+  // Para padres divididos: notificar SOLO cuando todos los sub-paquetes llegaron
+  // (origenesReunificados). Si solo llega una parte, el cliente no recibe nada todavía.
   let notificados = 0
   let fallidos = 0
   if (debeNotificar) {
     for (const p of aProcesar) {
       if (!p.cliente_id) continue
-      if (p.visible_cliente === false) continue   // sub-paquetes: notifica el origen
+      if (p.visible_cliente === false) continue   // sub-paquetes: nunca notifican directo
       try {
         await notificarCambioEstado(p.id, 'en_bodega_local')
         notificados++
@@ -321,8 +328,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Notificar los paquetes origen que fueron reunificados (una sola notificación por origen)
-    for (const origenId of origenesEnProceso) {
+    // Notificar SOLO padres completamente reunificados en este batch
+    for (const origenId of origenesReunificados) {
       try {
         await notificarCambioEstado(origenId, 'en_bodega_local')
         notificados++
