@@ -16,9 +16,17 @@ interface Props {
 const tw = 'rgba(255,255,255,'
 
 export function TrackingTimeline({ eventos }: Props) {
-  const ordenados = [...eventos].sort(
+  // Ordenar cronológicamente y deduplicar: si el mismo tipo de evento aparece
+  // varias veces (ej. "procesado" al mover entre cajas) solo mostramos el primero.
+  const sorted = [...eventos].sort(
     (a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime()
   )
+  const seen = new Set<string>()
+  const ordenados = sorted.filter(e => {
+    if (seen.has(e.evento)) return false
+    seen.add(e.evento)
+    return true
+  })
 
   const completados = new Set(ordenados.map(e => e.evento))
 
