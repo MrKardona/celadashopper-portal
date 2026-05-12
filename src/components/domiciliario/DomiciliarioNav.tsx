@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Package, User } from 'lucide-react'
+import { Package, ClipboardList, User } from 'lucide-react'
 
 const TABS = [
-  { href: '/domiciliario',        label: 'Mis entregas', icon: Package },
-  { href: '/domiciliario/perfil', label: 'Mi perfil',    icon: User    },
+  { href: '/domiciliario',           label: 'Pendientes', icon: Package       },
+  { href: '/domiciliario/historial', label: 'Historial',  icon: ClipboardList },
+  { href: '/domiciliario/perfil',    label: 'Mi perfil',  icon: User          },
 ]
 
 export default function DomiciliarioNav() {
