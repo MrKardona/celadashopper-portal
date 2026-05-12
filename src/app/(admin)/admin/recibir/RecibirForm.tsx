@@ -261,8 +261,8 @@ export default function RecibirForm() {
         })
         const data = await res.json() as {
           ok?: boolean
-          etiqueta?: { tracking_origen: string | null }
-          contenido?: { descripcion: string | null }
+          etiqueta?: { tracking_origen: string | null; cantidad?: number | null }
+          contenido?: { descripcion: string | null; cantidad?: number | null }
         }
         setOcrNormal({
           tracking:    (res.ok && data.ok) ? (data.etiqueta?.tracking_origen ?? null) : null,
@@ -271,7 +271,7 @@ export default function RecibirForm() {
           analizado: true,
         })
       } catch {
-        setOcrNormal({ tracking: null, descripcion: null, analizado: true })
+        setOcrNormal({ tracking: null, descripcion: null, cantidad: null, analizado: true })
       } finally {
         setAnalizandoOcrNormal(false)
       }
