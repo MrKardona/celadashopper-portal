@@ -4,18 +4,12 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { verificarAdmin } from '@/lib/auth/admin'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 const ESTADO_ORDEN = [
   'reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio',
   'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente',
 ]
-
-function getAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 export async function POST(req: NextRequest) {
   const user = await verificarAdmin()
@@ -27,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Se necesitan al menos 2 paquetes para fusionar' }, { status: 400 })
   }
 
-  const admin = getAdmin()
+  const admin = getSupabaseAdmin()
 
   // Obtener todos los paquetes
   const { data: paquetes, error: errFetch } = await admin
