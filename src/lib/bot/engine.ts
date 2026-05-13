@@ -77,6 +77,27 @@ function contieneKeyword(texto: string, keywords: string[]): boolean {
 
 // ── Buscar cliente en Supabase ────────────────────────────────
 
+// ── Etiquetar contacto Kommo como "casillero" ─────────────────
+// Permite al Salesbot detectar clientes registrados y no duplicar respuestas
+
+async function tagearContactoCasillero(
+  contactId: number,
+  tagsActuales: Array<{ id: number; name: string }>
+): Promise<void> {
+  if (tagsActuales.some(t => t.name.toLowerCase() === 'casillero')) return
+  const token = process.env.KOMMO_API_TOKEN
+  try {
+    await fetch('https://celadashopper.kommo.com/api/v4/contacts', {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ id: contactId, tags: [{ name: 'casillero' }] }]),
+    })
+    console.log(`[bot] ✅ Contacto ${contactId} etiquetado como "casillero"`)
+  } catch (e) {
+    console.warn('[bot] ⚠️ No se pudo etiquetar contacto:', e)
+  }
+}
+
 async function buscarCliente(kommoContactId: number): Promise<{ cliente: ClienteInfo | null; phone: string | null }> {
   if (!kommoContactId) return { cliente: null, phone: null }
   const supabase = getSupabase()
@@ -89,9 +110,11 @@ async function buscarCliente(kommoContactId: number): Promise<{ cliente: Cliente
 
   const kommoContact = await kommoRes.json() as {
     custom_fields_values?: Array<{ field_code: string; values: Array<{ value: string }> }>
+    _embedded?: { tags?: Array<{ id: number; name: string }> }
   }
 
   const campos = kommoContact.custom_fields_values ?? []
+  const tagsActuales = kommoContact._embedded?.tags ?? []
   let telefono: string | null = null
   let email: string | null = null
 
@@ -107,7 +130,11 @@ async function buscarCliente(kommoContactId: number): Promise<{ cliente: Cliente
       .or(`whatsapp.ilike.%${telefono.slice(-10)}%,telefono.ilike.%${telefono.slice(-10)}%`)
       .eq('activo', true)
       .maybeSingle()
-    if (data) return { cliente: data as ClienteInfo, phone: telefono }
+    if (data) {
+      // Etiquetar asíncrono (sin bloquear el flujo del bot)
+      tagearContactoCasillero(kommoContactId, tagsActuales).catch(() => {})
+      return { cliente: data as ClienteInfo, phone: telefono }
+    }
   }
 
   if (email) {
@@ -117,7 +144,10 @@ async function buscarCliente(kommoContactId: number): Promise<{ cliente: Cliente
       .eq('email', email)
       .eq('activo', true)
       .maybeSingle()
-    if (data) return { cliente: data as ClienteInfo, phone: telefono }
+    if (data) {
+      tagearContactoCasillero(kommoContactId, tagsActuales).catch(() => {})
+      return { cliente: data as ClienteInfo, phone: telefono }
+    }
   }
 
   return { cliente: null, phone: telefono }
