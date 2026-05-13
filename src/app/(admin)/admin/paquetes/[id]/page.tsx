@@ -375,7 +375,7 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
                     </div>
                   )}
 
-                  <Link href={`/admin/paquetes?q=${encodeURIComponent(perfil.nombre_completo ?? '')}`}
+                  <Link href={`/admin/paquetes?cliente_id=${p.cliente_id}`}
                     className="text-xs font-semibold block pt-2 hover:underline" style={{ color: '#F5B800' }}>
                     Ver todos los paquetes de este cliente →
                   </Link>
