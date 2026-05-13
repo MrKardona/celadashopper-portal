@@ -3,25 +3,8 @@
 // Guarda el zoho_item_id en categorias_tarifas para usarlo en facturas.
 
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-async function verificarAdmin() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = getSupabaseAdmin()
-  const { data: perfil } = await admin.from('perfiles').select('rol').eq('id', user.id).single()
-  if (!['admin', 'agente_usa'].includes(perfil?.rol ?? '')) return null
-  return user
-}
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { verificarAdmin } from '@/lib/auth/admin'
 
 async function getAccessToken(): Promise<string> {
   const res = await fetch('https://accounts.zoho.com/oauth/v2/token', {

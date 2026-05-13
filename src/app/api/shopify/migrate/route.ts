@@ -2,6 +2,7 @@
 // Migrates all Shopify customers to Supabase auth + perfiles table
 
 import { NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

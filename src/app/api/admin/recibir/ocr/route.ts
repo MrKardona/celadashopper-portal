@@ -13,6 +13,7 @@
 // confirma el agente desde la UI (el endpoint NO escribe en paquetes).
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient as createAdmin, type SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { analizarPaquete, type EtiquetaOCR, type ContenidoOCR } from '@/lib/ocr/paquete'

@@ -3,15 +3,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 async function enviarMetaDirecto(phone: string, texto: string): Promise<{ ok: boolean; error?: string; messageId?: string; responseRaw?: string; destino?: string }> {
   const phoneId = process.env.META_WA_PHONE_ID

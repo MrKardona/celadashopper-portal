@@ -3,26 +3,9 @@
 // Solo admin. Retorna el resultado completo + peso_facturable con peso_minimo aplicado.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { verificarAdmin } from '@/lib/auth/admin'
 import { calcularTarifa } from '@/lib/tarifas/calcular'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-async function verificarAdmin() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = getSupabaseAdmin()
-  const { data: perfil } = await admin.from('perfiles').select('rol').eq('id', user.id).single()
-  if (perfil?.rol !== 'admin') return null
-  return user
-}
 
 export async function POST(req: NextRequest) {
   const user = await verificarAdmin()

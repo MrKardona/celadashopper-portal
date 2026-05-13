@@ -45,6 +45,10 @@ export async function middleware(request: NextRequest) {
     || pathname.startsWith('/api/cron')
 
   if (!user && !isPublic) {
+    // API routes → 401 JSON (no redirect al login)
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    }
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('next', pathname)
     return NextResponse.redirect(loginUrl)
@@ -54,7 +58,8 @@ export async function middleware(request: NextRequest) {
   const necesitaRol =
     (user && (pathname === '/login' || pathname === '/register')) ||
     (user && pathname === '/dashboard') ||
-    (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente') || pathname.startsWith('/domiciliario')))
+    (user && (pathname.startsWith('/admin') || pathname.startsWith('/agente') || pathname.startsWith('/domiciliario'))) ||
+    (user && pathname.startsWith('/api/admin'))
 
   if (necesitaRol) {
     const { data: perfil } = await supabaseAdmin
@@ -95,6 +100,11 @@ export async function middleware(request: NextRequest) {
     }
     if (pathname.startsWith('/domiciliario') && !['admin', 'domiciliario'].includes(rol)) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // Proteger API admin → 401/403 JSON (no redirect)
+    if (pathname.startsWith('/api/admin') && !['admin', 'agente_usa'].includes(rol)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
   }
 

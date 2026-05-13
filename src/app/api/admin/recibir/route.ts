@@ -3,30 +3,11 @@
 // POST /api/admin/recibir               → marcar como recibido en USA
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { verificarAdmin } from '@/lib/auth/admin'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
-
-function getSupabaseAdmin() {
-  return createAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-async function verificarAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = getSupabaseAdmin()
-  const { data: perfil } = await admin
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single()
-  if (perfil?.rol !== 'admin') return null
-  return user
-}
 
 async function guardarFoto(
   admin: ReturnType<typeof getSupabaseAdmin>,

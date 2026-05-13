@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
+import { sanitizeSearchTerm } from '@/lib/search'
 import { Search } from 'lucide-react'
 import ClientesTabla, { type ClienteRow } from '@/components/admin/ClientesTabla'
 import NuevoClienteModal from '@/components/admin/NuevoClienteModal'
@@ -50,10 +51,9 @@ export default async function AdminClientesPage({ searchParams }: Props) {
 
   // Búsqueda en la BD (no filtrado local) — busca en todos los clientes
   if (q) {
-    // Sanitizar: quitar chars que rompen el parser de PostgREST (.or) y escapar wildcards
-    const sanitized = q.replace(/[,()'"]/g, '').trim().slice(0, 80)
+    const sanitized = sanitizeSearchTerm(q)
     if (sanitized.length > 0) {
-      const term = `%${sanitized.replace(/[%_\\]/g, '\\$&')}%`
+      const term = `%${sanitized}%`
       q1 = q1.or(
         `nombre_completo.ilike.${term},email.ilike.${term},numero_casilla.ilike.${term},whatsapp.ilike.${term},telefono.ilike.${term}`
       )

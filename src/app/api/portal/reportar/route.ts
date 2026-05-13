@@ -4,18 +4,11 @@
 // tracking_origen, hace match automático y notifica al cliente por WhatsApp.
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdmin } from '@supabase/supabase-js'
 import { enviarEmailPedidoReportado } from '@/lib/email/notificaciones'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
-
-function getSupabaseAdmin() {
-  return createAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()

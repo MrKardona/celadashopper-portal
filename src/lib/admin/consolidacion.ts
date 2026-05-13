@@ -1,22 +1,18 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
-const US_ESTADOS = ['recibido_usa', 'en_consolidacion', 'listo_envio'] as const
+const US_ESTADOS: string[] = ['recibido_usa', 'en_consolidacion', 'listo_envio']
 
 /**
  * Returns the number of clients who have 2 or more packages currently
  * in the US warehouse (recibido_usa | en_consolidacion | listo_envio).
  */
 export async function getConsolidacionCount(): Promise<number> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { db: { schema: 'public' }, auth: { persistSession: false } }
-  )
+  const supabase = getSupabaseAdmin()
 
   const { data } = await supabase
     .from('paquetes')
     .select('cliente_id')
-    .in('estado', US_ESTADOS as unknown as string[])
+    .in('estado', US_ESTADOS)
     .not('cliente_id', 'is', null)
 
   if (!data) return 0

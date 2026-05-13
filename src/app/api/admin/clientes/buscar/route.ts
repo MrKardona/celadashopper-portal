@@ -3,14 +3,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { sanitizeSearchTerm } from '@/lib/search'
 
 export async function GET(req: NextRequest) {
   // Verificar admin
@@ -44,10 +38,7 @@ export async function GET(req: NextRequest) {
     .limit(50)
 
   if (q.length > 0) {
-    // Sanitizar input: PostgREST .or() rompe con comas, paréntesis, comillas
-    // y puntos. Permitimos letras (incluido acentos), números, espacios, @ . - + _
-    // y truncamos a 80 caracteres.
-    const sanitized = q.replace(/[,()'"\\]/g, '').slice(0, 80)
+    const sanitized = sanitizeSearchTerm(q)
     if (sanitized.length === 0) {
       return NextResponse.json({ clientes: [], total: totalClientes ?? 0, mostrando: 0 })
     }
@@ -60,6 +51,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query
 
   if (error) {
+    console.error('[clientes/buscar]', error.message)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

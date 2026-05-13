@@ -5,30 +5,9 @@
 //   y se notifica a cada cliente vía WhatsApp
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { verificarAdmin } from '@/lib/auth/admin'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-async function verificarAdmin() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = getSupabaseAdmin()
-  const { data: perfil } = await admin
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single()
-  if (perfil?.rol !== 'admin') return null
-  return user
-}
 
 // ─── GET: buscar paquetes por tracking USACO ────────────────────────────────
 export async function GET(req: NextRequest) {

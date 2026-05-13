@@ -2,6 +2,7 @@
 // Shopify OAuth callback — exchanges code for access token and stores it
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

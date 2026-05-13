@@ -2,29 +2,8 @@
 // Devuelve las cajas que ya fueron recibidas en Colombia (con sus paquetes).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient } from '@supabase/supabase-js'
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-async function verificarAdmin() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const admin = getSupabaseAdmin()
-  const { data: perfil } = await admin
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single()
-  if (!['admin', 'agente_usa'].includes(perfil?.rol ?? '')) return null
-  return user
-}
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { verificarAdmin } from '@/lib/auth/admin'
 
 export async function GET(req: NextRequest) {
   const user = await verificarAdmin()
