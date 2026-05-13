@@ -53,10 +53,10 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
       .order('updated_at', { ascending: false })
       .limit(120),
     admin.from('domicilios_manuales')
-      .select('id, nombre, direccion, telefono, notas, notas_entrega, foto_url, updated_at')
+      .select('id, nombre, direccion, telefono, notas, notas_entrega, foto_url, completado_at')
       .eq('domiciliario_id', id)
       .eq('estado', 'completado')
-      .order('updated_at', { ascending: false })
+      .order('completado_at', { ascending: false })
       .limit(120),
   ])
 
@@ -95,7 +95,7 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
 
   const items: Item[] = [
     ...paquetes.map(p => ({ kind: 'paquete' as const, ts: p.updated_at ?? '', data: p })),
-    ...manuales.map(m => ({ kind: 'manual'  as const, ts: m.updated_at ?? '', data: m })),
+    ...manuales.map(m => ({ kind: 'manual'  as const, ts: m.completado_at ?? '', data: m })),
   ].sort((a, b) => b.ts.localeCompare(a.ts))
 
   const total = items.length
@@ -174,7 +174,7 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                           </div>
                         </div>
                         <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
-                          {fechaBogota(m.updated_at ?? '')}
+                          {fechaBogota(m.completado_at ?? '')}
                         </p>
                       </div>
 
