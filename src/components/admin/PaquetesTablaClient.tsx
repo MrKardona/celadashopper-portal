@@ -191,6 +191,30 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
   const [fusionError, setFusionError] = useState('')
   const [fusionPending, setFusionPending] = useState(false)
 
+  // Eliminación rápida de un solo paquete reportado
+  const [deleteInlineId, setDeleteInlineId] = useState<string | null>(null)
+  const [deleteInlinePending, setDeleteInlinePending] = useState(false)
+  const [deleteInlineError, setDeleteInlineError] = useState('')
+
+  async function eliminarUno(id: string) {
+    setDeleteInlinePending(true)
+    setDeleteInlineError('')
+    try {
+      const res = await fetch(`/api/admin/paquetes/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json() as { error?: string }
+        setDeleteInlineError(data.error ?? 'Error al eliminar')
+        return
+      }
+      setDeleteInlineId(null)
+      startTransition(() => router.refresh())
+    } catch {
+      setDeleteInlineError('Error de red')
+    } finally {
+      setDeleteInlinePending(false)
+    }
+  }
+
   // División: fusión automática visual cuando todos los sub-paquetes llegaron a Colombia
   const visiblePaquetes = paquetes.filter(p => {
     if (p.paquete_origen_id) {
@@ -446,12 +470,13 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Bodega</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Factura</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden md:table-cell" style={{ color: `${tw}0.35)` }}>Peso / Valor / Costo</th>
+                <th className="w-10 px-2" />
               </tr>
             </thead>
             <tbody>
               {visiblePaquetes.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12" style={{ color: `${tw}0.3)` }}>
+                  <td colSpan={10} className="text-center py-12" style={{ color: `${tw}0.3)` }}>
                     <Package className="h-10 w-10 mx-auto mb-2 opacity-20" />
                     {error ? `Error: ${error}` : 'No hay paquetes con esos filtros'}
                   </td>
@@ -479,7 +504,7 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                   return (
                     <tr
                       key={p.id}
-                      className={`transition-colors ${
+                      className={`group transition-colors ${
                         isSelected
                           ? 'bg-red-500/[0.07]'
                           : faltanHermanos
@@ -641,6 +666,49 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                             </p>
                           )}
                         </div>
+                      </td>
+
+                      {/* Acción rápida: eliminar paquete reportado */}
+                      <td className="px-2 py-3 w-10">
+                        {p.estado === 'reportado' && (
+                          deleteInlineId === p.id ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => eliminarUno(p.id)}
+                                  disabled={deleteInlinePending}
+                                  className="flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold disabled:opacity-50 transition-all"
+                                  style={{ background: '#ef4444', color: 'white' }}
+                                  title="Confirmar eliminación"
+                                >
+                                  {deleteInlinePending
+                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                    : <Trash2 className="h-3 w-3" />}
+                                </button>
+                                <button
+                                  onClick={() => { setDeleteInlineId(null); setDeleteInlineError('') }}
+                                  className="flex items-center justify-center w-7 h-7 rounded-lg transition-all"
+                                  style={{ color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                  title="Cancelar"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                              {deleteInlineError && (
+                                <span className="text-[10px] text-red-400 text-right leading-tight max-w-[80px]">{deleteInlineError}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteInlineId(p.id); setDeleteInlineError('') }}
+                              className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:bg-red-500/20"
+                              style={{ color: 'rgba(239,68,68,0.6)' }}
+                              title="Eliminar paquete reportado"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )
+                        )}
                       </td>
                     </tr>
                   )

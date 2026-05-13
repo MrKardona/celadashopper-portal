@@ -20,7 +20,7 @@ export interface KommoMessage {
 }
 
 interface Clasificacion {
-  intencion: 'tracking' | 'ver_paquetes' | 'casilla' | 'escalar' | 'confirmacion' | 'saludo' | 'cotizar' | 'otro'
+  intencion: 'tracking' | 'ver_paquetes' | 'casilla' | 'consolidar' | 'escalar' | 'confirmacion' | 'saludo' | 'cotizar' | 'otro'
   tracking: string | null
   tienda: string | null
   descripcion: string | null
@@ -37,12 +37,13 @@ interface ClienteInfo {
 
 interface PaqueteInfo {
   tracking_casilla: string
-  tracking_usa: string | null
+  tracking_origen: string | null
   descripcion: string
   tienda: string
   estado: string
-  costo_servicio: number
-  factura_pagada: boolean
+  costo_servicio: number | null
+  factura_pagada: boolean | null
+  requiere_consolidacion: boolean | null
   updated_at: string
 }
 
@@ -128,8 +129,8 @@ async function getPaquetesCliente(clienteId: string): Promise<PaqueteInfo[]> {
   const supabase = getSupabase()
   const { data } = await supabase
     .from('paquetes')
-    .select('tracking_casilla, tracking_usa, descripcion, tienda, estado, costo_servicio, factura_pagada, updated_at')
-    .eq('perfil_id', clienteId)
+    .select('tracking_casilla, tracking_origen, descripcion, tienda, estado, costo_servicio, factura_pagada, requiere_consolidacion, updated_at')
+    .eq('cliente_id', clienteId)
     .not('estado', 'in', '("entregado","devuelto")')
     .order('updated_at', { ascending: false })
   return (data ?? []) as PaqueteInfo[]
@@ -144,17 +145,31 @@ async function crearPreAlerta(
   const supabase = getSupabase()
   const trackingCasilla = `${casilla}-${Date.now().toString().slice(-6)}`
   const { error } = await supabase.from('paquetes').insert({
-    perfil_id: clienteId,
+    cliente_id: clienteId,
     tracking_casilla: trackingCasilla,
-    tracking_usa: tracking,
+    tracking_origen: tracking,
     tienda: tienda || 'No especificada',
     descripcion: descripcion || 'Sin descripción',
-    estado: 'esperando_en_usa',
-    peso_facturable: 0,
-    costo_servicio: 0,
-    factura_pagada: false,
+    estado: 'reportado',
   })
+  if (error) console.error('[bot] crearPreAlerta error:', error.message)
   return !error
+}
+
+async function solicitarConsolidacion(clienteId: string): Promise<{ marcados: number }> {
+  const supabase = getSupabase()
+  // Marcar todos los paquetes recibidos en USA como "requiere consolidación"
+  const { data, error } = await supabase
+    .from('paquetes')
+    .update({
+      requiere_consolidacion: true,
+      notas_consolidacion: 'Consolidación solicitada por el cliente vía WhatsApp',
+    })
+    .eq('cliente_id', clienteId)
+    .in('estado', ['reportado', 'recibido_usa'])
+    .select('id')
+  if (error) console.error('[bot] solicitarConsolidacion error:', error.message)
+  return { marcados: (data ?? []).length }
 }
 
 // ── Paso 1: Clasificar intención rápido ───────────────────────
@@ -321,9 +336,13 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
       await enviar(respuesta)
       return
     }
-    const listaPaquetes = paquetes.map(p =>
-      `• ${p.tracking_casilla} — ${p.tienda} | ${ESTADO_TEXTO[p.estado] ?? p.estado} | ${p.factura_pagada ? 'Pagado ✅' : `$${p.costo_servicio} USD pendiente`} | Actualizado: ${fechaCorta(p.updated_at)}`
-    ).join('\n')
+    const listaPaquetes = paquetes.map(p => {
+      const estado = ESTADO_TEXTO[p.estado] ?? p.estado
+      const pago = p.factura_pagada ? 'Pagado ✅' : p.costo_servicio ? `$${p.costo_servicio} USD pendiente` : 'Costo por asignar'
+      const consolidacion = p.requiere_consolidacion ? ' | 📦 Consolidación solicitada' : ''
+      const tracking = p.tracking_origen ? ` | Guía: ${p.tracking_origen}` : ''
+      return `• ${p.tracking_casilla} — ${p.descripcion} (${p.tienda}) | ${estado} | ${pago}${consolidacion}${tracking} | ${fechaCorta(p.updated_at)}`
+    }).join('\n')
     const respuesta = await generarRespuesta(texto, nombreCliente,
       `DATOS DE PAQUETES DEL CLIENTE (muéstralos claramente):\n${listaPaquetes}`)
     await enviar(respuesta)
@@ -341,6 +360,27 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
     const respuesta = await generarRespuesta(texto, nombreCliente,
       `DATOS CASILLERO: Número de casillero del cliente: ${cliente.numero_casilla}. Dirección completa: 8164 NW 108TH PL, Doral, FL 33178, Suite ${cliente.numero_casilla}. Explícale cómo usarla.`)
     await enviar(respuesta)
+    return
+  }
+
+  // ── 3b. Consolidación por keywords ──────────────────────────
+  if (contieneKeyword(texto, BOT_CONFIG.consolidarSiDice)) {
+    if (!cliente) {
+      const respuesta = await generarRespuesta(texto, null,
+        'El cliente quiere consolidar paquetes pero no está registrado. Pídele su correo o teléfono.')
+      await enviar(respuesta)
+      return
+    }
+    const { marcados } = await solicitarConsolidacion(cliente.id)
+    if (marcados === 0) {
+      const respuesta = await generarRespuesta(texto, nombreCliente,
+        'DATOS: El cliente solicitó consolidación pero no tiene paquetes en estado "reportado" o "recibido en Miami" para consolidar. Si ya tiene paquetes en camino, no es posible consolidar.')
+      await enviar(respuesta)
+    } else {
+      const respuesta = await generarRespuesta(texto, nombreCliente,
+        `ACCIÓN COMPLETADA: Se marcaron ${marcados} paquete${marcados !== 1 ? 's' : ''} del cliente para consolidación. El equipo los empacará juntos antes de enviar a Colombia. Confírmale esto con entusiasmo y dile que el equipo se encargará.`)
+      await enviar(respuesta)
+    }
     return
   }
 
@@ -395,6 +435,27 @@ export async function procesarMensaje(msg: KommoMessage): Promise<void> {
 
     const respuesta = await generarRespuesta(texto, nombreCliente, contexto)
     await enviar(respuesta)
+    return
+  }
+
+  // Consolidación detectada por Claude
+  if (clas.intencion === 'consolidar') {
+    if (!cliente) {
+      const respuesta = await generarRespuesta(texto, null,
+        'El cliente quiere consolidar paquetes pero no está registrado. Pídele su correo o teléfono.')
+      await enviar(respuesta)
+      return
+    }
+    const { marcados } = await solicitarConsolidacion(cliente.id)
+    if (marcados === 0) {
+      const respuesta = await generarRespuesta(texto, nombreCliente,
+        'DATOS: El cliente solicitó consolidación pero no tiene paquetes en estado "reportado" o "recibido en Miami" para consolidar.')
+      await enviar(respuesta)
+    } else {
+      const respuesta = await generarRespuesta(texto, nombreCliente,
+        `ACCIÓN COMPLETADA: Se marcaron ${marcados} paquete${marcados !== 1 ? 's' : ''} para consolidación. El equipo los empacará juntos. Confírmale con entusiasmo.`)
+      await enviar(respuesta)
+    }
     return
   }
 

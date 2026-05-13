@@ -38,6 +38,15 @@ export const BOT_CONFIG = {
     'address', 'donde envio', 'dónde envío', 'donde mando',
   ],
 
+  // ── PALABRAS QUE PIDEN CONSOLIDAR PAQUETES ─────────────────
+  consolidarSiDice: [
+    'consolidar', 'consolidacion', 'consolidación',
+    'juntar paquetes', 'juntar mis paquetes', 'unir paquetes',
+    'mismo envio', 'mismo envío', 'manden juntos', 'enviar juntos',
+    'en una sola caja', 'en un solo envio', 'en un solo envío',
+    'pack', 'empacar juntos',
+  ],
+
   // ── CONFIGURACIÓN GENERAL ─────────────────────────────────
   config: {
     kommoUserId: 12515183,
@@ -52,7 +61,7 @@ export const BOT_CONFIG = {
   promptClasificacion: `Clasifica el mensaje de un cliente de Celada Shopper.
 Retorna ÚNICAMENTE este JSON sin texto adicional:
 {
-  "intencion": "tracking" | "ver_paquetes" | "casilla" | "escalar" | "confirmacion" | "saludo" | "cotizar" | "otro",
+  "intencion": "tracking" | "ver_paquetes" | "casilla" | "consolidar" | "escalar" | "confirmacion" | "saludo" | "cotizar" | "otro",
   "tracking": "CÓDIGO" | null,
   "tienda": "nombre" | null,
   "descripcion": "producto" | null,
@@ -63,6 +72,7 @@ REGLAS:
 - tracking: mensaje contiene número de guía (UPS 1Z..., FedEx, USPS 94..., Amazon TBA..., etc.)
 - ver_paquetes: pregunta por estado de sus pedidos/paquetes/envíos
 - casilla: pregunta por su dirección o número de casillero en Miami
+- consolidar: quiere que junten/consoliden sus paquetes en un solo envío
 - escalar: queja, problema, reclamo, pide hablar con persona
 - confirmacion: responde sí/no/si/ok/dale/nop a algo previo
 - saludo: hola, buenos días, info, qué tal, buenas, hi, buen día
@@ -137,23 +147,15 @@ Terminar con al menos uno de estos: link recibido, tracking recibido, venta inic
 
 // ── MAPEO DE ESTADOS A TEXTO LEGIBLE ─────────────────────────
 export const ESTADO_TEXTO: Record<string, string> = {
-  esperando_en_usa:  '⏳ Esperando en USA',
-  recibido_usa:      '📦 Recibido en Miami',
-  en_transito:       '✈️ En tránsito a Colombia',
-  en_aduana:         '🛃 En proceso de aduana',
-  listo_entrega:     '🎉 Listo para entregar',
-  listo_envio:       '📤 Listo para envío',
-  entregado:         '✅ Entregado',
-  devuelto:          '↩️ Devuelto',
-  'Pre-Alertado':          '⏳ Pre-alertado',
-  'RecibidoOrigen':        '📦 Recibido en Miami',
-  'IncluidoEnGuia':        '📋 Incluido en guía',
-  'TransitoInternacional': '✈️ En tránsito a Colombia',
-  'ProcesoDeAduana':       '🛃 En aduana',
-  'BodegaDestino':         '🏭 En bodega Colombia',
-  'EnRuta':                '🚚 En ruta',
-  'En ruta transito':      '🚚 En ruta tránsito',
-  'EnTransportadora':      '📬 En transportadora',
-  'EntregaFallida':        '⚠️ Entrega fallida',
-  'Entregado':             '✅ Entregado',
+  reportado:          '📋 Reportado — esperando llegada a Miami',
+  recibido_usa:       '📦 Recibido en Miami',
+  en_consolidacion:   '📦 En consolidación (empacando junto a otros paquetes)',
+  listo_envio:        '📤 Listo para envío a Colombia',
+  en_transito:        '✈️ En tránsito a Colombia',
+  en_colombia:        '🛬 Llegó a Colombia',
+  en_bodega_local:    '🏭 En bodega local',
+  en_camino_cliente:  '🚚 En camino a ti',
+  entregado:          '✅ Entregado',
+  retenido:           '⚠️ Retenido — requiere gestión',
+  devuelto:           '↩️ Devuelto',
 }

@@ -50,15 +50,16 @@ export async function GET(req: NextRequest) {
       whatsapp,
       telefono,
       ciudad,
-      paquetes (
+      paquetes!paquetes_cliente_id_fkey (
         tracking_casilla,
-        tracking_usa,
+        tracking_origen,
         descripcion,
         tienda,
         estado,
         peso_facturable,
         costo_servicio,
         factura_pagada,
+        requiere_consolidacion,
         updated_at
       )
     `)
@@ -84,6 +85,7 @@ Actualizado: ${ahora} (hora Colombia)
 
 ## QUÉ ES CELADASHOPPER
 Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU., el paquete llega a nuestra bodega en Miami, y nosotros lo enviamos a Colombia. Cada cliente tiene un número de casillero único (ej: CS-1234).
+Dirección bodega Miami: 8164 NW 108th Place, Doral, Florida 33178
 
 ## TARIFAS POR LIBRA
 `
@@ -97,12 +99,16 @@ Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU.,
   })
 
   doc += `\n## ESTADOS DE PAQUETES
-- esperando_en_usa: El cliente compró pero el paquete aún no llega a Miami
+- reportado: El cliente lo registró pero aún no llega a Miami
 - recibido_usa: Llegó a nuestra bodega en Miami, siendo procesado
+- en_consolidacion: Se está empacando junto con otros paquetes del cliente
+- listo_envio: Listo para salir de Miami a Colombia
 - en_transito: Ya salió de Miami hacia Colombia
-- en_aduana: En proceso de aduana colombiana
-- listo_entrega: Llegó a Colombia, listo para recoger o despachar
+- en_colombia: Llegó a Colombia, en proceso de distribución
+- en_bodega_local: En bodega local, pendiente de entrega
+- en_camino_cliente: En camino al cliente
 - entregado: El cliente ya lo recibió
+- retenido: Retenido (requiere gestión del equipo)
 - devuelto: Fue devuelto al remitente
 
 ## CLIENTES Y PAQUETES ACTIVOS\n`
@@ -121,32 +127,39 @@ Servicio de casillero USA→Colombia. Los clientes compran en tiendas de EE.UU.,
 
     paquetesActivos.forEach((p: {
       tracking_casilla: string
-      tracking_usa: string
+      tracking_origen: string | null
       descripcion: string
       tienda: string
       estado: string
-      peso_facturable: number
-      costo_servicio: number
-      factura_pagada: boolean
+      peso_facturable: number | null
+      costo_servicio: number | null
+      factura_pagada: boolean | null
+      requiere_consolidacion: boolean | null
       updated_at: string
     }) => {
       const estadoTexto: Record<string, string> = {
-        esperando_en_usa: 'Esperando en USA',
-        recibido_usa: 'Recibido en Miami',
-        en_transito: 'En tránsito a Colombia',
-        en_aduana: 'En aduana',
-        listo_entrega: 'Listo para entregar',
-        listo_envio: 'Listo para envío'
+        reportado:         'Reportado — esperando en USA',
+        recibido_usa:      'Recibido en Miami',
+        en_consolidacion:  'En consolidación',
+        listo_envio:       'Listo para envío',
+        en_transito:       'En tránsito a Colombia',
+        en_colombia:       'Llegó a Colombia',
+        en_bodega_local:   'En bodega local',
+        en_camino_cliente: 'En camino al cliente',
+        entregado:         'Entregado',
+        retenido:          'Retenido',
+        devuelto:          'Devuelto',
       }
       const estadoLegible = estadoTexto[p.estado] || p.estado
-      const pagoStr = p.factura_pagada ? 'PAGADO' : `PENDIENTE PAGO $${p.costo_servicio} USD`
+      const pagoStr = p.factura_pagada ? 'PAGADO' : p.costo_servicio ? `PENDIENTE PAGO $${p.costo_servicio} USD` : 'Costo por asignar'
       const ultimaActualizacion = p.updated_at
         ? new Date(p.updated_at).toLocaleDateString('es-CO')
         : 'N/A'
+      const consolidacion = p.requiere_consolidacion ? ' | ⚠️ CONSOLIDAR CON OTROS PAQUETES' : ''
 
       doc += `- **${p.tracking_casilla}**: ${p.descripcion} (${p.tienda})\n`
-      doc += `  Estado: ${estadoLegible} | Peso: ${p.peso_facturable}lb | Costo: ${pagoStr}\n`
-      if (p.tracking_usa) doc += `  Tracking USA: ${p.tracking_usa}\n`
+      doc += `  Estado: ${estadoLegible} | Peso: ${p.peso_facturable ?? 'sin pesar'}lb | Costo: ${pagoStr}${consolidacion}\n`
+      if (p.tracking_origen) doc += `  Tracking courier: ${p.tracking_origen}\n`
       doc += `  Última actualización: ${ultimaActualizacion}\n`
     })
   })
