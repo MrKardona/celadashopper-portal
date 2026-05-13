@@ -14,10 +14,10 @@ function getSupabase() {
 }
 
 export async function GET(request: NextRequest) {
-  // Seguridad básica: solo desde Vercel Cron o con header correcto
-  const authHeader = request.headers.get('authorization')
+  // Seguridad: requiere CRON_SECRET siempre — falla si no está configurado
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const authHeader = request.headers.get('authorization')
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

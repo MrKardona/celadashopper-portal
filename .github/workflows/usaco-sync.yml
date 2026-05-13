@@ -13,6 +13,7 @@ jobs:
       - name: Llamar endpoint USACO sync
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.PRODUCTION_URL }}/api/cron/usaco-sync")
           echo "HTTP status: $STATUS"
           if [ "$STATUS" != "200" ]; then
