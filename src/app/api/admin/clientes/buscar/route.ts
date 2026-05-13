@@ -40,7 +40,6 @@ export async function GET(req: NextRequest) {
   let query = admin
     .from('perfiles')
     .select('id, nombre_completo, email, numero_casilla, whatsapp, telefono, ciudad')
-    .eq('rol', 'cliente')
     .order('nombre_completo')
     .limit(50)
 
