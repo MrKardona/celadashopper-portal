@@ -14,20 +14,12 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { createClient as createAdmin, type SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { analizarPaquete, type EtiquetaOCR, type ContenidoOCR } from '@/lib/ocr/paquete'
 
 // Claude Vision + 2 fotos en paralelo puede tardar 10-20s
 // Sin esto Vercel corta a los 10s y devuelve body vacío → "Unexpected end of JSON"
 export const maxDuration = 60
-
-function getSupabaseAdmin(): SupabaseClient {
-  return createAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
-}
 
 // Permite admin y agente_usa (ambos reciben paquetes en bodega USA)
 async function verificarRolBodega() {

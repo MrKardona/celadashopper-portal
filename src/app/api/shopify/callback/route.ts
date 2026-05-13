@@ -3,20 +3,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AdminClient = SupabaseClient<any, 'public', any>
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET!
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE!
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-function getSupabaseAdmin(): AdminClient {
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)

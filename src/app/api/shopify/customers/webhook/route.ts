@@ -3,20 +3,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AdminClient = SupabaseClient<any, 'public', any>
 import { createHmac } from 'crypto'
 import { sendProactiveWhatsApp } from '@/lib/kommo/proactive'
 
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET!
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-function getSupabaseAdmin(): AdminClient {
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-}
 
 interface ShopifyWebhookAddress {
   phone?: string | null
