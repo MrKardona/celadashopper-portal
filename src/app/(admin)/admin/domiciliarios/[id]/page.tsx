@@ -78,8 +78,8 @@ export default async function AdminDomiciliarioDetallePage({ params }: Props) {
     return {
       tipo: 'paquete',
       id: p.id,
-      label: p.tracking_origen ?? p.tracking_casilla ?? 'Sin tracking',
-      descripcion: [p.descripcion, nombreCliente].filter(Boolean).join(' · ') || '',
+      label: nombreCliente ?? p.tracking_casilla ?? 'Sin tracking',
+      descripcion: p.descripcion || '',
       direccion: dir,
       telefono: null,
       notas: null,
