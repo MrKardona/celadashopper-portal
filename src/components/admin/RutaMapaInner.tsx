@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
-const tw = 'rgba(255,255,255,'
+import { tw } from '@/lib/ui'
 
 // Punto de salida fijo — sin ", Colombia" al final porque geocodificar lo agrega
 const CELADA_ORIGEN = {
@@ -91,6 +90,7 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
   const [cargando,     setCargando]     = useState(true) // empieza en true: geocodificamos origen siempre
   const [progreso,     setProgreso]     = useState(0)
   const abortRef = useRef(false)
+  const origenIconMemo = useMemo(() => origenIcon(), [])
 
   useEffect(() => {
     abortRef.current = false
@@ -209,7 +209,7 @@ export default function RutaMapaInner({ paradas }: { paradas: Parada[] }) {
 
             {/* Marcador de Celada Shopper */}
             {origenCoords && (
-              <Marker position={origenCoords} icon={origenIcon()}>
+              <Marker position={origenCoords} icon={origenIconMemo}>
                 <Popup>
                   <div style={{ fontFamily: 'system-ui', fontSize: 13, minWidth: 160 }}>
                     <p style={{ fontWeight: 700, marginBottom: 3 }}>🏠 Celada Shopper</p>

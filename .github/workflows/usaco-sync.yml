@@ -12,14 +12,17 @@ jobs:
     steps:
       - name: Llamar endpoint USACO sync
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.PRODUCTION_URL }}/api/cron/usaco-sync")
-          echo "HTTP status: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "ERROR: El endpoint retornó $STATUS"
-            exit 1
-          fi
-
-      - name: Resultado
-        run: echo "Sync USACO completado exitosamente"
+          for attempt in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "${{ secrets.PRODUCTION_URL }}/api/cron/usaco-sync")
+            echo "Intento $attempt — HTTP status: $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Sync completado exitosamente"
+              exit 0
+            fi
+            echo "Falló con $STATUS — esperando 15s antes de reintentar..."
+            sleep 15
+          done
+          echo "ERROR: falló después de 3 intentos"
+          exit 1

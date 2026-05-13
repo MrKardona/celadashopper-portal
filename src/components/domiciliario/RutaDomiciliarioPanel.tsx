@@ -8,8 +8,7 @@ import {
 } from 'lucide-react'
 import EntregarDomiciliarioButton from './EntregarDomiciliarioButton'
 import CompletarDomicilioManualButton from './CompletarDomicilioManualButton'
-
-const tw = 'rgba(255,255,255,'
+import { tw } from '@/lib/ui'
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
 }
