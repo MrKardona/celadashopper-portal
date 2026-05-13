@@ -77,7 +77,7 @@ function getCasilla(shopifyId: number): string {
  */
 async function processCustomer(
   customer: ShopifyCustomer,
-  supabase: AdminClient,
+  supabase: ReturnType<typeof getSupabaseAdmin>,
   stats: MigrationStats
 ): Promise<void> {
   const email = customer.email?.trim().toLowerCase()

@@ -14,7 +14,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { type SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { analizarPaquete, type EtiquetaOCR, type ContenidoOCR } from '@/lib/ocr/paquete'
 
@@ -79,7 +78,7 @@ function normalizarTracking(raw: string | null | undefined): string | null {
 }
 
 async function buscarMatch(
-  admin: SupabaseClient,
+  admin: ReturnType<typeof getSupabaseAdmin>,
   etiqueta: EtiquetaOCR,
 ): Promise<MatchResult> {
   const result: MatchResult = {
