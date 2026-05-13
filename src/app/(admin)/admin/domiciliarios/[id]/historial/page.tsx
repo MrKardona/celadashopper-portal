@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, CheckCircle2, FileText, Package, Camera, MapPin, StickyNote } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
 
 const tw = 'rgba(255,255,255,'
 const BODEGA_LABELS: Record<string, string> = {
@@ -73,8 +72,8 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
       .from('fotos_paquetes')
       .select('paquete_id, url')
       .in('paquete_id', paqIds)
+      .ilike('descripcion', '%entrega%')
       .order('created_at', { ascending: false })
-    // Keep only the most recent photo per package (delivery proof)
     for (const f of fotos ?? []) {
       if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
     }
@@ -159,59 +158,60 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                 if (item.kind === 'manual') {
                   const m = item.data
                   return (
-                    <div key={`manual-${m.id}`} className="glass-card p-4 space-y-3"
+                    <div key={`manual-${m.id}`} className="glass-card overflow-hidden"
                       style={{ borderColor: 'rgba(129,140,248,0.18)' }}>
 
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'rgba(129,140,248,0.12)' }}>
-                            <FileText className="h-3.5 w-3.5" style={{ color: '#818cf8' }} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-white truncate">{m.nombre}</p>
-                            <p className="text-[11px]" style={{ color: '#818cf8' }}>Domicilio manual</p>
-                          </div>
-                        </div>
-                        <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
-                          {fechaBogota(m.completado_at ?? '')}
-                        </p>
-                      </div>
+                      {/* Foto banner */}
+                      {m.foto_url ? (
+                        <a href={m.foto_url} target="_blank" rel="noopener noreferrer"
+                          className="block relative w-full hover:opacity-95 transition-opacity"
+                          style={{ aspectRatio: '16/7', background: 'rgba(0,0,0,0.3)' }}>
+                          <img src={m.foto_url} alt="Comprobante" className="w-full h-full object-cover" />
+                          <span className="absolute bottom-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ background: 'rgba(129,140,248,0.85)', color: 'white' }}>
+                            📸 Comprobante
+                          </span>
+                        </a>
+                      ) : null}
 
-                      <div className="flex gap-3">
-                        {/* Foto comprobante */}
-                        {m.foto_url ? (
-                          <a href={m.foto_url} target="_blank" rel="noopener noreferrer"
-                            className="flex-shrink-0 rounded-xl overflow-hidden hover:opacity-90 transition-opacity"
-                            style={{ width: 72, height: 72, border: '1px solid rgba(129,140,248,0.2)' }}>
-                            <Image src={m.foto_url} alt="Comprobante" width={72} height={72}
-                              className="object-cover w-full h-full" />
-                          </a>
-                        ) : (
-                          <div className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center gap-1"
-                            style={{ width: 72, height: 72, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
-                            <Camera className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
-                            <p className="text-[9px]" style={{ color: `${tw}0.2)` }}>Sin foto</p>
+                      <div className="p-4 space-y-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                              style={{ background: 'rgba(129,140,248,0.12)' }}>
+                              <FileText className="h-3.5 w-3.5" style={{ color: '#818cf8' }} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-white truncate">{m.nombre}</p>
+                              <p className="text-[11px]" style={{ color: '#818cf8' }}>Domicilio manual</p>
+                            </div>
+                          </div>
+                          <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
+                            {fechaBogota(m.completado_at ?? '')}
+                          </p>
+                        </div>
+
+                        {m.direccion && (
+                          <div className="flex items-start gap-1.5">
+                            <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
+                            <p className="text-xs" style={{ color: `${tw}0.5)` }}>{m.direccion}</p>
                           </div>
                         )}
-
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          {m.direccion && (
-                            <div className="flex items-start gap-1.5">
-                              <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
-                              <p className="text-xs" style={{ color: `${tw}0.5)` }}>{m.direccion}</p>
-                            </div>
-                          )}
-                          {m.notas_entrega && (
-                            <div className="flex items-start gap-1.5">
-                              <StickyNote className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.2)` }} />
-                              <p className="text-xs italic" style={{ color: `${tw}0.4)` }}>{m.notas_entrega}</p>
-                            </div>
-                          )}
-                          {m.notas && !m.notas_entrega && (
-                            <p className="text-[11px]" style={{ color: `${tw}0.3)` }}>{m.notas}</p>
-                          )}
-                        </div>
+                        {m.notas_entrega && (
+                          <div className="flex items-start gap-1.5">
+                            <StickyNote className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.2)` }} />
+                            <p className="text-xs italic" style={{ color: `${tw}0.4)` }}>{m.notas_entrega}</p>
+                          </div>
+                        )}
+                        {m.notas && !m.notas_entrega && (
+                          <p className="text-[11px]" style={{ color: `${tw}0.3)` }}>{m.notas}</p>
+                        )}
+                        {!m.foto_url && (
+                          <div className="flex items-center gap-1.5">
+                            <Camera className="h-3 w-3" style={{ color: `${tw}0.18)` }} />
+                            <p className="text-[11px]" style={{ color: `${tw}0.2)` }}>Sin foto de comprobante</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -223,62 +223,63 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                 const clienteNombre = p.cliente_id ? (clienteNombres[p.cliente_id] ?? null) : null
 
                 return (
-                  <div key={`paquete-${p.id}`} className="glass-card p-4 space-y-3"
+                  <div key={`paquete-${p.id}`} className="glass-card overflow-hidden"
                     style={{ borderColor: 'rgba(52,211,153,0.15)' }}>
 
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: 'rgba(52,211,153,0.1)' }}>
-                          <Package className="h-3.5 w-3.5" style={{ color: '#34d399' }} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-mono text-sm font-bold truncate" style={{ color: '#F5B800' }}>
-                            {p.tracking_origen ?? p.tracking_casilla}
-                          </p>
-                          <p className="text-[11px]" style={{ color: '#34d399' }}>
-                            {BODEGA_LABELS[p.bodega_destino ?? ''] ?? p.bodega_destino}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
-                        {fechaBogota(p.updated_at ?? '')}
-                      </p>
-                    </div>
+                    {/* Foto banner */}
+                    {fotoUrl ? (
+                      <a href={fotoUrl} target="_blank" rel="noopener noreferrer"
+                        className="block relative w-full hover:opacity-95 transition-opacity"
+                        style={{ aspectRatio: '16/7', background: 'rgba(0,0,0,0.3)' }}>
+                        <img src={fotoUrl} alt="Comprobante de entrega" className="w-full h-full object-cover" />
+                        <span className="absolute bottom-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(52,211,153,0.85)', color: 'white' }}>
+                          📸 Comprobante
+                        </span>
+                      </a>
+                    ) : null}
 
-                    <div className="flex gap-3">
-                      {/* Foto comprobante */}
-                      {fotoUrl ? (
-                        <a href={fotoUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex-shrink-0 rounded-xl overflow-hidden hover:opacity-90 transition-opacity"
-                          style={{ width: 72, height: 72, border: '1px solid rgba(52,211,153,0.2)' }}>
-                          <Image src={fotoUrl} alt="Comprobante" width={72} height={72}
-                            className="object-cover w-full h-full" />
-                        </a>
-                      ) : (
-                        <div className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center gap-1"
-                          style={{ width: 72, height: 72, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
-                          <Camera className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
-                          <p className="text-[9px]" style={{ color: `${tw}0.2)` }}>Sin foto</p>
-                        </div>
-                      )}
-
-                      <div className="flex-1 min-w-0 space-y-1.5">
-                        {p.descripcion && (
-                          <p className="text-xs font-medium text-white">{p.descripcion}</p>
-                        )}
-                        {clienteNombre && (
-                          <p className="text-[11px]" style={{ color: `${tw}0.4)` }}>{clienteNombre}</p>
-                        )}
-                        {(p.direccion_entrega || p.barrio_entrega) && (
-                          <div className="flex items-start gap-1.5">
-                            <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
-                            <p className="text-[11px]" style={{ color: `${tw}0.45)` }}>
-                              {[p.direccion_entrega, p.barrio_entrega].filter(Boolean).join(', ')}
+                    <div className="p-4 space-y-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'rgba(52,211,153,0.1)' }}>
+                            <Package className="h-3.5 w-3.5" style={{ color: '#34d399' }} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-mono text-sm font-bold truncate" style={{ color: '#F5B800' }}>
+                              {p.tracking_origen ?? p.tracking_casilla}
+                            </p>
+                            <p className="text-[11px]" style={{ color: '#34d399' }}>
+                              {BODEGA_LABELS[p.bodega_destino ?? ''] ?? p.bodega_destino}
                             </p>
                           </div>
-                        )}
+                        </div>
+                        <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
+                          {fechaBogota(p.updated_at ?? '')}
+                        </p>
                       </div>
+
+                      {p.descripcion && (
+                        <p className="text-xs font-medium text-white">{p.descripcion}</p>
+                      )}
+                      {clienteNombre && (
+                        <p className="text-[11px]" style={{ color: `${tw}0.4)` }}>{clienteNombre}</p>
+                      )}
+                      {(p.direccion_entrega || p.barrio_entrega) && (
+                        <div className="flex items-start gap-1.5">
+                          <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
+                          <p className="text-[11px]" style={{ color: `${tw}0.45)` }}>
+                            {[p.direccion_entrega, p.barrio_entrega].filter(Boolean).join(', ')}
+                          </p>
+                        </div>
+                      )}
+                      {!fotoUrl && (
+                        <div className="flex items-center gap-1.5">
+                          <Camera className="h-3 w-3" style={{ color: `${tw}0.18)` }} />
+                          <p className="text-[11px]" style={{ color: `${tw}0.2)` }}>Sin foto de comprobante</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )
