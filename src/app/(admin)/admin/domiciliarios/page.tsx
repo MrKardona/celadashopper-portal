@@ -5,6 +5,7 @@ import { Bike, Package, Phone, Eye } from 'lucide-react'
 import Link from 'next/link'
 import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
 import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
+import DomiciliosManualesLista from '@/components/admin/DomiciliosManualesLista'
 
 const tw = 'rgba(255,255,255,'
 
@@ -150,26 +151,7 @@ export default async function DomiciliariosPage() {
 
                 {/* Domicilios manuales pendientes */}
                 {(manualesMap[d.id] ?? []).length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                      Domicilios manuales · {manualesMap[d.id].length}
-                    </p>
-                    {manualesMap[d.id].map((m, idx) => (
-                      <div key={m.id} className="flex items-start gap-2 rounded-xl px-3 py-2"
-                        style={{ background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.12)' }}>
-                        <span className="text-[10px] font-bold mt-0.5 flex-shrink-0" style={{ color: '#818cf8' }}>
-                          {idx + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-white truncate">{m.nombre}</p>
-                          <p className="text-[11px] truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{m.direccion}</p>
-                          {m.notas && (
-                            <p className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.28)' }}>{m.notas}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <DomiciliosManualesLista manuales={manualesMap[d.id]} />
                 )}
 
                 {/* Acciones */}
