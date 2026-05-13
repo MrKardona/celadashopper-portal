@@ -99,6 +99,7 @@ export default function RutaDomiciliarioPanel({ paradas: inicial }: Props) {
     setEditandoId(p.id)
     setDirTemp(p.direccion ?? '')
     setErrorDir('')
+    setGuardando(false) // reset por si una tarjeta anterior quedó en estado guardando
   }
 
   return (

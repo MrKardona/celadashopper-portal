@@ -50,14 +50,21 @@ export default async function AdminClientesPage({ searchParams }: Props) {
 
   // Búsqueda en la BD (no filtrado local) — busca en todos los clientes
   if (q) {
-    const term = `%${q.replace(/[%_\\]/g, '\\$&').trim()}%`
-    q1 = q1.or(
-      `nombre_completo.ilike.${term},email.ilike.${term},numero_casilla.ilike.${term},whatsapp.ilike.${term},telefono.ilike.${term}`
-    )
+    // Sanitizar: quitar chars que rompen el parser de PostgREST (.or) y escapar wildcards
+    const sanitized = q.replace(/[,()'"]/g, '').trim().slice(0, 80)
+    if (sanitized.length > 0) {
+      const term = `%${sanitized.replace(/[%_\\]/g, '\\$&')}%`
+      q1 = q1.or(
+        `nombre_completo.ilike.${term},email.ilike.${term},numero_casilla.ilike.${term},whatsapp.ilike.${term},telefono.ilike.${term}`
+      )
+    }
   }
 
-  const { data: clientes } = await q1.limit(q ? 200 : limite)
+  const LIMIT = q ? 200 : limite
+  const { data: clientes, error: clientesError } = await q1.limit(LIMIT)
+  if (clientesError) console.error('[admin/clientes]', clientesError.message)
   const lista = clientes ?? []
+  const resultadosTruncados = lista.length === LIMIT
 
   // Query 2: conteo de paquetes por cliente
   const clienteIds = lista.map(c => c.id)
@@ -92,6 +99,7 @@ export default async function AdminClientesPage({ searchParams }: Props) {
           <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {filtrados.length} cliente{filtrados.length !== 1 ? 's' : ''}
             {periodo && ` · últimos ${periodo} días`}
+            {resultadosTruncados && <span className="text-amber-400"> · mostrando primeros {LIMIT} — refina la búsqueda</span>}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
