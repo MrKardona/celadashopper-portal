@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { X, ZoomIn, ZoomOut } from 'lucide-react'
 
 interface Props {
   src: string
@@ -12,9 +13,8 @@ interface Props {
 }
 
 export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,255,255,0.15)', width = 72, height = 72 }: Props) {
-  const [open, setOpen]   = useState(false)
-  const [zoom, setZoom]   = useState(1)
-  const imgRef            = useRef<HTMLImageElement>(null)
+  const [open, setOpen] = useState(false)
+  const [zoom, setZoom] = useState(1)
 
   const zoomIn  = () => setZoom(z => Math.min(parseFloat((z + 0.5).toFixed(1)), 5))
   const zoomOut = () => setZoom(z => Math.max(parseFloat((z - 0.5).toFixed(1)), 0.5))
@@ -61,11 +61,11 @@ export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,
         <img src={src} alt={alt} className="object-cover w-full h-full" />
       </button>
 
-      {/* Lightbox */}
-      {open && (
+      {/* Lightbox — renderizado en document.body vía portal para evitar bubbling con <Link> */}
+      {open && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: 9999, background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(10px)' }}
           onClick={close}
         >
           {/* Barra de controles */}
@@ -121,7 +121,6 @@ export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,
             onClick={e => e.stopPropagation()}
           >
             <img
-              ref={imgRef}
               src={src}
               alt={alt}
               style={{
@@ -145,7 +144,8 @@ export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,
           >
             Clic fuera para cerrar · Rueda para zoom
           </p>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

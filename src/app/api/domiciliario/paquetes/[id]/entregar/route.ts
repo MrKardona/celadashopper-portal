@@ -58,12 +58,16 @@ export async function POST(req: NextRequest, { params }: Props) {
 
   // Guardar foto de entrega si viene
   if (body.foto_url) {
-    await admin.from('fotos_paquetes').insert({
-      paquete_id: paqueteId,
-      url: body.foto_url,
-      descripcion: 'Foto de entrega',
-      created_at: ahora,
-    }).then(() => {}, (e) => console.error('[domiciliario/entregar] foto:', e))
+    // Extraer storage_path de la URL pública: todo lo que va después de /fotos-paquetes/
+    const storagePath = body.foto_url.split('/fotos-paquetes/')[1] ?? body.foto_url
+    const { error: fotoErr } = await admin.from('fotos_paquetes').insert({
+      paquete_id:   paqueteId,
+      url:          body.foto_url,
+      storage_path: storagePath,
+      descripcion:  'Foto de entrega',
+      created_at:   ahora,
+    })
+    if (fotoErr) console.error('[domiciliario/entregar] foto:', fotoErr.message)
   }
 
   await admin.from('eventos_paquete').insert({
