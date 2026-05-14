@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, FileText, Package, MapPin, StickyNote, ChevronRight } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, FileText, Package, Camera, MapPin, StickyNote, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import FotoViewer from '@/components/admin/FotoViewer'
 
@@ -297,19 +297,29 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                           </div>
                         )}
 
-                        {/* Evidencia de entrega mini */}
-                        {fotoEntrega && (
-                          <div className="flex items-center gap-2 pt-1">
-                            <FotoViewer
-                              src={fotoEntrega}
-                              alt="Evidencia de entrega"
-                              borderColor="rgba(52,211,153,0.35)"
-                              width={44}
-                              height={44}
-                            />
-                            <p className="text-[10px]" style={{ color: `${tw}0.3)` }}>📸 Evidencia de entrega</p>
-                          </div>
-                        )}
+                        {/* Evidencia de entrega — siempre visible */}
+                        <div className="flex items-center gap-2 pt-1">
+                          {fotoEntrega ? (
+                            <>
+                              <FotoViewer
+                                src={fotoEntrega}
+                                alt="Evidencia de entrega"
+                                borderColor="rgba(52,211,153,0.35)"
+                                width={44}
+                                height={44}
+                              />
+                              <p className="text-[10px]" style={{ color: `${tw}0.35)` }}>📸 Evidencia de entrega</p>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex-shrink-0 rounded-lg flex items-center justify-center"
+                                style={{ width: 44, height: 44, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
+                                <Camera className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
+                              </div>
+                              <p className="text-[10px]" style={{ color: `${tw}0.2)` }}>Sin evidencia fotográfica</p>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </Link>
