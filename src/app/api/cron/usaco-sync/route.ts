@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
   // Eventos USACO redundantes con CeladaShopper — ignorar siempre
   const IGNORAR_SIEMPRE = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado'])
 
-  // Medellín: USACO notifica tránsito (si admin no lo hizo ya) y llegada a Colombia
-  // TransitoInternacional: WA cs_en_transito + email. BodegaDestino: solo email.
-  const MEDELLIN_NOTIFICAR = new Set(['TransitoInternacional', 'BodegaDestino'])
+  // Medellín: solo TransitoInternacional dispara alerta (WA + email)
+  // BodegaDestino (llego_colombia) → solo timeline, el admin notifica en en_bodega_local
+  const MEDELLIN_NOTIFICAR = new Set(['TransitoInternacional'])
 
   // Bogotá: USACO maneja entrega completa → notificar cada paso relevante
   const BOGOTA_NOTIFICAR = new Set([
