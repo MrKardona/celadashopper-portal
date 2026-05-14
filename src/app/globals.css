@@ -380,6 +380,12 @@ select.glass-input option {
 .glass-section-red   { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; }
 .glass-section-amber { background: rgba(245,160,0,0.07); border: 1px solid rgba(245,160,0,0.22); border-radius: 12px; }
 
+/* ── Tracker pulse (card de paquetes) ──────────────────────────────── */
+@keyframes csCardPulse {
+  0%, 100% { opacity: 1; transform: scale(1);    }
+  50%       { opacity: .82; transform: scale(1.1); }
+}
+
 /* ── Orb animations ────────────────────────────────────────────────── */
 @keyframes orb-float-gold {
   0%, 100% { transform: translate(0, 0) scale(1); }

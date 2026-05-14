@@ -8,50 +8,68 @@ import { FadeUp, FadeUpScroll, StaggerGridScroll, StaggerItem } from '@/componen
 import { fechaCorta } from '@/lib/fecha'
 import FotoThumb from '@/components/ui/FotoThumb'
 
+// ── 9 pasos — mismo mapa que email y TrackingTimeline ──────────────────────
+// Estado interno → índice de paso
 const PASO_ESTADOS: Record<string, number> = {
-  reportado: 0,
-  recibido_usa: 1, en_consolidacion: 1, listo_envio: 1, retenido: 1,
-  en_transito: 2, en_colombia: 2,
-  en_bodega_local: 3, en_camino_cliente: 3,
-  entregado: 4, devuelto: 4,
+  reportado:          0,
+  recibido_usa:       1,
+  retenido:           1,
+  en_consolidacion:   2,
+  listo_envio:        2,
+  en_transito:        4,   // guia_creada (3) puede venir de estado_usaco
+  en_colombia:        6,
+  llego_colombia:     6,
+  en_bodega_local:    7,
+  listo_entrega:      7,
+  en_camino_cliente:  7,
+  entregado:          8,
+  devuelto:           8,
 }
 
-const PASOS_TRACKER = [
+// Estado USACO → índice de paso (refina el paso cuando el estado interno es más bajo)
+const USACO_A_PASO: Record<string, number> = {
+  GuiaCreadaColaborador: 3,
+  TransitoInternacional: 4,
+  ProcesoDeAduana:       5,
+  BodegaDestino:         6,
+  EnRuta:                7,
+  'En ruta transito':    7,
+  EnTransportadora:      7,
+  EntregaFallida:        7,
+  Entregado:             8,
+}
+
+// Hitos ciudad Medellín y Bogotá
+const HITOS_MEDELLIN = [
   { label: 'Reportado', icon: '📝' },
   { label: 'Miami',     icon: '🇺🇸' },
-  { label: 'En camino', icon: '✈️'  },
-  { label: 'Bodega',    icon: '📍'  },
-  { label: 'Entregado', icon: '✅'  },
+  { label: 'Procesado', icon: '📦' },
+  { label: 'Guía',      icon: '📄' },
+  { label: 'Tránsito',  icon: '✈️'  },
+  { label: 'Aduana',    icon: '🛃'  },
+  { label: 'Colombia',  icon: '🇨🇴' },
+  { label: 'En bodega', icon: '📍'  },
+  { label: 'Entregado', icon: '✓'   },
+]
+const HITOS_BOGOTA = [
+  { label: 'Reportado', icon: '📝' },
+  { label: 'Miami',     icon: '🇺🇸' },
+  { label: 'Procesado', icon: '📦' },
+  { label: 'Guía',      icon: '📄' },
+  { label: 'Tránsito',  icon: '✈️'  },
+  { label: 'Aduana',    icon: '🛃'  },
+  { label: 'Colombia',  icon: '🇨🇴' },
+  { label: 'En ruta',   icon: '🚚'  },
+  { label: 'Entregado', icon: '✓'   },
 ]
 
-const DOT_ACTIVO = [
-  'bg-slate-500 text-white ring-2 ring-offset-1 ring-offset-transparent ring-slate-400 animate-pulse',
-  'bg-blue-500  text-white ring-2 ring-offset-1 ring-offset-transparent ring-blue-400  animate-pulse',
-  'bg-amber-500 text-white ring-2 ring-offset-1 ring-offset-transparent ring-amber-400 animate-pulse',
-  'bg-violet-500 text-white ring-2 ring-offset-1 ring-offset-transparent ring-violet-400 animate-pulse',
-  'bg-green-500  text-white ring-2 ring-offset-1 ring-offset-transparent ring-green-400',
-]
-const DOT_HECHO = [
-  'bg-slate-400  text-white',
-  'bg-blue-400   text-white',
-  'bg-amber-400  text-white',
-  'bg-violet-400 text-white',
-  'bg-green-500  text-white',
-]
-const BARRA_COLOR = [
-  'bg-slate-400',
-  'bg-blue-500',
-  'bg-amber-500',
-  'bg-violet-500',
-  'bg-green-500',
-]
-const STRIP_COLOR = [
-  'from-slate-400  to-slate-400',
-  'from-slate-300  to-blue-500',
-  'from-blue-500   to-amber-500',
-  'from-amber-500  to-violet-500',
-  'from-violet-400 to-green-500',
-]
+// Paleta idéntica al email y TrackingTimeline
+const GOLD    = '#F5B800'
+const GOLD_D  = '#7a5c00'
+const PURPLE  = '#a5b4fc'
+const BG_STEP = '#19193a'
+const BORDER  = '#3a3a68'
+const MUTED   = '#6868a0'
 
 const tw = 'rgba(255,255,255,'
 
@@ -151,31 +169,35 @@ function fotoProducto(fotos: { url: string; descripcion?: string | null; created
 }
 
 function PaqueteCard({ paquete }: { paquete: any }) {
-  const fotos = [...(paquete.fotos_paquetes ?? [])] as { url: string; descripcion?: string | null; created_at: string }[]
+  const fotos    = [...(paquete.fotos_paquetes ?? [])] as { url: string; descripcion?: string | null; created_at: string }[]
   const thumbUrl = fotoProducto(fotos)
 
-  const paso = PASO_ESTADOS[paquete.estado as string] ?? 0
   const esDevuelto  = paquete.estado === 'devuelto'
   const esRetenido  = paquete.estado === 'retenido'
+  const esMedellin  = !paquete.bodega_destino || paquete.bodega_destino === 'medellin'
+  const hitos       = esMedellin ? HITOS_MEDELLIN : HITOS_BOGOTA
 
-  const barColor       = esDevuelto ? 'bg-red-500'   : esRetenido ? 'bg-amber-400' : BARRA_COLOR[paso]
-  const stripGradient  = esDevuelto ? 'from-red-600 to-red-500' : esRetenido ? 'from-amber-400 to-amber-500' : STRIP_COLOR[paso]
-  const activeDotClass = esDevuelto
-    ? 'bg-red-500 text-white ring-2 ring-offset-1 ring-offset-transparent ring-red-400'
+  // Paso activo = máximo entre el estado interno y el estado USACO
+  const pasoEstado = PASO_ESTADOS[paquete.estado as string] ?? 0
+  const pasoUsaco  = paquete.estado_usaco ? (USACO_A_PASO[paquete.estado_usaco as string] ?? 0) : 0
+  const paso       = Math.max(pasoEstado, pasoUsaco)
+
+  // Porcentaje de la barra (8 segmentos entre 9 pasos)
+  const pct = Math.round((paso / 8) * 100)
+
+  // Color de la franja superior y la barra según estado especial
+  const stripGradient = esDevuelto
+    ? 'from-red-600 to-red-500'
     : esRetenido
-      ? 'bg-amber-500 text-white ring-2 ring-offset-1 ring-offset-transparent ring-amber-400 animate-pulse'
-      : DOT_ACTIVO[paso]
-
-  function iconoPaso(i: number) {
-    if (i === 4 && esDevuelto) return '↩️'
-    if (i === 1 && esRetenido) return '⚠️'
-    return PASOS_TRACKER[i].icon
-  }
+      ? 'from-amber-400 to-amber-500'
+      : 'from-yellow-600 to-yellow-400'
+  const barFill = esDevuelto ? '#ef4444' : esRetenido ? '#F5B800' : GOLD
 
   return (
     <Link href={`/paquetes/${paquete.id}`}>
       <div className="glass-card cursor-pointer overflow-hidden group transition-all hover:border-white/[0.14]">
 
+        {/* Franja de color superior */}
         <div className={`h-1.5 bg-gradient-to-r ${stripGradient}`} />
 
         <div className="px-4 pt-3 pb-4">
@@ -189,7 +211,7 @@ function PaqueteCard({ paquete }: { paquete: any }) {
                 </p>
                 {esRetenido && (
                   <span className="text-[11px] px-1.5 py-0.5 rounded-full font-semibold shrink-0"
-                    style={{ background: 'rgba(245,184,0,0.15)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}>
+                    style={{ background: 'rgba(245,184,0,0.15)', color: GOLD, border: '1px solid rgba(245,184,0,0.3)' }}>
                     ⚠️ Retenido
                   </span>
                 )}
@@ -210,7 +232,7 @@ function PaqueteCard({ paquete }: { paquete: any }) {
                 )}
               </div>
 
-              {/* Aguja (guía de transporte) */}
+              {/* Tracking */}
               <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                 {paquete.tracking_origen && (
                   <span className="text-[11px] font-mono" style={{ color: `${tw}0.3)` }}>
@@ -219,7 +241,7 @@ function PaqueteCard({ paquete }: { paquete: any }) {
                 )}
                 {paquete.tracking_usaco && (
                   <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded"
-                    style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
+                    style={{ background: 'rgba(245,184,0,0.1)', color: GOLD, border: '1px solid rgba(245,184,0,0.2)' }}>
                     ✈️ {paquete.tracking_usaco}
                   </span>
                 )}
@@ -234,37 +256,72 @@ function PaqueteCard({ paquete }: { paquete: any }) {
             </div>
           </div>
 
-          {/* Tracker */}
-          <div className="relative pb-1">
-            <div className="absolute top-4 left-[10%] w-[80%] h-1.5 rounded-full" style={{ background: `${tw}0.08)` }} />
-            <div
-              className={`absolute top-4 left-[10%] h-1.5 rounded-full ${barColor} transition-all duration-700`}
-              style={{ width: `${paso * 20}%` }}
-            />
-            <div className="relative grid grid-cols-5 z-10">
-              {PASOS_TRACKER.map((s, i) => {
-                const hecho  = i < paso
-                const actual = i === paso
+          {/* ── Tracker 9 pasos (igual al email y TrackingTimeline) ─────── */}
+          <div style={{
+            background: BG_STEP,
+            border: `1px solid ${BORDER}`,
+            borderRadius: 10,
+            padding: '12px 6px 10px',
+          }}>
+            {/* Barra de progreso */}
+            <div style={{ height: 2, background: BORDER, borderRadius: 2, margin: '0 10px 10px' }}>
+              <div style={{
+                height: 2,
+                background: barFill,
+                borderRadius: 2,
+                width: `${pct}%`,
+                transition: 'width 0.8s ease-out',
+              }} />
+            </div>
+
+            {/* Círculos */}
+            <div style={{ display: 'flex' }}>
+              {hitos.map((h, i) => {
+                const completado = i < paso
+                const actual     = i === paso
+                const circleBg   = esDevuelto && i === 8
+                  ? '#ef4444'
+                  : actual   ? GOLD
+                  : completado ? PURPLE
+                  : BORDER
+                const clr = actual || completado ? '#000' : MUTED
+                const lClr = actual ? GOLD : completado ? PURPLE : MUTED
+                const lW   = actual ? '700' : '400'
+                const icon = esDevuelto && i === 8 ? '↩️'
+                  : esRetenido && i === 1 ? '⚠️'
+                  : h.icon
+
                 return (
-                  <div key={i} className="flex flex-col items-center gap-1.5">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-base transition-all ${
-                      actual
-                        ? `${activeDotClass} shadow-lg`
-                        : hecho
-                          ? `${DOT_HECHO[i]} shadow-sm`
-                          : ''
-                    }`}
-                      style={!actual && !hecho ? { background: `${tw}0.07)` } : {}}
-                    >
-                      {(actual || hecho)
-                        ? <span>{iconoPaso(i)}</span>
-                        : <span className="w-1.5 h-1.5 rounded-full block" style={{ background: `${tw}0.2)` }} />
+                  <div key={i} style={{ flex: 1, textAlign: 'center', padding: '0 1px' }}>
+                    <div style={{
+                      width: 26, height: 26,
+                      borderRadius: '50%',
+                      background: circleBg,
+                      color: clr,
+                      margin: '0 auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 10,
+                      outline: actual ? `2px solid ${GOLD_D}` : 'none',
+                      outlineOffset: actual ? 2 : 0,
+                      animation: actual && !esDevuelto ? 'csCardPulse 2.2s ease-in-out infinite' : 'none',
+                    }}>
+                      {(actual || completado)
+                        ? <span style={{ lineHeight: 1 }}>{icon}</span>
+                        : <span style={{ width: 5, height: 5, borderRadius: '50%', background: MUTED, display: 'block' }} />
                       }
                     </div>
-                    <span className="text-[10px] text-center leading-tight font-medium"
-                      style={{ color: actual ? '#fff' : hecho ? `${tw}0.45)` : `${tw}0.18)` }}>
-                      {s.label}
-                    </span>
+                    <p style={{
+                      margin: '3px 0 0',
+                      fontSize: 7,
+                      fontWeight: lW,
+                      color: lClr,
+                      lineHeight: 1.2,
+                      fontFamily: 'inherit',
+                    }}>
+                      {h.label}
+                    </p>
                   </div>
                 )
               })}
