@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { consultarGuias } from '@/lib/usaco/cliente'
-import { USACO_ESTADO_A_EVENTO, insertarEventoTracking } from '@/lib/usaco/tracking'
+import { insertarEventoTracking } from '@/lib/usaco/tracking'
 
 function getAdmin() {
   return createClient(
@@ -25,7 +25,7 @@ async function requireAdmin() {
   return admin
 }
 
-// Estados USACO que indican que la caja ya llegó a Colombia
+// Estados que indican que la caja ya llegó a Colombia
 const ESTADOS_EN_COLOMBIA = new Set([
   'BodegaDestino',
   'EnRuta',
@@ -42,7 +42,7 @@ export async function POST() {
   // 1. Cajas despachadas con tracking USACO
   const { data: cajas, error } = await admin
     .from('cajas_consolidacion')
-    .select('id, codigo_interno, tracking_usaco')
+    .select('id, codigo_interno, tracking_usaco, estado_usaco')
     .eq('estado', 'despachada')
     .not('tracking_usaco', 'is', null)
     .neq('tracking_usaco', '')
@@ -82,8 +82,8 @@ export async function POST() {
 
   let cajasActualizadas = 0
   let paquetesNotificados = 0
-  const detalles: { caja: string; estado: string }[] = []
   const ahora = new Date().toISOString()
+  const detalles: { caja: string; estadoUsaco: string; llegoColombia: boolean }[] = []
 
   for (const caja of cajas) {
     const tracking = (caja.tracking_usaco as string).trim()
@@ -91,15 +91,27 @@ export async function POST() {
 
     if (!estadoUsaco) continue
 
-    // Registrar estado consultado para el resumen
-    detalles.push({ caja: caja.codigo_interno, estado: estadoUsaco })
+    // Sin cambio — no hacer nada
+    if (estadoUsaco === caja.estado_usaco && !ESTADOS_EN_COLOMBIA.has(estadoUsaco)) {
+      detalles.push({ caja: caja.codigo_interno, estadoUsaco, llegoColombia: false })
+      continue
+    }
 
-    if (!ESTADOS_EN_COLOMBIA.has(estadoUsaco)) continue
+    const llegoColombia = ESTADOS_EN_COLOMBIA.has(estadoUsaco)
 
-    // 3. Marcar caja como recibida_colombia
+    // 3. Actualizar estado_usaco siempre; si llegó, también cambiar estado
+    const update: Record<string, unknown> = {
+      estado_usaco: estadoUsaco,
+      usaco_sync_at: ahora,
+    }
+    if (llegoColombia) {
+      update.estado = 'recibida_colombia'
+      update.fecha_recepcion_colombia = ahora
+    }
+
     const { error: errCaja } = await admin
       .from('cajas_consolidacion')
-      .update({ estado: 'recibida_colombia', fecha_recepcion_colombia: ahora })
+      .update(update)
       .eq('id', caja.id)
 
     if (errCaja) {
@@ -108,8 +120,11 @@ export async function POST() {
     }
 
     cajasActualizadas++
+    detalles.push({ caja: caja.codigo_interno, estadoUsaco, llegoColombia })
 
-    // 4. Paquetes activos de esta caja — insertar evento llego_colombia si no existe
+    // 4. Si llegó a Colombia → notificar paquetes de la caja
+    if (!llegoColombia) continue
+
     const { data: paquetes } = await admin
       .from('paquetes')
       .select('id')
@@ -120,7 +135,6 @@ export async function POST() {
 
     const paqIds = paquetes.map(p => p.id)
 
-    // Paquetes que ya tienen evento llego_colombia
     const { data: yaExisten } = await admin
       .from('paquetes_tracking')
       .select('paquete_id')
@@ -140,7 +154,6 @@ export async function POST() {
         `Caja ${caja.codigo_interno} recibida en Colombia`,
       )
 
-      // Actualizar estado_usaco del paquete
       await admin.from('paquetes').update({
         estado_usaco: estadoUsaco,
         usaco_sync_at: ahora,
