@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { verificarAdmin } from '@/lib/auth/admin'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
+import { insertarEventoTracking } from '@/lib/usaco/tracking'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -92,12 +93,17 @@ export async function POST(req: NextRequest, { params }: Props) {
   await admin.from('eventos_paquete').insert(eventos)
     .then(() => {/* ok */}, (e) => console.error('[caja despachar] eventos:', e))
 
-  // Notificar WhatsApp a cada cliente
+  // Notificar WhatsApp + email a cada cliente e insertar evento transito_internacional
+  // El evento se inserta siempre (con o sin notificación) para que el cron USACO
+  // lo vea ya existente y no envíe una alerta duplicada de tránsito.
   let notificados = 0
   let fallidos = 0
-  if (debeNotificar) {
-    for (const p of paquetes) {
-      if (!p.cliente_id) continue
+  for (const p of paquetes) {
+    if (!p.cliente_id) continue
+    // Marcar en timeline que entró en tránsito internacional (previene dupl. del cron)
+    await insertarEventoTracking(admin, p.id, 'transito_internacional', 'celada',
+      `Caja ${caja.codigo_interno} despachada a Colombia`)
+    if (debeNotificar) {
       try {
         await notificarCambioEstado(p.id, 'en_transito')
         notificados++

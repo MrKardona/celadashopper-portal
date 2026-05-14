@@ -25,8 +25,9 @@ export async function GET(request: NextRequest) {
   // Eventos USACO redundantes con CeladaShopper — ignorar siempre
   const IGNORAR_SIEMPRE = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado'])
 
-  // Medellín: CeladaShopper hace la última milla, pero USACO avisa que llegó a Colombia
-  const MEDELLIN_NOTIFICAR = new Set(['BodegaDestino'])
+  // Medellín: USACO notifica tránsito (si admin no lo hizo ya) y llegada a Colombia
+  // TransitoInternacional: WA cs_en_transito + email. BodegaDestino: solo email.
+  const MEDELLIN_NOTIFICAR = new Set(['TransitoInternacional', 'BodegaDestino'])
 
   // Bogotá: USACO maneja entrega completa → notificar cada paso relevante
   const BOGOTA_NOTIFICAR = new Set([
@@ -98,8 +99,10 @@ export async function GET(request: NextRequest) {
       !esMedellin && USACO_ES_ENTREGADO.has(estadoUsaco) && evento === 'entregado_transporte'
     )
 
+    // eventoFueNuevo controla si enviamos notificación: si el evento ya existía
+    // (insertado por admin al despachar, o por un cron anterior) → no duplicar alerta
+    let eventoFueNuevo = false
     if (debeInsertarEvento) {
-      // Verificar que no exista ya ese evento para este paquete
       const { data: existente } = await supabase
         .from('paquetes_tracking')
         .select('id')
@@ -109,6 +112,7 @@ export async function GET(request: NextRequest) {
 
       if (!existente) {
         await insertarEventoTracking(supabase, paquete.id, evento, 'usaco')
+        eventoFueNuevo = true
       }
     }
 
@@ -126,18 +130,29 @@ export async function GET(request: NextRequest) {
     await supabase.from('paquetes').update(updateData).eq('id', paquete.id)
 
     // 9. Notificaciones al cliente según ciudad
+    // Solo notificar si el evento tracking fue NUEVO (eventoFueNuevo) — evita duplicados.
+    // Excepción: Bogotá Entregado no inserta tracking event propio, siempre notifica.
+    const esEntregadoBogota = !esMedellin && USACO_ES_ENTREGADO.has(estadoUsaco)
     const debeNotificar =
-      ( esMedellin && MEDELLIN_NOTIFICAR.has(estadoUsaco)) ||
-      (!esMedellin && BOGOTA_NOTIFICAR.has(estadoUsaco))
+      (esEntregadoBogota || eventoFueNuevo) && (
+        ( esMedellin && MEDELLIN_NOTIFICAR.has(estadoUsaco)) ||
+        (!esMedellin && BOGOTA_NOTIFICAR.has(estadoUsaco))
+      )
 
     if (debeNotificar) {
-      if (!esMedellin && USACO_ES_ENTREGADO.has(estadoUsaco)) {
+      if (esEntregadoBogota) {
         // Bogotá Entregado → canal completo: WA (cs_entregado_jutpck) + email
         notificarCambioEstado(paquete.id, 'entregado').catch(err =>
           console.error(`[usaco-sync] notificarCambioEstado entregado paquete=${paquete.id}:`, err)
         )
+      } else if (esMedellin && estadoUsaco === 'TransitoInternacional') {
+        // Medellín Tránsito → WA (cs_en_transito_9b0ji8) + email
+        // Solo llega aquí si admin NO despachó aún (evento no existía)
+        notificarCambioEstado(paquete.id, 'en_transito').catch(err =>
+          console.error(`[usaco-sync] notificarCambioEstado en_transito paquete=${paquete.id}:`, err)
+        )
       } else {
-        // Medellín BodegaDestino / Bogotá otros (BodegaDestino, EnRuta, EntregaFallida) → email
+        // Resto → email (Medellín BodegaDestino / Bogotá GuíaCreada, Tránsito, Aduana, EnRuta, etc.)
         notificarEstadoUsacoBogota(paquete.id, estadoUsaco).catch(err =>
           console.error(`[usaco-sync] notificarEstadoUsacoBogota paquete=${paquete.id} estado=${estadoUsaco}:`, err)
         )
