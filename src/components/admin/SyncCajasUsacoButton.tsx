@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 type Resultado = {
   consultadas: number
   actualizadas: number
-  paquetes_actualizados?: number
   mensaje?: string
 }
 
@@ -50,8 +49,8 @@ export default function SyncCajasUsacoButton() {
 
   // Texto del toast según resultado
   const toastText = resultado
-    ? resultado.actualizadas > 0 || resultado.paquetes_actualizados > 0
-      ? `✓ ${resultado.actualizadas} caja${resultado.actualizadas !== 1 ? 's' : ''} · ${resultado.paquetes_actualizados ?? 0} paquete${(resultado.paquetes_actualizados ?? 0) !== 1 ? 's' : ''} actualizados`
+    ? resultado.actualizadas > 0
+      ? `✓ ${resultado.actualizadas} caja${resultado.actualizadas !== 1 ? 's' : ''} actualizada${resultado.actualizadas !== 1 ? 's' : ''} con USACO`
       : `✓ Sin cambios — ${resultado.consultadas} cajas consultadas`
     : '✓ Sincronizado con USACO'
 
