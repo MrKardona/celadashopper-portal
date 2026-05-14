@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     direccion: string
     telefono?: string | null
     notas?: string | null
+    tipo?: 'personal' | 'servicios' | 'productos'
   }
 
   if (!body.domiciliario_id || !body.nombre?.trim() || !body.direccion?.trim()) {
@@ -64,10 +65,11 @@ export async function POST(req: NextRequest) {
     .from('domicilios_manuales')
     .insert({
       domiciliario_id: body.domiciliario_id,
-      nombre:   body.nombre.trim(),
+      nombre:    body.nombre.trim(),
       direccion: body.direccion.trim(),
-      telefono: body.telefono?.trim() || null,
-      notas:    body.notas?.trim() || null,
+      telefono:  body.telefono?.trim() || null,
+      notas:     body.notas?.trim() || null,
+      tipo:      body.tipo ?? 'productos',
       orden,
     })
     .select()

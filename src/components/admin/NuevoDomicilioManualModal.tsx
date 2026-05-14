@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, MapPin, Loader2, CheckCircle2 } from 'lucide-react'
+import { X, MapPin, Loader2, CheckCircle2, User, Wrench, Package } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 const tw = 'rgba(255,255,255,'
@@ -42,6 +42,7 @@ function Modal({ domiciliarioId, domiciliarioNombre, onClose }: Props & { onClos
   const [direccion, setDireccion] = useState('')
   const [telefono,  setTelefono]  = useState('')
   const [notas,     setNotas]     = useState('')
+  const [tipo,      setTipo]      = useState<'personal' | 'servicios' | 'productos'>('productos')
   const [guardando, setGuardando] = useState(false)
   const [error,     setError]     = useState('')
   const [exito,     setExito]     = useState(false)
@@ -65,10 +66,11 @@ function Modal({ domiciliarioId, domiciliarioNombre, onClose }: Props & { onClos
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           domiciliario_id: domiciliarioId,
-          nombre:   nombre.trim(),
+          nombre:    nombre.trim(),
           direccion: direccion.trim(),
-          telefono: telefono.trim() || null,
-          notas:    notas.trim()    || null,
+          telefono:  telefono.trim() || null,
+          notas:     notas.trim()    || null,
+          tipo,
         }),
       })
       const data = await res.json() as { ok?: boolean; error?: string }
@@ -122,6 +124,39 @@ function Modal({ domiciliarioId, domiciliarioNombre, onClose }: Props & { onClos
           </div>
         ) : (
           <div className="p-5 space-y-3">
+
+            {/* Tipo de domicilio */}
+            <div>
+              <label className="text-xs font-medium block mb-2" style={{ color: `${tw}0.55)` }}>
+                Tipo de domicilio
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  { value: 'personal',  label: 'Personal',  icon: User,    color: '#818cf8', bg: 'rgba(129,140,248,' },
+                  { value: 'servicios', label: 'Servicios', icon: Wrench,  color: '#f59e0b', bg: 'rgba(245,158,11,' },
+                  { value: 'productos', label: 'Productos', icon: Package, color: '#34d399', bg: 'rgba(52,211,153,' },
+                ] as const).map(({ value, label, icon: Icon, color, bg }) => {
+                  const active = tipo === value
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setTipo(value)}
+                      disabled={guardando}
+                      className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-[11px] font-medium transition-all"
+                      style={{
+                        background: active ? `${bg}0.15)` : `${tw}0.04)`,
+                        border: `1px solid ${active ? `${bg}0.4)` : `${tw}0.1)`}`,
+                        color: active ? color : `${tw}0.4)`,
+                      }}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             {/* Nombre */}
             <div>

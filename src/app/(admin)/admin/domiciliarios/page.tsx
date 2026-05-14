@@ -7,6 +7,7 @@ import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
 import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
 import DomiciliosManualesLista from '@/components/admin/DomiciliosManualesLista'
 import EliminarDomiciliarioButton from '@/components/admin/EliminarDomiciliarioButton'
+import InformeDomiciliariosButton from '@/components/admin/InformeDomiciliariosButton'
 
 const tw = 'rgba(255,255,255,'
 
@@ -97,7 +98,10 @@ export default async function DomiciliariosPage() {
             {lista.length} domiciliario{lista.length !== 1 ? 's' : ''} activo{lista.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <NuevoDomiciliarioModal />
+        <div className="flex items-center gap-2 flex-wrap">
+          <InformeDomiciliariosButton />
+          <NuevoDomiciliarioModal />
+        </div>
       </div>
 
       {lista.length === 0 ? (
