@@ -52,7 +52,7 @@ export default function SyncCajasUsacoButton() {
 
       setResultado(data)
       setEstado('ok')
-      if (data.actualizadas > 0) router.refresh()
+      router.refresh()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error desconocido')
       setEstado('error')

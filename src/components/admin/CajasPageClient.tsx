@@ -66,6 +66,8 @@ export interface CajaResumen {
   peso_estimado: number | null
   peso_real: number | null
   estado: string
+  estado_usaco: string | null
+  usaco_sync_at: string | null
   created_at: string
   fecha_despacho: string | null
   fecha_recepcion_colombia: string | null
@@ -136,7 +138,8 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
     const count = conteoMap[caja.id] ?? 0
     const s = ESTADO_CAJA_STYLE[caja.estado] ?? { bg: `${tw}0.08)`, color: `${tw}0.5)`, border: `${tw}0.12)` }
     const isSelected = selectedId === caja.id
-    const usacoEstado = estadoUsacoMap[caja.id]
+    // Usar estado_usaco de la caja directamente (actualizado por sync)
+    const usacoEstado = caja.estado_usaco ?? estadoUsacoMap[caja.id]
     const usacoStyle = usacoEstado ? (USACO_STYLE[usacoEstado] ?? null) : null
 
     const esManejo = caja.tipo === 'manejo'
