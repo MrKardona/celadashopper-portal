@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, FileText, Package, Camera, MapPin, StickyNote } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, FileText, Package, Camera, MapPin, StickyNote, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import FotoViewer from '@/components/admin/FotoViewer'
 
@@ -65,22 +65,30 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
   const paquetes = paquetesRes.data ?? []
   const manuales = manualesRes.data ?? []
 
-  // Fotos de paquetes (de fotos_paquetes)
+  // Fotos: separar foto del producto vs evidencia de entrega
   const paqIds = paquetes.map(p => p.id)
-  const fotosMap: Record<string, string> = {}
+  const fotoProductoMap: Record<string, string> = {}
+  const fotoEntregaMap:  Record<string, string> = {}
+
   if (paqIds.length > 0) {
     const { data: fotos } = await admin
       .from('fotos_paquetes')
-      .select('paquete_id, url, descripcion')
+      .select('paquete_id, url, descripcion, created_at')
       .in('paquete_id', paqIds)
-      .order('created_at', { ascending: false })
-    // Primero pasar: priorizar fotos de entrega
+      .order('created_at', { ascending: false }) // más reciente primero
+
     for (const f of fotos ?? []) {
-      if (!fotosMap[f.paquete_id]) {
-        fotosMap[f.paquete_id] = f.url
-      } else if (f.descripcion?.toLowerCase().includes('entrega')) {
-        fotosMap[f.paquete_id] = f.url // sobreescribir con la de entrega si aparece después
+      const esEntrega = f.descripcion?.toLowerCase().includes('entrega')
+      if (esEntrega) {
+        if (!fotoEntregaMap[f.paquete_id]) fotoEntregaMap[f.paquete_id] = f.url
+      } else {
+        if (!fotoProductoMap[f.paquete_id]) fotoProductoMap[f.paquete_id] = f.url
       }
+    }
+
+    // Si un paquete solo tiene foto de entrega, úsala también como producto
+    for (const [pid, url] of Object.entries(fotoEntregaMap)) {
+      if (!fotoProductoMap[pid]) fotoProductoMap[pid] = url
     }
   }
 
@@ -159,6 +167,7 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
 
               {/* Cards del día */}
               {grupo.map(item => {
+
                 /* ── Domicilio manual ── */
                 if (item.kind === 'manual') {
                   const m = item.data
@@ -183,6 +192,7 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                       </div>
 
                       <div className="flex gap-3">
+                        {/* Foto / evidencia de entrega */}
                         {m.foto_url ? (
                           <FotoViewer src={m.foto_url} alt="Comprobante" borderColor="rgba(129,140,248,0.2)" />
                         ) : (
@@ -199,6 +209,9 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                               <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
                               <p className="text-xs" style={{ color: `${tw}0.5)` }}>{m.direccion}</p>
                             </div>
+                          )}
+                          {m.telefono && (
+                            <p className="text-[11px]" style={{ color: `${tw}0.35)` }}>📞 {m.telefono}</p>
                           )}
                           {m.notas_entrega && (
                             <div className="flex items-start gap-1.5">
@@ -217,47 +230,57 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
 
                 /* ── Paquete del sistema ── */
                 const p = item.data
-                const fotoUrl = fotosMap[p.id] ?? null
+                const fotoProducto = fotoProductoMap[p.id] ?? null
+                const fotoEntrega  = fotoEntregaMap[p.id] ?? null
                 const clienteNombre = p.cliente_id ? (clienteNombres[p.cliente_id] ?? null) : null
 
                 return (
-                  <div key={`paquete-${p.id}`} className="glass-card p-4 space-y-3"
-                    style={{ borderColor: 'rgba(52,211,153,0.15)' }}>
-
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                          style={{ background: 'rgba(52,211,153,0.1)' }}>
-                          <Package className="h-3.5 w-3.5" style={{ color: '#34d399' }} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-mono text-sm font-bold truncate" style={{ color: '#F5B800' }}>
-                            {p.tracking_origen ?? p.tracking_casilla}
-                          </p>
-                          <p className="text-[11px]" style={{ color: '#34d399' }}>
-                            {BODEGA_LABELS[p.bodega_destino ?? ''] ?? p.bodega_destino}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
-                        {fechaBogota(p.updated_at ?? '')}
-                      </p>
-                    </div>
-
+                  <Link
+                    key={`paquete-${p.id}`}
+                    href={`/admin/paquetes/${p.id}`}
+                    className="glass-card p-4 block transition-all hover:brightness-125"
+                    style={{ borderColor: 'rgba(52,211,153,0.15)' }}
+                  >
                     <div className="flex gap-3">
-                      {fotoUrl ? (
-                        <FotoViewer src={fotoUrl} alt="Comprobante de entrega" borderColor="rgba(52,211,153,0.2)" />
-                      ) : (
-                        <div className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center gap-1"
-                          style={{ width: 72, height: 72, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
-                          <Camera className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
-                          <p className="text-[9px]" style={{ color: `${tw}0.2)` }}>Sin foto</p>
-                        </div>
-                      )}
 
+                      {/* Foto del producto */}
+                      <div className="flex-shrink-0" onClick={e => e.preventDefault()}>
+                        {fotoProducto ? (
+                          <FotoViewer
+                            src={fotoProducto}
+                            alt="Foto del producto"
+                            borderColor="rgba(52,211,153,0.2)"
+                          />
+                        ) : (
+                          <div className="rounded-xl flex flex-col items-center justify-center gap-1"
+                            style={{ width: 72, height: 72, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
+                            <Package className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
+                            <p className="text-[9px]" style={{ color: `${tw}0.2)` }}>Sin foto</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
                       <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-mono text-sm font-bold truncate" style={{ color: '#F5B800' }}>
+                              {p.tracking_origen ?? p.tracking_casilla}
+                            </p>
+                            <p className="text-[11px]" style={{ color: '#34d399' }}>
+                              {BODEGA_LABELS[p.bodega_destino ?? ''] ?? p.bodega_destino}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <p className="text-[11px]" style={{ color: `${tw}0.3)` }}>
+                              {fechaBogota(p.updated_at ?? '')}
+                            </p>
+                            <ChevronRight className="h-3.5 w-3.5" style={{ color: `${tw}0.2)` }} />
+                          </div>
+                        </div>
+
                         {p.descripcion && (
-                          <p className="text-xs font-medium text-white">{p.descripcion}</p>
+                          <p className="text-xs font-medium text-white leading-snug">{p.descripcion}</p>
                         )}
                         {clienteNombre && (
                           <p className="text-[11px]" style={{ color: `${tw}0.4)` }}>{clienteNombre}</p>
@@ -270,9 +293,23 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                             </p>
                           </div>
                         )}
+
+                        {/* Evidencia de entrega mini */}
+                        {fotoEntrega && (
+                          <div className="flex items-center gap-2 pt-1" onClick={e => e.preventDefault()}>
+                            <FotoViewer
+                              src={fotoEntrega}
+                              alt="Evidencia de entrega"
+                              borderColor="rgba(52,211,153,0.35)"
+                              width={44}
+                              height={44}
+                            />
+                            <p className="text-[10px]" style={{ color: `${tw}0.3)` }}>📸 Evidencia de entrega</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>

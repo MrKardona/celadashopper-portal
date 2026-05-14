@@ -7,9 +7,11 @@ interface Props {
   src: string
   alt?: string
   borderColor?: string
+  width?: number
+  height?: number
 }
 
-export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,255,255,0.15)' }: Props) {
+export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,255,255,0.15)', width = 72, height = 72 }: Props) {
   const [open, setOpen]   = useState(false)
   const [zoom, setZoom]   = useState(1)
   const imgRef            = useRef<HTMLImageElement>(null)
@@ -53,7 +55,7 @@ export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,
       <button
         onClick={() => setOpen(true)}
         className="flex-shrink-0 rounded-xl overflow-hidden transition-opacity hover:opacity-85 active:opacity-70"
-        style={{ width: 72, height: 72, border: `1px solid ${borderColor}` }}
+        style={{ width, height, border: `1px solid ${borderColor}` }}
         aria-label="Ver foto"
       >
         <img src={src} alt={alt} className="object-cover w-full h-full" />
