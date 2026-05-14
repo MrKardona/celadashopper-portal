@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   // 2. Buscar el paquete por tracking_casilla o tracking_origen
   const { data: paquetes } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, descripcion, estado, caja_id, bodega_destino, cliente_id, paquete_origen_id')
+    .select('id, tracking_casilla, descripcion, estado, caja_id, bodega_destino, cliente_id, paquete_origen_id, tracking_usaco')
     .or(`tracking_casilla.ilike.${tracking},tracking_origen.ilike.${tracking}`)
     .limit(2)
 
@@ -50,6 +50,14 @@ export async function POST(req: NextRequest, { params }: Props) {
   const paquete = paquetes[0]
 
   // 3. Validaciones
+  // Paquete con guía USACO ya asignada → no se puede mover (ya fue despachado)
+  if (paquete.tracking_usaco) {
+    return NextResponse.json({
+      error: 'Este paquete ya tiene guía USACO asignada y no puede moverse de caja',
+      codigo: 'guia_asignada',
+    }, { status: 400 })
+  }
+
   if (paquete.caja_id === cajaId) {
     return NextResponse.json({ error: 'Este paquete ya está en esta caja', codigo: 'duplicado' }, { status: 409 })
   }

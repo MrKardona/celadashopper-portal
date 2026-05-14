@@ -72,11 +72,13 @@ export async function POST(req: NextRequest, { params }: Props) {
     return NextResponse.json({ ok: true, paquetes: 0, notificados: 0 })
   }
 
-  // Actualizar todos los paquetes: estado 'en_transito' y heredar tracking_usaco
+  // Actualizar todos los paquetes: asignar tracking_usaco.
+  // Estado → 'listo_envio' (paso "Procesado" en el tracker).
+  // La transición a 'en_transito' la hace el cron cuando USACO confirma TransitoInternacional.
   await admin
     .from('paquetes')
     .update({
-      estado: 'en_transito',
+      estado: 'listo_envio',
       tracking_usaco: trackingUsaco,
       updated_at: ahora,
     })
@@ -86,8 +88,8 @@ export async function POST(req: NextRequest, { params }: Props) {
   const eventos = paquetes.map(p => ({
     paquete_id: p.id,
     estado_anterior: p.estado,
-    estado_nuevo: 'en_transito',
-    descripcion: `Despachado a Colombia con USACO ${trackingUsaco} (caja ${caja.codigo_interno})`,
+    estado_nuevo: 'listo_envio',
+    descripcion: `Caja despachada a Colombia con USACO ${trackingUsaco} (caja ${caja.codigo_interno})`,
     ubicacion: 'Miami, USA',
   }))
   await admin.from('eventos_paquete').insert(eventos)
