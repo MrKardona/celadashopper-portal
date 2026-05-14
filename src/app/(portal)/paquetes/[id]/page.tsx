@@ -11,11 +11,6 @@ import { FadeUp, FadeUpScroll } from '@/components/portal/AnimateIn'
 import { FotoGaleria } from '@/components/portal/FotoGaleria'
 import { TrackingTimeline } from '@/components/paquetes/TrackingTimeline'
 
-const ESTADOS_ORDEN: EstadoPaquete[] = [
-  'reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio',
-  'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'
-]
-
 const ESTADO_BADGE: Record<string, { bg: string; color: string; border: string }> = {
   recibido:           { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
   reportado:          { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
@@ -66,8 +61,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
   const prevPaquete = prevRes.data
   const nextPaquete = nextRes.data
 
-  const estadoActualIdx = ESTADOS_ORDEN.indexOf(paquete.estado as EstadoPaquete)
-  const esProblema      = ['retenido', 'devuelto'].includes(paquete.estado)
+  const esProblema = ['retenido', 'devuelto'].includes(paquete.estado)
   const badge           = ESTADO_BADGE[paquete.estado] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' }
 
   return (
@@ -124,44 +118,20 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
         </div>
       </FadeUp>
 
-      {/* Estado actual */}
+      {/* Estado actual — solo badge; el tracker de 9 pasos vive en Seguimiento */}
       <FadeUp delay={0.08}>
         <div className="glass-card p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
               style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
               {ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado}
             </span>
             {paquete.tracking_origen && (
-              <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>{paquete.tracking_origen}</span>
+              <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>
+                {paquete.tracking_origen}
+              </span>
             )}
           </div>
-
-          {!esProblema && (
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs" style={{ color: `${tw}0.35)` }}>
-                <span>Reportado</span>
-                <span>En tránsito</span>
-                <span>Entregado</span>
-              </div>
-              <div className="flex gap-1">
-                {ESTADOS_ORDEN.map((estado, idx) => (
-                  <div
-                    key={estado}
-                    className="h-2 flex-1 rounded-full transition-colors"
-                    style={{
-                      background: idx <= estadoActualIdx
-                        ? (idx === estadoActualIdx ? '#F5B800' : 'rgba(245,184,0,0.5)')
-                        : 'rgba(255,255,255,0.07)',
-                    }}
-                  />
-                ))}
-              </div>
-              <div className="text-xs text-center" style={{ color: `${tw}0.35)` }}>
-                Paso {estadoActualIdx + 1} de {ESTADOS_ORDEN.length}
-              </div>
-            </div>
-          )}
         </div>
       </FadeUp>
 
