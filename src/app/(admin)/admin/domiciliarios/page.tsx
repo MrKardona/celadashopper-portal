@@ -6,6 +6,7 @@ import Link from 'next/link'
 import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
 import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
 import DomiciliosManualesLista from '@/components/admin/DomiciliosManualesLista'
+import EliminarDomiciliarioButton from '@/components/admin/EliminarDomiciliarioButton'
 
 const tw = 'rgba(255,255,255,'
 
@@ -183,6 +184,7 @@ export default async function DomiciliariosPage() {
                     domiciliarioId={d.id}
                     domiciliarioNombre={d.nombre_completo}
                   />
+                  <EliminarDomiciliarioButton id={d.id} nombre={d.nombre_completo} />
                 </div>
               </div>
             )
