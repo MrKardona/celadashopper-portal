@@ -28,7 +28,7 @@ export async function GET() {
   // 1. Todas las cajas con tracking USACO asignado
   const { data: cajas } = await admin
     .from('cajas_consolidacion')
-    .select('id, codigo_interno, tracking_usaco, estado, tipo, bodega_destino, created_at, fecha_despacho')
+    .select('id, codigo_interno, tracking_usaco, estado, estado_usaco, tipo, bodega_destino, created_at, fecha_despacho')
     .not('tracking_usaco', 'is', null)
     .order('created_at', { ascending: false })
 
@@ -54,6 +54,10 @@ export async function GET() {
     const reconocida = !!usaco && usaco.estado !== 'No se encontró el tracking'
     const estadoUsaco = reconocida ? usaco!.estado : null
 
+    const sincronizado = reconocida
+      ? (caja.estado_usaco ?? null) === estadoUsaco
+      : null
+
     return {
       caja_id: caja.id,
       codigo_interno: caja.codigo_interno,
@@ -61,10 +65,10 @@ export async function GET() {
       tipo: caja.tipo ?? 'correo',
       bodega_destino: caja.bodega_destino,
       estado_bd: caja.estado,
-      estado_usaco_bd: null,
+      estado_usaco_bd: caja.estado_usaco ?? null,
       estado_usaco_api: estadoUsaco,
       reconocida,
-      sincronizado: null,
+      sincronizado,
       created_at: caja.created_at,
       fecha_despacho: caja.fecha_despacho ?? null,
     }
