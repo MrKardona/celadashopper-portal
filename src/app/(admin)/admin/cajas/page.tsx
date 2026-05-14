@@ -5,6 +5,7 @@ import { Box } from 'lucide-react'
 import NuevaCajaButton from '@/components/admin/NuevaCajaButton'
 import SugerirArmadoButton from '@/components/admin/SugerirArmadoButton'
 import CajasPageClient from '@/components/admin/CajasPageClient'
+import SyncCajasUsacoButton from '@/components/admin/SyncCajasUsacoButton'
 
 const tw = 'rgba(255,255,255,'
 
@@ -56,7 +57,8 @@ export default async function CajasPage() {
             {activas.length} activa{activas.length !== 1 ? 's' : ''} · {historial.length} recibida{historial.length !== 1 ? 's' : ''} en Colombia
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-start">
+          <SyncCajasUsacoButton />
           <SugerirArmadoButton />
           <NuevaCajaButton />
         </div>
