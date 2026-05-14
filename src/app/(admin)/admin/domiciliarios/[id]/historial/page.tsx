@@ -244,7 +244,7 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                     <div className="flex gap-3">
 
                       {/* Foto del producto */}
-                      <div className="flex-shrink-0" onClick={e => e.preventDefault()}>
+                      <div className="flex-shrink-0">
                         {fotoProducto ? (
                           <FotoViewer
                             src={fotoProducto}
@@ -296,7 +296,7 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
 
                         {/* Evidencia de entrega mini */}
                         {fotoEntrega && (
-                          <div className="flex items-center gap-2 pt-1" onClick={e => e.preventDefault()}>
+                          <div className="flex items-center gap-2 pt-1">
                             <FotoViewer
                               src={fotoEntrega}
                               alt="Evidencia de entrega"

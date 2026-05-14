@@ -53,7 +53,7 @@ export default function FotoViewer({ src, alt = 'Foto', borderColor = 'rgba(255,
     <>
       {/* Miniatura */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(true) }}
         className="flex-shrink-0 rounded-xl overflow-hidden transition-opacity hover:opacity-85 active:opacity-70"
         style={{ width, height, border: `1px solid ${borderColor}` }}
         aria-label="Ver foto"
