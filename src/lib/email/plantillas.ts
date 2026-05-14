@@ -152,91 +152,129 @@ function bloqueDatos(label: string, valor: string): string {
 }
 
 // ─── Tracker de progreso ─────────────────────────────────────────────────────
-// 7 pasos. El paso 6 cambia según la ciudad:
+// 9 pasos — igual que el portal web.
+// Paso 8 cambia según ciudad:
 //   Medellín → "En bodega" (CeladaShopper entrega)
 //   Bogotá/otras → "En ruta" (USACO entrega)
+// Animación CSS: barra de progreso + pulso en paso activo.
+// Fallback estático para clientes sin soporte (Outlook).
 
 type Hito = { icono: string; label: string }
 
-const HITOS_BASE: Hito[] = [
-  { icono: '&#128221;',           label: 'Reportado'  },
-  { icono: '&#127482;&#127480;',  label: 'Miami'      },
-  { icono: '&#128230;',           label: 'Procesado'  },
-  { icono: '&#9992;&#65039;',     label: 'Tránsito'   },
-  { icono: '&#127464;&#127476;',  label: 'Colombia'   },
-  { icono: '&#128205;',           label: 'En bodega'  }, // slot 5 — varía por ciudad
-  { icono: '&#10003;',            label: 'Entregado'  },
+const HITOS_MEDELLIN: Hito[] = [
+  { icono: '&#128221;',          label: 'Reportado' },
+  { icono: '&#127482;&#127480;', label: 'Miami'     },
+  { icono: '&#128230;',          label: 'Procesado' },
+  { icono: '&#128196;',          label: 'Guía'      },
+  { icono: '&#9992;&#65039;',    label: 'Tránsito'  },
+  { icono: '&#128707;',          label: 'Aduana'    },
+  { icono: '&#127464;&#127476;', label: 'Colombia'  },
+  { icono: '&#128205;',          label: 'En bodega' },
+  { icono: '&#10003;',           label: 'Entregado' },
 ]
 
-const HITO_RUTA_BOGOTA: Hito = { icono: '&#128666;', label: 'En ruta' }
+const HITOS_BOGOTA: Hito[] = [
+  { icono: '&#128221;',          label: 'Reportado' },
+  { icono: '&#127482;&#127480;', label: 'Miami'     },
+  { icono: '&#128230;',          label: 'Procesado' },
+  { icono: '&#128196;',          label: 'Guía'      },
+  { icono: '&#9992;&#65039;',    label: 'Tránsito'  },
+  { icono: '&#128707;',          label: 'Aduana'    },
+  { icono: '&#127464;&#127476;', label: 'Colombia'  },
+  { icono: '&#128666;',          label: 'En ruta'   },
+  { icono: '&#10003;',           label: 'Entregado' },
+]
 
-// Estados internos (CeladaShopper) → índice de hito
+// Estado interno → índice en la secuencia de 9 pasos
 const ESTADO_A_HITO: Record<string, number> = {
-  reportado:          0,
-  recibido_usa:       1,
-  en_consolidacion:   2,
-  listo_envio:        2,
-  en_transito:        3,
-  proceso_aduana:     4,
-  en_colombia:        4,
-  llego_colombia:     4,
-  en_bodega_local:    5,
-  listo_entrega:      5,
-  en_camino_cliente:  5,
-  // USACO estados (usados para Bogotá)
-  guia_creada:        2,
-  incluido_guia:      2,
-  transito_internacional: 3,
-  en_ruta:            5,
-  en_ruta_transito:   5,
-  en_transportadora:  5,
-  entrega_fallida:    5,
-  entregado:          6,
-  entregado_transporte: 6,
-  retenido:           1,
-  devuelto:           6,
+  // paso 0
+  reportado:              0,
+  // paso 1
+  recibido_usa:           1,
+  recibido_miami:         1,
+  retenido:               1,
+  // paso 2
+  en_consolidacion:       2,
+  listo_envio:            2,
+  procesado:              2,
+  // paso 3 — guía asignada
+  guia_creada:            3,
+  incluido_guia:          3,
+  // paso 4 — vuelo / tránsito
+  en_transito:            4,
+  transito_internacional: 4,
+  // paso 5 — aduana
+  proceso_aduana:         5,
+  // paso 6 — llegó a Colombia
+  en_colombia:            6,
+  llego_colombia:         6,
+  // paso 7 — en bodega (Medellín) / en ruta (Bogotá)
+  en_bodega_local:        7,
+  listo_entrega:          7,
+  en_camino_cliente:      7,
+  en_ruta:                7,
+  en_ruta_transito:       7,
+  en_transportadora:      7,
+  entrega_fallida:        7,
+  // paso 8 — entregado
+  entregado:              8,
+  entregado_transporte:   8,
+  devuelto:               8,
 }
 
 function trackerProgreso(estadoActual?: string, bodegaKey?: string): string {
   if (!estadoActual) return ''
 
   const esMedellin = !bodegaKey || bodegaKey === 'medellin'
-  const hitos: Hito[] = HITOS_BASE.map((h, i) =>
-    i === 5 && !esMedellin ? HITO_RUTA_BOGOTA : h
-  )
+  const hitos      = esMedellin ? HITOS_MEDELLIN : HITOS_BOGOTA
 
   const hitoActivo = ESTADO_A_HITO[estadoActual] ?? 0
-  const porcentaje = Math.round((hitoActivo / (hitos.length - 1)) * 100)
-  const anchoCol   = `${Math.round(100 / hitos.length)}%`
+  const total      = hitos.length - 1                         // 8 segmentos
+  const porcentaje = Math.round((hitoActivo / total) * 100)
+  const anchoCol   = `${Math.round(100 / hitos.length)}%`    // ~11 % por celda
 
   const celdas = hitos.map((h, i) => {
     const completado  = i < hitoActivo
     const actual      = i === hitoActivo
-    const circleBg    = actual ? GOLD    : completado ? PURPLE   : BORDER_VIS
-    const circleColor = actual ? '#000'  : completado ? '#000'   : TEXT_MUTE
-    const labelColor  = actual ? GOLD    : completado ? PURPLE   : TEXT_MUTE
-    const labelWeight = actual ? 'bold'  : 'normal'
-    const ringStyle   = actual ? `outline:2px solid ${GOLD_DIM};outline-offset:2px;` : ''
+    const circleBg    = actual ? GOLD   : completado ? PURPLE  : BORDER_VIS
+    const circleColor = actual ? '#000' : completado ? '#000'  : TEXT_MUTE
+    const labelColor  = actual ? GOLD   : completado ? PURPLE  : TEXT_MUTE
+    const labelWeight = actual ? 'bold' : 'normal'
+    const ringStyle   = actual
+      ? `outline:2px solid ${GOLD_DIM};outline-offset:2px;`
+      : ''
+    // clase cs-pulse sólo en el paso activo (CSS animation)
+    const classAttr = actual ? ' class="cs-pulse"' : ''
 
     return `
-      <td align="center" style="vertical-align:top;padding:0 2px;width:${anchoCol};">
-        <div style="background-color:${circleBg};color:${circleColor};width:36px;height:36px;border-radius:50%;line-height:36px;font-size:14px;margin:0 auto;text-align:center;${ringStyle}">
+      <td align="center" style="vertical-align:top;padding:0 1px;width:${anchoCol};">
+        <div${classAttr} style="background-color:${circleBg};color:${circleColor};width:30px;height:30px;border-radius:50%;line-height:30px;font-size:11px;margin:0 auto;text-align:center;${ringStyle}">
           ${h.icono}
         </div>
-        <p style="margin:5px 0 0 0;font-size:9px;font-weight:${labelWeight};color:${labelColor};font-family:Arial,sans-serif;text-align:center;line-height:1.3;">
+        <p style="margin:4px 0 0 0;font-size:7.5px;font-weight:${labelWeight};color:${labelColor};font-family:Arial,sans-serif;text-align:center;line-height:1.2;">
           ${h.label}
         </p>
       </td>
     `
   }).join('')
 
+  // Animaciones embebidas:
+  //   cs-fill  → barra de progreso aparece de 0 % al valor real
+  //   cs-pulse → pulso suave en el círculo activo
+  // Fallback: clientes que no soporten <style> ven el width estático inline.
   return `
-    <div style="margin:24px 0 28px 0;padding:18px 10px 16px 10px;background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:12px;">
-      <p style="margin:0 0 14px 0;text-align:center;font-size:10px;color:${TEXT_MUTE};font-family:Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;">
+    <style>
+      @keyframes cs-fill  { from { width:0% } to { width:${porcentaje}% } }
+      @keyframes cs-pulse { 0%,100% { opacity:1;transform:scale(1) } 50% { opacity:.82;transform:scale(1.1) } }
+      .cs-fill  { animation: cs-fill  1.4s cubic-bezier(.22,1,.36,1) forwards; }
+      .cs-pulse { animation: cs-pulse 2.2s ease-in-out infinite; }
+    </style>
+    <div style="margin:24px 0 28px 0;padding:18px 8px 16px 8px;background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:12px;">
+      <p style="margin:0 0 12px 0;text-align:center;font-size:10px;color:${TEXT_MUTE};font-family:Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;">
         Estado del envío
       </p>
-      <div style="height:3px;background-color:${BORDER_VIS};border-radius:2px;margin:0 20px 12px 20px;">
-        <div style="height:3px;background-color:${GOLD};border-radius:2px;width:${porcentaje}%;"></div>
+      <div style="height:3px;background-color:${BORDER_VIS};border-radius:2px;margin:0 14px 14px 14px;">
+        <div class="cs-fill" style="height:3px;background-color:${GOLD};border-radius:2px;width:${porcentaje}%;"></div>
       </div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
         <tr>${celdas}</tr>
