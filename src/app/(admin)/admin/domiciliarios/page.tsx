@@ -35,7 +35,9 @@ export default async function DomiciliariosPage() {
   const manualesMap: Record<string, { id: string; nombre: string; direccion: string; notas: string | null }[]> = {}
 
   if (domIds.length > 0) {
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+    // Medianoche en Bogotá (UTC-5) expresada en UTC para comparar con columnas timestamptz
+    const fechaBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) // 'YYYY-MM-DD'
+    const hoy = new Date(`${fechaBogota}T05:00:00.000Z`) // 00:00 Bogotá = 05:00 UTC
 
     const [enCaminoRes, entregadosRes, manualesPendientesRes, manualesEntregadosRes] = await Promise.all([
       admin.from('paquetes')
@@ -56,7 +58,7 @@ export default async function DomiciliariosPage() {
         .select('domiciliario_id')
         .in('domiciliario_id', domIds)
         .eq('estado', 'completado')
-        .gte('updated_at', hoy.toISOString()),
+        .gte('completado_at', hoy.toISOString()),   // columna correcta
     ])
 
     for (const p of enCaminoRes.data ?? []) {
