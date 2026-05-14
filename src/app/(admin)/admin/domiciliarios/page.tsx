@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
-import { Bike, Package, Phone, Eye, History } from 'lucide-react'
+import { Bike, Package, Phone, Eye, History, TableProperties } from 'lucide-react'
 import Link from 'next/link'
 import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
 import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
@@ -99,6 +99,14 @@ export default async function DomiciliariosPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/admin/domiciliarios/planilla"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+            style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: '#34d399' }}
+          >
+            <TableProperties className="h-3.5 w-3.5" />
+            Planilla
+          </Link>
           <InformeDomiciliariosButton />
           <NuevoDomiciliarioModal />
         </div>

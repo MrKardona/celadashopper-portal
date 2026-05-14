@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
   // Fecha (default: hoy en Bogotá)
   const fechaParam = req.nextUrl.searchParams.get('fecha')
   const fechaBog = fechaParam ?? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-  const inicio = new Date(`${fechaBog}T05:00:00.000Z`)   // 00:00 Bogotá = 05:00 UTC
-  const fin    = new Date(`${fechaBog}T28:59:59.999Z`)   // 23:59:59 Bogotá
+  const inicio = new Date(`${fechaBog}T05:00:00.000Z`)          // 00:00 Bogotá = 05:00 UTC
+  const fin    = new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1) // 23:59:59.999 Bogotá
 
   // Domiciliarios activos
   const { data: domiciliarios } = await admin
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   // Paquetes entregados en el rango
   const { data: paquetes } = await admin
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, descripcion, bodega_destino, cliente_id, direccion_entrega, barrio_entrega, domiciliario_id, updated_at')
+    .select('id, tracking_casilla, tracking_origen, descripcion, bodega_destino, cliente_id, direccion_entrega, barrio_entrega, domiciliario_id, updated_at, valor_domicilio')
     .in('domiciliario_id', domIds)
     .eq('estado', 'entregado')
     .gte('updated_at', inicio.toISOString())
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
   // Manuales completados en el rango
   const { data: manuales } = await admin
     .from('domicilios_manuales')
-    .select('id, nombre, direccion, telefono, notas, notas_entrega, tipo, domiciliario_id, completado_at')
+    .select('id, nombre, direccion, telefono, notas, notas_entrega, tipo, domiciliario_id, completado_at, valor')
     .in('domiciliario_id', domIds)
     .eq('estado', 'completado')
     .gte('completado_at', inicio.toISOString())
@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
     Teléfono: string
     Notas: string
     'Hora entrega': string
+    'Valor ($)': number | string
   }
 
   const filas: Fila[] = []
@@ -123,6 +124,7 @@ export async function GET(req: NextRequest) {
       Teléfono:          '',
       Notas:             bodega,
       'Hora entrega':    p.updated_at ? fechaBogota(p.updated_at) : '',
+      'Valor ($)':       p.valor_domicilio ?? '',
     })
   }
 
@@ -136,6 +138,7 @@ export async function GET(req: NextRequest) {
       Teléfono:            m.telefono ?? '',
       Notas:               m.notas_entrega ?? '',
       'Hora entrega':      m.completado_at ? fechaBogota(m.completado_at) : '',
+      'Valor ($)':         m.valor ?? '',
     })
   }
 
@@ -160,6 +163,7 @@ export async function GET(req: NextRequest) {
     { wch: 15 }, // Teléfono
     { wch: 30 }, // Notas
     { wch: 20 }, // Hora entrega
+    { wch: 12 }, // Valor ($)
   ]
 
   XLSX.utils.book_append_sheet(wb, ws, 'Entregas')
@@ -173,16 +177,24 @@ export async function GET(req: NextRequest) {
     resumenMap[f.Domiciliario].total++
   }
 
+  // Valor total por domiciliario
+  const valorMap: Record<string, number> = {}
+  for (const f of filas) {
+    if (!valorMap[f.Domiciliario]) valorMap[f.Domiciliario] = 0
+    if (typeof f['Valor ($)'] === 'number') valorMap[f.Domiciliario] += f['Valor ($)']
+  }
+
   const resumenFilas = Object.entries(resumenMap).map(([dom, v]) => ({
-    Domiciliario: dom,
-    Personal:     v.personal,
-    Servicios:    v.servicios,
-    Productos:    v.productos,
-    Total:        v.total,
+    Domiciliario:    dom,
+    Personal:        v.personal,
+    Servicios:       v.servicios,
+    Productos:       v.productos,
+    'Total entregas': v.total,
+    'Total valor ($)': valorMap[dom] ?? 0,
   }))
 
   const wsResumen = XLSX.utils.json_to_sheet(resumenFilas)
-  wsResumen['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }]
+  wsResumen['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }]
   XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
