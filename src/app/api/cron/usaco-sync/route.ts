@@ -122,6 +122,12 @@ export async function GET(request: NextRequest) {
       estado_usaco: estadoUsaco,
       usaco_sync_at: new Date().toISOString(),
     }
+    // TransitoInternacional → paquete pasa a en_transito (ambas ciudades)
+    // Necesario si el admin no despachó manualmente o como safety net
+    if (estadoUsaco === 'TransitoInternacional' && paquete.estado !== 'en_transito') {
+      updateData.estado = 'en_transito'
+    }
+    // Bogotá Entregado → paquete pasa a entregado (USACO maneja la entrega completa)
     if (!esMedellin && USACO_ES_ENTREGADO.has(estadoUsaco) && paquete.estado !== 'entregado') {
       updateData.estado = 'entregado'
     }
