@@ -176,10 +176,22 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                       style={{ borderColor: 'rgba(129,140,248,0.18)' }}>
                       <div className="flex gap-3">
 
-                        {/* Icono placeholder (sin foto de producto) */}
-                        <div className="flex-shrink-0 rounded-xl flex flex-col items-center justify-center gap-1"
-                          style={{ width: 72, height: 72, background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.15)' }}>
-                          <FileText className="h-5 w-5" style={{ color: '#818cf8' }} />
+                        {/* Foto de entrega (izquierda 72×72) o ícono si no hay */}
+                        <div className="flex-shrink-0">
+                          {m.foto_url ? (
+                            <FotoViewer
+                              src={m.foto_url}
+                              alt="Evidencia de entrega"
+                              borderColor="rgba(129,140,248,0.35)"
+                              width={72}
+                              height={72}
+                            />
+                          ) : (
+                            <div className="rounded-xl flex flex-col items-center justify-center gap-1"
+                              style={{ width: 72, height: 72, background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.15)' }}>
+                              <FileText className="h-5 w-5" style={{ color: '#818cf8' }} />
+                            </div>
+                          )}
                         </div>
 
                         {/* Info */}
@@ -187,7 +199,9 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="text-sm font-bold text-white truncate">{m.nombre}</p>
-                              <p className="text-[11px]" style={{ color: '#818cf8' }}>Domicilio manual</p>
+                              <p className="text-[11px]" style={{ color: '#818cf8' }}>
+                                {m.foto_url ? '📸 Domicilio manual' : 'Domicilio manual'}
+                              </p>
                             </div>
                             <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
                               {fechaBogota(m.completado_at ?? '')}
@@ -209,20 +223,6 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
                               <p className="text-xs italic" style={{ color: `${tw}0.4)` }}>
                                 {m.notas_entrega ?? m.notas}
                               </p>
-                            </div>
-                          )}
-
-                          {/* Evidencia de entrega */}
-                          {m.foto_url && (
-                            <div className="flex items-center gap-2 pt-1">
-                              <FotoViewer
-                                src={m.foto_url}
-                                alt="Evidencia de entrega"
-                                borderColor="rgba(129,140,248,0.35)"
-                                width={44}
-                                height={44}
-                              />
-                              <p className="text-[10px]" style={{ color: `${tw}0.3)` }}>📸 Evidencia de entrega</p>
                             </div>
                           )}
                         </div>
