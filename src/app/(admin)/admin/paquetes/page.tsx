@@ -41,11 +41,22 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     { db: { schema: 'public' }, auth: { persistSession: false } }
   )
 
+  // Cuando hay búsqueda de texto, primero resolvemos los cliente_id que coincidan
+  // con nombre o número de casilla — así el filtro se aplica en DB, no en memoria.
+  let clienteIdsDeQ: string[] | null = null
+  if (q) {
+    const { data: perfilesQ } = await supabase
+      .from('perfiles')
+      .select('id')
+      .or(`nombre_completo.ilike.%${q}%,numero_casilla.ilike.%${q}%`)
+    clienteIdsDeQ = (perfilesQ ?? []).map((p: { id: string }) => p.id)
+  }
+
   let q1 = supabase
     .from('paquetes')
     .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id')
     .order('created_at', { ascending: false })
-    .limit(limite)
+    .limit(q ? 500 : limite)  // sin límite estricto al buscar
 
   if (estado) q1 = q1.eq('estado', estado)
   if (bodega) q1 = q1.eq('bodega_destino', bodega)
@@ -54,6 +65,21 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
   else if (asignacion === 'asignados') q1 = q1.not('cliente_id', 'is', null)
   if (consolidacion === 'requiere') q1 = q1.eq('requiere_consolidacion', true)
   else if (consolidacion === 'despachable') q1 = q1.eq('requiere_consolidacion', false)
+
+  // Filtro de texto en DB: tracking, descripcion, tienda, nombre_etiqueta y clientes
+  if (q) {
+    const orParts = [
+      `tracking_casilla.ilike.%${q}%`,
+      `tracking_origen.ilike.%${q}%`,
+      `descripcion.ilike.%${q}%`,
+      `tienda.ilike.%${q}%`,
+      `nombre_etiqueta.ilike.%${q}%`,
+    ]
+    if (clienteIdsDeQ && clienteIdsDeQ.length > 0) {
+      orParts.push(`cliente_id.in.(${clienteIdsDeQ.join(',')})`)
+    }
+    q1 = q1.or(orParts.join(','))
+  }
 
   const { data: paquetes, error: errPaq } = await q1
   const lista = paquetes ?? []
@@ -118,13 +144,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     consolidacionMap[row.cliente_id] = (consolidacionMap[row.cliente_id] ?? 0) + 1
   }
 
-  const filtrados = q
-    ? lista.filter(p => {
-        const perfil = p.cliente_id ? perfilesMap[p.cliente_id] : null
-        const txt = `${p.tracking_casilla} ${p.descripcion} ${p.tienda} ${p.nombre_etiqueta ?? ''} ${perfil?.nombre_completo ?? ''} ${perfil?.numero_casilla ?? ''}`.toLowerCase()
-        return txt.includes(q.toLowerCase())
-      })
-    : lista
+  const filtrados = lista
 
   const paquetesConCliente = filtrados.map(p => ({
     ...p,
