@@ -590,7 +590,7 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, valorDeclaradoSugerido, onCl
   const [costo, setCosto] = useState('')
   const [valorDeclarado, setValorDeclarado] = useState(valorDeclaradoSugerido > 0 ? valorDeclaradoSugerido.toFixed(2) : '')
   const [courier, setCourier] = useState('')
-  const [notificar, setNotificar] = useState(true)
+  const [notificar, setNotificar] = useState(false)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
   const [scannerAbierto, setScannerAbierto] = useState(false)
@@ -709,7 +709,12 @@ function ModalDespacharCaja({ cajaId, pesoSugerido, valorDeclaradoSugerido, onCl
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: `${tw}0.65)` }}>
           <input type="checkbox" checked={notificar} onChange={e => setNotificar(e.target.checked)}
             className="h-4 w-4 rounded" style={{ accentColor: '#F5B800' }} />
-          Notificar a los clientes por WhatsApp
+          <span>
+            Notificar ahora por WhatsApp
+            <span className="block text-[11px]" style={{ color: `${tw}0.35)` }}>
+              USACO notifica automáticamente al confirmar tránsito internacional
+            </span>
+          </span>
         </label>
 
         {error && <p className="text-sm p-2 rounded-xl" style={{ color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>{error}</p>}
