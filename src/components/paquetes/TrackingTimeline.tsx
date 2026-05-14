@@ -1,4 +1,4 @@
-import { TRACKING_LABELS, PASOS_PRINCIPALES } from '@/lib/usaco/tracking'
+import { TRACKING_LABELS, PASOS_PRINCIPALES_MEDELLIN, PASOS_PRINCIPALES_BOGOTA } from '@/lib/usaco/tracking'
 import { fechaHoraLarga } from '@/lib/fecha'
 
 interface TrackingEvento {
@@ -11,11 +11,16 @@ interface TrackingEvento {
 
 interface Props {
   eventos: TrackingEvento[]
+  bodegaKey?: string
 }
 
 const tw = 'rgba(255,255,255,'
 
-export function TrackingTimeline({ eventos }: Props) {
+export function TrackingTimeline({ eventos, bodegaKey }: Props) {
+  const PASOS_PRINCIPALES = bodegaKey === 'medellin' || !bodegaKey
+    ? PASOS_PRINCIPALES_MEDELLIN
+    : PASOS_PRINCIPALES_BOGOTA
+
   // Ordenar cronológicamente y deduplicar: si el mismo tipo de evento aparece
   // varias veces (ej. "procesado" al mover entre cajas) solo mostramos el primero.
   const sorted = [...eventos].sort(

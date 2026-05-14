@@ -21,6 +21,7 @@ interface VariablesPlantilla {
   peso?: string
   costo?: string
   bodega?: string
+  bodegaKey?: string            // 'medellin' | 'bogota' | 'barranquilla' — decide el timeline
   link: string
   fotoUrl?: string | null
   fotoUrlContenido?: string | null
@@ -151,49 +152,78 @@ function bloqueDatos(label: string, valor: string): string {
 }
 
 // ─── Tracker de progreso ─────────────────────────────────────────────────────
-const HITOS = [
-  { key: 'reportado',      icono: '&#128221;', label: 'Reportado' },
-  { key: 'recibido_usa',   icono: '&#127482;&#127480;',  label: 'En Miami'   },
-  { key: 'en_transito',    icono: '&#9992;&#65039;',  label: 'En camino'  },
-  { key: 'en_bodega_local',icono: '&#128205;', label: 'Listo'      },
-  { key: 'entregado',      icono: '&#10003;',  label: 'Entregado'  },
-] as const
+// 7 pasos. El paso 6 cambia según la ciudad:
+//   Medellín → "En bodega" (CeladaShopper entrega)
+//   Bogotá/otras → "En ruta" (USACO entrega)
 
+type Hito = { icono: string; label: string }
+
+const HITOS_BASE: Hito[] = [
+  { icono: '&#128221;',           label: 'Reportado'  },
+  { icono: '&#127482;&#127480;',  label: 'Miami'      },
+  { icono: '&#128230;',           label: 'Procesado'  },
+  { icono: '&#9992;&#65039;',     label: 'Tránsito'   },
+  { icono: '&#127464;&#127476;',  label: 'Colombia'   },
+  { icono: '&#128205;',           label: 'En bodega'  }, // slot 5 — varía por ciudad
+  { icono: '&#10003;',            label: 'Entregado'  },
+]
+
+const HITO_RUTA_BOGOTA: Hito = { icono: '&#128666;', label: 'En ruta' }
+
+// Estados internos (CeladaShopper) → índice de hito
 const ESTADO_A_HITO: Record<string, number> = {
-  reportado:         0,
-  recibido_usa:      1,
-  en_consolidacion:  1,
-  listo_envio:       1,
-  en_transito:       2,
-  en_colombia:       2,
-  en_bodega_local:   3,
-  en_camino_cliente: 3,
-  entregado:         4,
-  retenido:          1,
-  devuelto:          4,
+  reportado:          0,
+  recibido_usa:       1,
+  en_consolidacion:   2,
+  listo_envio:        2,
+  en_transito:        3,
+  proceso_aduana:     4,
+  en_colombia:        4,
+  llego_colombia:     4,
+  en_bodega_local:    5,
+  listo_entrega:      5,
+  en_camino_cliente:  5,
+  // USACO estados (usados para Bogotá)
+  guia_creada:        2,
+  incluido_guia:      2,
+  transito_internacional: 3,
+  en_ruta:            5,
+  en_ruta_transito:   5,
+  en_transportadora:  5,
+  entrega_fallida:    5,
+  entregado:          6,
+  entregado_transporte: 6,
+  retenido:           1,
+  devuelto:           6,
 }
 
-function trackerProgreso(estadoActual?: string): string {
+function trackerProgreso(estadoActual?: string, bodegaKey?: string): string {
   if (!estadoActual) return ''
+
+  const esMedellin = !bodegaKey || bodegaKey === 'medellin'
+  const hitos: Hito[] = HITOS_BASE.map((h, i) =>
+    i === 5 && !esMedellin ? HITO_RUTA_BOGOTA : h
+  )
+
   const hitoActivo = ESTADO_A_HITO[estadoActual] ?? 0
-  const porcentaje = Math.round((hitoActivo / (HITOS.length - 1)) * 100)
+  const porcentaje = Math.round((hitoActivo / (hitos.length - 1)) * 100)
+  const anchoCol   = `${Math.round(100 / hitos.length)}%`
 
-  const celdas = HITOS.map((h, i) => {
-    const completado = i < hitoActivo
-    const actual     = i === hitoActivo
-
-    const circleBg    = actual ? GOLD : completado ? PURPLE : BORDER_VIS
-    const circleColor = actual ? '#000000' : completado ? '#000000' : TEXT_MUTE
-    const labelColor  = actual ? GOLD : completado ? PURPLE : TEXT_MUTE
-    const labelWeight = actual ? 'bold' : 'normal'
-    const ringStyle   = actual ? `outline:3px solid ${GOLD_DIM};outline-offset:2px;` : ''
+  const celdas = hitos.map((h, i) => {
+    const completado  = i < hitoActivo
+    const actual      = i === hitoActivo
+    const circleBg    = actual ? GOLD    : completado ? PURPLE   : BORDER_VIS
+    const circleColor = actual ? '#000'  : completado ? '#000'   : TEXT_MUTE
+    const labelColor  = actual ? GOLD    : completado ? PURPLE   : TEXT_MUTE
+    const labelWeight = actual ? 'bold'  : 'normal'
+    const ringStyle   = actual ? `outline:2px solid ${GOLD_DIM};outline-offset:2px;` : ''
 
     return `
-      <td align="center" style="vertical-align:top;padding:0 3px;width:20%;">
-        <div style="background-color:${circleBg};color:${circleColor};width:42px;height:42px;border-radius:50%;line-height:42px;font-size:16px;margin:0 auto;text-align:center;${ringStyle}">
+      <td align="center" style="vertical-align:top;padding:0 2px;width:${anchoCol};">
+        <div style="background-color:${circleBg};color:${circleColor};width:36px;height:36px;border-radius:50%;line-height:36px;font-size:14px;margin:0 auto;text-align:center;${ringStyle}">
           ${h.icono}
         </div>
-        <p style="margin:7px 0 0 0;font-size:10px;font-weight:${labelWeight};color:${labelColor};font-family:Arial,sans-serif;text-align:center;">
+        <p style="margin:5px 0 0 0;font-size:9px;font-weight:${labelWeight};color:${labelColor};font-family:Arial,sans-serif;text-align:center;line-height:1.3;">
           ${h.label}
         </p>
       </td>
@@ -201,12 +231,11 @@ function trackerProgreso(estadoActual?: string): string {
   }).join('')
 
   return `
-    <div style="margin:24px 0 28px 0;padding:20px 12px 18px 12px;background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:12px;">
-      <p style="margin:0 0 16px 0;text-align:center;font-size:11px;color:${TEXT_MUTE};font-family:Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;">
+    <div style="margin:24px 0 28px 0;padding:18px 10px 16px 10px;background-color:${BG_INNER};border:1px solid ${BORDER_VIS};border-radius:12px;">
+      <p style="margin:0 0 14px 0;text-align:center;font-size:10px;color:${TEXT_MUTE};font-family:Arial,sans-serif;letter-spacing:1.5px;text-transform:uppercase;font-weight:bold;">
         Estado del envío
       </p>
-      <!-- Barra de progreso -->
-      <div style="height:3px;background-color:${BORDER_VIS};border-radius:2px;margin:0 24px 14px 24px;">
+      <div style="height:3px;background-color:${BORDER_VIS};border-radius:2px;margin:0 20px 12px 20px;">
         <div style="height:3px;background-color:${GOLD};border-radius:2px;width:${porcentaje}%;"></div>
       </div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -340,7 +369,7 @@ export function plantillaPaqueteReportado(vars: VariablesPlantilla): { subject: 
       Te confirmaremos cada paso por correo.
     </p>
 
-    ${trackerProgreso('reportado')}
+    ${trackerProgreso('reportado', vars.bodegaKey)}
 
     ${seccionTracking(vars)}
 
@@ -391,7 +420,7 @@ export function plantillaPaqueteRecibidoUSA(vars: VariablesPlantilla): { subject
       Tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> ya está en nuestra bodega de Miami.
     </p>
 
-    ${trackerProgreso('recibido_usa')}
+    ${trackerProgreso('recibido_usa', vars.bodegaKey)}
 
     ${seccionTracking(vars, { mostrarUsaco: true })}
 
@@ -491,7 +520,7 @@ export function plantillaPaqueteEnTransito(vars: VariablesPlantilla): { subject:
       Tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> ya salió de Miami rumbo a Colombia.
     </p>
 
-    ${trackerProgreso('en_transito')}
+    ${trackerProgreso('en_transito', vars.bodegaKey)}
 
     ${seccionTracking(vars, { mostrarUsaco: true })}
 
@@ -524,7 +553,7 @@ export function plantillaPaqueteListoRecoger(vars: VariablesPlantilla): { subjec
       Tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> ya llegó a nuestra bodega${vars.bodega ? ` en ${vars.bodega}` : ' local'}.
     </p>
 
-    ${trackerProgreso('en_bodega_local')}
+    ${trackerProgreso('en_bodega_local', vars.bodegaKey)}
 
     ${seccionTracking(vars, { mostrarUsaco: true })}
 
@@ -561,7 +590,7 @@ export function plantillaPaqueteEntregado(vars: VariablesPlantilla): { subject: 
       Confirmamos que tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> fue entregado.
     </p>
 
-    ${trackerProgreso('entregado')}
+    ${trackerProgreso('entregado', vars.bodegaKey)}
 
     ${seccionTracking(vars, { mostrarUsaco: true })}
 
@@ -631,17 +660,131 @@ export function plantillaCostoCalculado(vars: VariablesPlantilla): { subject: st
 }
 
 const ESTADO_LABELS_EMAIL: Record<string, string> = {
-  reportado:         'Pedido reportado',
-  recibido_usa:      'Recibido en bodega Miami',
-  en_consolidacion:  'En consolidación',
-  listo_envio:       'Listo para envío',
-  en_transito:       'En tránsito a Colombia',
-  en_colombia:       'Llegó a Colombia',
-  en_bodega_local:   'Listo para recoger',
-  en_camino_cliente: 'En camino al cliente',
-  entregado:         'Entregado',
-  retenido:          'Retenido en aduana',
-  devuelto:          'Devuelto',
+  reportado:            'Pedido reportado',
+  recibido_usa:         'Recibido en bodega Miami',
+  en_consolidacion:     'En consolidación',
+  listo_envio:          'Listo para envío',
+  en_transito:          'En tránsito a Colombia',
+  en_colombia:          'Llegó a Colombia',
+  en_bodega_local:      'Listo para recoger',
+  en_camino_cliente:    'En camino al cliente',
+  entregado:            'Entregado',
+  retenido:             'Retenido en aduana',
+  devuelto:             'Devuelto',
+  // USACO
+  guia_creada:          '✈️ Guía de envío asignada',
+  proceso_aduana:       '🛃 Tu paquete está en aduana',
+  llego_colombia:       'Tu paquete llegó a Colombia',
+  en_ruta:              'Tu paquete está en camino',
+  en_ruta_transito:     'Tu paquete está en tránsito',
+  en_transportadora:    'Tu paquete con transportadora',
+  entrega_fallida:      '⚠️ Intento de entrega fallido',
+  entregado_transporte: 'Entregado',
+}
+
+export function plantillaPaqueteLlegoColombia(vars: VariablesPlantilla): { subject: string; html: string; text: string } {
+  const esMedellin = !vars.bodegaKey || vars.bodegaKey === 'medellin'
+  const subject = `Tu paquete llegó a Colombia: ${vars.descripcion}`
+  const contenido = `
+    <h2 style="color:${TEXT_PRIM};font-size:22px;margin:0 0 8px 0;">
+      &#127464;&#127476; ¡Tu paquete llegó a Colombia!
+    </h2>
+    <p style="color:${TEXT_BODY};font-size:15px;line-height:1.65;margin:0 0 4px 0;">
+      ¡Hola <strong style="color:${TEXT_PRIM};">${vars.nombre}</strong>!
+      Tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> superó la aduana y ya está en Colombia.
+    </p>
+
+    ${trackerProgreso('llego_colombia', vars.bodegaKey)}
+
+    ${seccionTracking(vars, { mostrarUsaco: true })}
+
+    ${cardDatos(`
+      ${bloqueDatos('&#128230; Producto', vars.descripcion)}
+      ${vars.bodega ? bloqueDatos('&#128205; Ciudad destino', vars.bodega) : ''}
+    `)}
+
+    <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:20px 0 0 0;">
+      ${esMedellin
+        ? 'Pronto lo tendrás listo para recoger en bodega.'
+        : 'La transportadora lo llevará hasta tu puerta.'}
+    </p>
+
+    ${botonVerSeguimiento(vars.link)}
+  `
+  return {
+    subject,
+    html: layout(subject, contenido, vars),
+    text: `Hola ${vars.nombre}, tu paquete "${vars.descripcion}" llegó a Colombia. ${esMedellin ? 'Pronto estará listo en bodega.' : 'La transportadora lo llevará a tu puerta.'} Detalle en ${vars.link}`,
+  }
+}
+
+export function plantillaPaqueteEnRuta(vars: VariablesPlantilla): { subject: string; html: string; text: string } {
+  const subject = `Tu paquete está en camino: ${vars.descripcion}`
+  const contenido = `
+    <h2 style="color:${TEXT_PRIM};font-size:22px;margin:0 0 8px 0;">
+      &#128666; ¡En camino a tu puerta!
+    </h2>
+    <p style="color:${TEXT_BODY};font-size:15px;line-height:1.65;margin:0 0 4px 0;">
+      ¡Hola <strong style="color:${TEXT_PRIM};">${vars.nombre}</strong>!
+      Tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong> está en ruta de entrega.
+    </p>
+
+    ${trackerProgreso('en_ruta', vars.bodegaKey)}
+
+    ${seccionTracking(vars, { mostrarUsaco: true })}
+
+    ${cardDatos(`
+      ${bloqueDatos('&#128230; Producto', vars.descripcion)}
+      ${vars.bodega ? bloqueDatos('&#128205; Ciudad', vars.bodega) : ''}
+    `)}
+
+    <p style="color:${TEXT_BODY};font-size:14px;line-height:1.6;margin:20px 0 0 0;">
+      La transportadora está en ruta para entregar tu paquete. Asegúrate de estar disponible para recibirlo.
+    </p>
+
+    ${botonVerSeguimiento(vars.link)}
+  `
+  return {
+    subject,
+    html: layout(subject, contenido, vars),
+    text: `Hola ${vars.nombre}, tu paquete "${vars.descripcion}" está en camino. La transportadora está en ruta. Detalle en ${vars.link}`,
+  }
+}
+
+export function plantillaEntregaFallida(vars: VariablesPlantilla): { subject: string; html: string; text: string } {
+  const subject = `⚠️ Intento de entrega fallido: ${vars.descripcion}`
+  const contenido = `
+    <h2 style="color:${TEXT_PRIM};font-size:22px;margin:0 0 8px 0;">
+      &#9888;&#65039; No pudimos entregar tu paquete
+    </h2>
+    <p style="color:${TEXT_BODY};font-size:15px;line-height:1.65;margin:0 0 4px 0;">
+      ¡Hola <strong style="color:${TEXT_PRIM};">${vars.nombre}</strong>!
+      Tuvimos un inconveniente al intentar entregar tu paquete <strong style="color:${TEXT_PRIM};">${vars.descripcion}</strong>.
+    </p>
+
+    ${trackerProgreso('entrega_fallida', vars.bodegaKey)}
+
+    ${seccionTracking(vars, { mostrarUsaco: true })}
+
+    ${cardDatos(`
+      ${bloqueDatos('&#128230; Producto', vars.descripcion)}
+      ${vars.bodega ? bloqueDatos('&#128205; Ciudad', vars.bodega) : ''}
+    `)}
+
+    <div style="background-color:#1a0a0a;border:1px solid #7f1d1d;border-radius:10px;padding:16px 20px;margin:20px 0;">
+      <p style="color:#f87171;font-size:14px;margin:0;line-height:1.6;">
+        <strong>&#9888;&#65039; La transportadora intentó entregarte el paquete pero no fue posible.</strong><br>
+        Se realizará un nuevo intento. Asegúrate de estar disponible o contáctanos para coordinar.
+      </p>
+    </div>
+
+    ${botonVerSeguimiento(vars.link)}
+  `
+  return {
+    subject,
+    html: layout(subject, contenido, vars),
+    text: `Hola ${vars.nombre}, no pudimos entregar tu paquete "${vars.descripcion}". Se realizará un nuevo intento. Contáctanos si necesitas coordinar. Detalle en ${vars.link}`,
+  }
 }
 
 export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla): { subject: string; html: string; text: string } {
@@ -655,7 +798,7 @@ export function plantillaEstadoGenerico(estado: string, vars: VariablesPlantilla
       <strong style="color:${PURPLE};">${label}</strong>.
     </p>
 
-    ${trackerProgreso(estado)}
+    ${trackerProgreso(estado, vars.bodegaKey)}
 
     ${seccionTracking(vars, { mostrarUsaco: true })}
 

@@ -24,17 +24,21 @@ export const TRACKING_LABELS: Record<string, { label: string; emoji: string }> =
   entregado_transporte: { label: 'Entregado',                   emoji: '✅' },
 }
 
-// Pasos principales que siempre se muestran (completos o pendientes)
-export const PASOS_PRINCIPALES = [
-  'reportado',
-  'recibido_miami',
-  'procesado',
-  'transito_internacional',
-  'proceso_aduana',
-  'llego_colombia',
-  'listo_entrega',
-  'entregado',
+// Pasos principales por ciudad
+export const PASOS_PRINCIPALES_MEDELLIN = [
+  'reportado', 'recibido_miami', 'procesado', 'guia_creada',
+  'transito_internacional', 'proceso_aduana', 'llego_colombia',
+  'listo_entrega', 'entregado',
 ] as const
+
+export const PASOS_PRINCIPALES_BOGOTA = [
+  'reportado', 'recibido_miami', 'procesado', 'guia_creada',
+  'transito_internacional', 'proceso_aduana', 'llego_colombia',
+  'en_ruta', 'entregado',
+] as const
+
+// Retrocompatibilidad
+export const PASOS_PRINCIPALES = PASOS_PRINCIPALES_MEDELLIN
 
 // ─── Mapeo estado USACO raw → evento interno ─────────────────────────────────
 export const USACO_ESTADO_A_EVENTO: Record<string, string> = {

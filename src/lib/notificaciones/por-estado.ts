@@ -741,6 +741,69 @@ export async function notificarTrackingActualizado(paqueteId: string): Promise<v
   }
 }
 
+// ─── Notificar estado USACO para paquetes de Bogotá ─────────────────────────
+export async function notificarEstadoUsacoBogota(
+  paqueteId: string,
+  estadoUsaco: string,
+): Promise<void> {
+  // Mapeo de estado USACO raw → estado email interno
+  const USACO_A_EMAIL: Record<string, string> = {
+    'GuiaCreadaColaborador': 'guia_creada',
+    'TransitoInternacional': 'en_transito',
+    'ProcesoDeAduana':       'proceso_aduana',
+    'BodegaDestino':         'llego_colombia',
+    'EnRuta':                'en_ruta',
+    'En ruta transito':      'en_ruta',
+    'EnTransportadora':      'en_ruta',
+    'EntregaFallida':        'entrega_fallida',
+  }
+
+  const estadoEmail = USACO_A_EMAIL[estadoUsaco]
+  if (!estadoEmail) {
+    console.warn(`[notificarEstadoUsacoBogota] Estado USACO "${estadoUsaco}" sin mapeo a email`)
+    return
+  }
+
+  try {
+    const ctx = await cargarContexto(paqueteId, `usaco_bogota_${estadoEmail}`)
+    if (!ctx) return
+    if (!ctx.perfil.email) {
+      console.warn(`[notificarEstadoUsacoBogota] paquete=${paqueteId} sin email — sin notificación`)
+      return
+    }
+
+    const emailRes = await enviarEmailPorEstado(estadoEmail, {
+      emailDestino: ctx.perfil.email,
+      nombre: ctx.vars.nombre,
+      paqueteId,
+      tracking: ctx.vars.tracking,
+      descripcion: ctx.vars.descripcion,
+      tracking_origen: ctx.paquete.tracking_origen,
+      tracking_usaco: ctx.paquete.tracking_usaco,
+      peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras,
+      costo_servicio: ctx.paquete.costo_servicio,
+      bodega_destino: ctx.paquete.bodega_destino,
+      tienda: ctx.paquete.tienda,
+    })
+    console.log(`[notificarEstadoUsacoBogota] paquete=${paqueteId} estadoUsaco=${estadoUsaco} estadoEmail=${estadoEmail} ok=${emailRes.ok}`)
+
+    await logNotificacion(ctx.supabase, {
+      cliente_id: ctx.paquete.cliente_id,
+      paquete_id: paqueteId,
+      tipo: 'usaco_bogota',
+      titulo: `USACO Bogotá: ${estadoUsaco} → ${estadoEmail}`,
+      mensaje: `estado_usaco=${estadoUsaco}`,
+      enviada_whatsapp: false,
+      enviada_email: emailRes.ok,
+      email_message_id: emailRes.messageId ?? null,
+      email_error: emailRes.error ?? null,
+      email_destino: ctx.perfil.email ?? null,
+    })
+  } catch (err) {
+    console.error('[notificarEstadoUsacoBogota] Error:', err)
+  }
+}
+
 // ─── Notificar costo calculado ───────────────────────────────────────────────
 export async function notificarCostoCalculado(paqueteId: string): Promise<void> {
   try {

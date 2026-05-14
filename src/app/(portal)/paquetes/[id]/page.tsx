@@ -251,7 +251,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
             <h2 className="font-semibold text-white">📍 Seguimiento del paquete</h2>
           </div>
           <div className="p-5">
-            <TrackingTimeline eventos={trackingEventos} />
+            <TrackingTimeline eventos={trackingEventos} bodegaKey={paquete.bodega_destino ?? 'medellin'} />
           </div>
         </div>
       </FadeUpScroll>

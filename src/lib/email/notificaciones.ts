@@ -13,6 +13,9 @@ import {
   plantillaTrackingActualizado,
   plantillaEstadoGenerico,
   plantillaPrueba,
+  plantillaPaqueteLlegoColombia,
+  plantillaPaqueteEnRuta,
+  plantillaEntregaFallida,
 } from './plantillas'
 
 const BODEGA_LABELS: Record<string, string> = {
@@ -74,6 +77,7 @@ function buildVars(d: DatosEmail) {
     peso,
     costo,
     bodega,
+    bodegaKey: d.bodega_destino ?? undefined,
     tienda: d.tienda ?? undefined,
     link,
     fotoUrl: d.fotoUrl,
@@ -112,6 +116,17 @@ export async function enviarEmailPorEstado(
       break
     case 'entregado':
       plantilla = plantillaPaqueteEntregado(vars)
+      break
+    case 'llego_colombia':
+      plantilla = plantillaPaqueteLlegoColombia(vars)
+      break
+    case 'en_ruta':
+    case 'en_ruta_transito':
+    case 'en_transportadora':
+      plantilla = plantillaPaqueteEnRuta(vars)
+      break
+    case 'entrega_fallida':
+      plantilla = plantillaEntregaFallida(vars)
       break
     default:
       plantilla = plantillaEstadoGenerico(estadoNuevo, vars)
