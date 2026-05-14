@@ -1,11 +1,12 @@
 // POST /api/admin/usaco/sync-cajas
-// Consulta USACO y actualiza el estado de las cajas en estado 'despachada'
+// Consulta USACO y actualiza estado de cajas + paquetes individuales dentro de ellas
 
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { consultarGuias } from '@/lib/usaco/cliente'
-import { insertarEventoTracking } from '@/lib/usaco/tracking'
+import { USACO_ESTADO_A_EVENTO, insertarEventoTracking } from '@/lib/usaco/tracking'
+import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
 function getAdmin() {
   return createClient(
@@ -25,15 +26,17 @@ async function requireAdmin() {
   return admin
 }
 
-// Estados que indican que la caja ya llegó a Colombia
+// USACO estados que indican que la caja llegó a Colombia
 const ESTADOS_EN_COLOMBIA = new Set([
-  'BodegaDestino',
-  'EnRuta',
-  'En ruta transito',
-  'EnTransportadora',
-  'EntregaFallida',
-  'Entregado',
+  'BodegaDestino', 'EnRuta', 'En ruta transito',
+  'EnTransportadora', 'EntregaFallida', 'Entregado',
 ])
+
+// USACO estados que se ignoran (ya los inserta CeladaShopper)
+const IGNORAR_SIEMPRE = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado'])
+
+// Medellín: solo TransitoInternacional dispara WA+email al cliente
+const MEDELLIN_NOTIFICAR = new Set(['TransitoInternacional'])
 
 export async function POST() {
   const admin = await requireAdmin()
@@ -42,7 +45,7 @@ export async function POST() {
   // 1. Cajas despachadas con tracking USACO
   const { data: cajas, error } = await admin
     .from('cajas_consolidacion')
-    .select('id, codigo_interno, tracking_usaco, estado_usaco')
+    .select('id, codigo_interno, tracking_usaco, estado_usaco, bodega_destino')
     .eq('estado', 'despachada')
     .not('tracking_usaco', 'is', null)
     .neq('tracking_usaco', '')
@@ -54,21 +57,21 @@ export async function POST() {
       ok: true,
       consultadas: 0,
       actualizadas: 0,
-      paquetes_notificados: 0,
+      paquetes_actualizados: 0,
       mensaje: 'No hay cajas despachadas con tracking USACO',
     })
   }
 
-  // 2. Consultar USACO
-  const trackings = cajas.map(c => (c.tracking_usaco as string).trim())
-  const resultados = await consultarGuias(trackings)
+  // 2. Consultar USACO (guías únicas)
+  const trackingsUnicos = [...new Set(cajas.map(c => (c.tracking_usaco as string).trim()))]
+  const resultados = await consultarGuias(trackingsUnicos)
 
   if (resultados.length === 0) {
     return NextResponse.json({
       ok: true,
       consultadas: cajas.length,
       actualizadas: 0,
-      paquetes_notificados: 0,
+      paquetes_actualizados: 0,
       mensaje: 'USACO no devolvió resultados',
     })
   }
@@ -80,86 +83,93 @@ export async function POST() {
       .map(r => [r.guia.trim(), r.estado.trim()])
   )
 
-  let cajasActualizadas = 0
-  let paquetesNotificados = 0
   const ahora = new Date().toISOString()
-  const detalles: { caja: string; estadoUsaco: string; llegoColombia: boolean }[] = []
+  let cajasActualizadas = 0
+  let paquetesActualizados = 0
 
   for (const caja of cajas) {
     const tracking = (caja.tracking_usaco as string).trim()
     const estadoUsaco = estadoMap.get(tracking)
 
-    if (!estadoUsaco) continue
-
-    // Sin cambio — no hacer nada
-    if (estadoUsaco === caja.estado_usaco && !ESTADOS_EN_COLOMBIA.has(estadoUsaco)) {
-      detalles.push({ caja: caja.codigo_interno, estadoUsaco, llegoColombia: false })
-      continue
-    }
+    if (!estadoUsaco || IGNORAR_SIEMPRE.has(estadoUsaco)) continue
 
     const llegoColombia = ESTADOS_EN_COLOMBIA.has(estadoUsaco)
+    const esMedellin = !caja.bodega_destino || caja.bodega_destino === 'medellin'
 
-    // 3. Actualizar estado_usaco siempre; si llegó, también cambiar estado
-    const update: Record<string, unknown> = {
+    // ── 3. Actualizar caja ────────────────────────────────────────────────────
+    const updateCaja: Record<string, unknown> = {
       estado_usaco: estadoUsaco,
       usaco_sync_at: ahora,
     }
     if (llegoColombia) {
-      update.estado = 'recibida_colombia'
-      update.fecha_recepcion_colombia = ahora
+      updateCaja.estado = 'recibida_colombia'
+      updateCaja.fecha_recepcion_colombia = ahora
     }
 
-    const { error: errCaja } = await admin
+    await admin
       .from('cajas_consolidacion')
-      .update(update)
+      .update(updateCaja)
       .eq('id', caja.id)
 
-    if (errCaja) {
-      console.error('[sync-cajas] Error actualizando caja', caja.codigo_interno, errCaja.message)
-      continue
-    }
+    if (estadoUsaco !== caja.estado_usaco) cajasActualizadas++
 
-    cajasActualizadas++
-    detalles.push({ caja: caja.codigo_interno, estadoUsaco, llegoColombia })
-
-    // 4. Si llegó a Colombia → notificar paquetes de la caja
-    if (!llegoColombia) continue
-
+    // ── 4. Cargar paquetes activos de la caja ────────────────────────────────
     const { data: paquetes } = await admin
       .from('paquetes')
-      .select('id')
+      .select('id, estado, estado_usaco, cliente_id, visible_cliente')
       .eq('caja_id', caja.id)
       .not('estado', 'in', '("entregado","devuelto")')
 
     if (!paquetes || paquetes.length === 0) continue
 
-    const paqIds = paquetes.map(p => p.id)
-
-    const { data: yaExisten } = await admin
-      .from('paquetes_tracking')
-      .select('paquete_id')
-      .in('paquete_id', paqIds)
-      .eq('evento', 'llego_colombia')
-
-    const conEvento = new Set((yaExisten ?? []).map(e => e.paquete_id))
-
     for (const paquete of paquetes) {
-      if (conEvento.has(paquete.id)) continue
+      // Sin cambio → skip
+      if (estadoUsaco === paquete.estado_usaco) continue
 
-      await insertarEventoTracking(
-        admin,
-        paquete.id,
-        'llego_colombia',
-        'usaco',
-        `Caja ${caja.codigo_interno} recibida en Colombia`,
-      )
+      const evento = USACO_ESTADO_A_EVENTO[estadoUsaco]
 
-      await admin.from('paquetes').update({
+      // Deduplicar evento en paquetes_tracking
+      let eventoFueNuevo = false
+      if (evento) {
+        const { data: existente } = await admin
+          .from('paquetes_tracking')
+          .select('id')
+          .eq('paquete_id', paquete.id)
+          .eq('evento', evento)
+          .maybeSingle()
+
+        if (!existente) {
+          await insertarEventoTracking(admin, paquete.id, evento, 'usaco')
+          eventoFueNuevo = true
+        }
+      }
+
+      // Actualizar estado_usaco (y estado interno si aplica)
+      const updatePaq: Record<string, unknown> = {
         estado_usaco: estadoUsaco,
         usaco_sync_at: ahora,
-      }).eq('id', paquete.id)
+        updated_at: ahora,
+      }
 
-      paquetesNotificados++
+      // TransitoInternacional → en_transito
+      if (estadoUsaco === 'TransitoInternacional' && paquete.estado !== 'en_transito') {
+        updatePaq.estado = 'en_transito'
+      }
+      // BodegaDestino → en_colombia
+      if (estadoUsaco === 'BodegaDestino' && !['en_colombia', 'en_bodega_local', 'entregado'].includes(paquete.estado)) {
+        updatePaq.estado = 'en_colombia'
+      }
+
+      await admin.from('paquetes').update(updatePaq).eq('id', paquete.id)
+      paquetesActualizados++
+
+      // Notificación al cliente (solo si el evento fue nuevo y el paquete es visible)
+      const esSubPaquete = paquete.visible_cliente === false
+      if (!esSubPaquete && eventoFueNuevo && esMedellin && MEDELLIN_NOTIFICAR.has(estadoUsaco)) {
+        notificarCambioEstado(paquete.id, 'en_transito').catch(err =>
+          console.error(`[sync-cajas] notif paquete=${paquete.id}:`, err)
+        )
+      }
     }
   }
 
@@ -167,7 +177,6 @@ export async function POST() {
     ok: true,
     consultadas: cajas.length,
     actualizadas: cajasActualizadas,
-    paquetes_notificados: paquetesNotificados,
-    detalles,
+    paquetes_actualizados: paquetesActualizados,
   })
 }
