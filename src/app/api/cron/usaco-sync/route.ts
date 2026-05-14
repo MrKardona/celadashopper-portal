@@ -70,17 +70,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, paquetes_consultados: paquetes.length, guias_unicas: guiasUnicas.length, actualizados: 0, mensaje: 'USACO sin respuesta' })
   }
 
+  // Normalizar guía: quitar ceros a la izquierda para comparar
+  // USACO puede devolver '46626' aunque guardemos '0000046626'
+  const norm = (g: string) => g.trim().replace(/^0+/, '') || '0'
+
   // Mapa guia → estado actual en USACO
   const estadoMap = new Map(
     resultados
       .filter(r => r.estado && r.estado !== 'No se encontró el tracking')
-      .map(r => [r.guia.trim(), r.estado.trim()])
+      .map(r => [norm(r.guia), r.estado.trim()])
   )
 
   let actualizados = 0
 
   for (const paquete of paquetes) {
-    const guia = (paquete.tracking_usaco as string).trim()
+    const guia = norm(paquete.tracking_usaco as string)
     const estadoUsaco = estadoMap.get(guia)
 
     // 1. Skip si no hay estado o está en ignorar siempre

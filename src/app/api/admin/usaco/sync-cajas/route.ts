@@ -68,17 +68,21 @@ export async function POST() {
     })
   }
 
+  // Normalizar guía: quitar ceros a la izquierda para comparar
+  // USACO puede devolver '46626' aunque guardemos '0000046626'
+  const norm = (g: string) => g.trim().replace(/^0+/, '') || '0'
+
   const estadoMap = new Map(
     resultados
       .filter(r => r.estado && r.estado !== 'No se encontró el tracking')
-      .map(r => [r.guia.trim(), r.estado.trim()])
+      .map(r => [norm(r.guia), r.estado.trim()])
   )
 
   const ahora = new Date().toISOString()
   let actualizadas = 0
 
   for (const caja of cajas) {
-    const tracking = (caja.tracking_usaco as string).trim()
+    const tracking = norm(caja.tracking_usaco as string)
     const estadoUsaco = estadoMap.get(tracking)
 
     if (!estadoUsaco || IGNORAR_SIEMPRE.has(estadoUsaco)) continue
