@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { verificarAdmin } from '@/lib/auth/admin'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
-import { insertarEventoTracking } from '@/lib/usaco/tracking'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -28,7 +27,8 @@ export async function POST(req: NextRequest, { params }: Props) {
   const trackingUsaco = body.tracking_usaco?.trim()
   if (!trackingUsaco) return NextResponse.json({ error: 'tracking_usaco requerido' }, { status: 400 })
 
-  const debeNotificar = body.notificar !== false
+  // La notificación de tránsito la confirma USACO → default false
+  const debeNotificar = body.notificar === true
   const admin = getSupabaseAdmin()
 
   // Verificar caja cerrada (o abierta — permitimos saltar el cierre)
@@ -93,17 +93,14 @@ export async function POST(req: NextRequest, { params }: Props) {
   await admin.from('eventos_paquete').insert(eventos)
     .then(() => {/* ok */}, (e) => console.error('[caja despachar] eventos:', e))
 
-  // Notificar WhatsApp + email a cada cliente e insertar evento transito_internacional
-  // El evento se inserta siempre (con o sin notificación) para que el cron USACO
-  // lo vea ya existente y no envíe una alerta duplicada de tránsito.
+  // La notificación de tránsito la dispara USACO cuando confirma TransitoInternacional.
+  // El admin solo actualiza el estado interno — no enviamos alerta al cliente aquí.
+  // (debeNotificar queda reservado para uso futuro o notificaciones manuales de admin)
   let notificados = 0
   let fallidos = 0
-  for (const p of paquetes) {
-    if (!p.cliente_id) continue
-    // Marcar en timeline que entró en tránsito internacional (previene dupl. del cron)
-    await insertarEventoTracking(admin, p.id, 'transito_internacional', 'celada',
-      `Caja ${caja.codigo_interno} despachada a Colombia`)
-    if (debeNotificar) {
+  if (debeNotificar) {
+    for (const p of paquetes) {
+      if (!p.cliente_id) continue
       try {
         await notificarCambioEstado(p.id, 'en_transito')
         notificados++
