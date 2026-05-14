@@ -82,11 +82,12 @@ export async function POST() {
     const estadoUsaco = estadoMap.get(tracking)
 
     if (!estadoUsaco || IGNORAR_SIEMPRE.has(estadoUsaco)) continue
-    if (estadoUsaco === caja.estado_usaco) continue   // sin cambio
 
     const llegoColombia = ESTADOS_EN_COLOMBIA.has(estadoUsaco)
+    const huboCambio = estadoUsaco !== caja.estado_usaco
 
-    // 3. Actualizar solo la caja — el trigger propaga a los paquetes
+    // 3. Actualizar la caja — siempre actualizamos usaco_sync_at para registrar
+    //    la consulta. El trigger de DB propaga a paquetes cuando estado_usaco cambia.
     const update: Record<string, unknown> = {
       estado_usaco: estadoUsaco,
       usaco_sync_at: ahora,
@@ -101,7 +102,7 @@ export async function POST() {
       .update(update)
       .eq('id', caja.id)
 
-    if (!errCaja) actualizadas++
+    if (!errCaja && huboCambio) actualizadas++
   }
 
   return NextResponse.json({
