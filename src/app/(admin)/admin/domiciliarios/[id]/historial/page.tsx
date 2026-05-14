@@ -71,12 +71,16 @@ export default async function AdminHistorialDomiciliarioPage({ params }: Props) 
   if (paqIds.length > 0) {
     const { data: fotos } = await admin
       .from('fotos_paquetes')
-      .select('paquete_id, url')
+      .select('paquete_id, url, descripcion')
       .in('paquete_id', paqIds)
-      .ilike('descripcion', '%entrega%')
       .order('created_at', { ascending: false })
+    // Primero pasar: priorizar fotos de entrega
     for (const f of fotos ?? []) {
-      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+      if (!fotosMap[f.paquete_id]) {
+        fotosMap[f.paquete_id] = f.url
+      } else if (f.descripcion?.toLowerCase().includes('entrega')) {
+        fotosMap[f.paquete_id] = f.url // sobreescribir con la de entrega si aparece después
+      }
     }
   }
 
