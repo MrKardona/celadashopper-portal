@@ -35,8 +35,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 
   const body = await req.json()
   const {
-    estado, bodega_destino, categoria, peso_libras, peso_facturable, tarifa_aplicada,
-    costo_servicio, tracking_usaco, notas_cliente, notas_internas, condicion, cantidad, valor_declarado,
+    estado, bodega_destino, categoria, descripcion, peso_libras, peso_facturable, tarifa_aplicada,
+    costo_servicio, tracking_usaco, notas_cliente, condicion, cantidad, valor_declarado,
     notificar, estado_anterior,
   } = body
 
@@ -51,6 +51,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (estado !== undefined) updates.estado = estado
   if (bodega_destino !== undefined) updates.bodega_destino = bodega_destino
   if (categoria !== undefined) updates.categoria = categoria
+  if (descripcion !== undefined) updates.descripcion = descripcion
   if (peso_libras !== undefined) updates.peso_libras = peso_libras
   // peso_facturable: usar el valor calculado por el frontend (que aplica peso_minimo),
   // o caer a peso_libras si no se envió (compatibilidad hacia atrás)
@@ -63,7 +64,6 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (costo_servicio !== undefined) updates.costo_servicio = costo_servicio
   if (tracking_usaco !== undefined) updates.tracking_usaco = tracking_usaco
   if (notas_cliente !== undefined) updates.notas_cliente = notas_cliente
-  if (notas_internas !== undefined) updates.notas_internas = notas_internas
   // condicion y cantidad afectan el cálculo de tarifa — ahora son editables
   if (condicion !== undefined) updates.condicion = condicion
   if (cantidad !== undefined) updates.cantidad = cantidad

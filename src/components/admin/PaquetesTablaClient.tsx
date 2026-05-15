@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle, ZoomIn, ZoomOut, RotateCcw, StickyNote, Check } from 'lucide-react'
+import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle, ZoomIn, ZoomOut, RotateCcw, Pencil } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
@@ -179,94 +179,74 @@ function FotoThumb({ url }: { url: string }) {
   )
 }
 
-function NotasEditor({ paqueteId, notasIniciales }: { paqueteId: string; notasIniciales: string | null }) {
-  const [open, setOpen]   = useState(false)
-  const [texto, setTexto] = useState(notasIniciales ?? '')
+function DescripcionEditor({ paqueteId, descripcionInicial, esDivisionActiva }: {
+  paqueteId: string
+  descripcionInicial: string | null
+  esDivisionActiva: boolean
+}) {
+  const [editando, setEditando] = useState(false)
+  const [texto, setTexto] = useState(descripcionInicial ?? '')
   const [saving, setSaving] = useState(false)
-  const [saved,  setSaved]  = useState(false)
-  const areaRef = useRef<HTMLTextAreaElement>(null)
-  const router  = useRouter()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
-  useEffect(() => { if (open) setTimeout(() => areaRef.current?.focus(), 30) }, [open])
+  useEffect(() => { if (editando) setTimeout(() => inputRef.current?.focus(), 20) }, [editando])
 
   async function guardar() {
+    const limpio = texto.trim()
+    if (limpio === (descripcionInicial ?? '').trim()) { setEditando(false); return }
     setSaving(true)
     try {
       await fetch(`/api/admin/paquetes/${paqueteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notas_internas: texto || null }),
+        body: JSON.stringify({ descripcion: limpio || null }),
       })
-      setSaved(true)
-      setTimeout(() => { setSaved(false); setOpen(false); router.refresh() }, 800)
+      router.refresh()
     } finally {
       setSaving(false)
+      setEditando(false)
     }
   }
 
-  const tieneNota = !!(texto && texto.trim())
+  if (editando) {
+    return (
+      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+        {esDivisionActiva && <Scissors className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#f87171' }} />}
+        <input
+          ref={inputRef}
+          value={texto}
+          onChange={e => setTexto(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); guardar() }
+            if (e.key === 'Escape') { setTexto(descripcionInicial ?? ''); setEditando(false) }
+          }}
+          onBlur={guardar}
+          disabled={saving}
+          className="rounded px-1.5 py-0.5 text-sm text-white outline-none"
+          style={{
+            width: 180,
+            background: 'rgba(99,130,255,0.12)',
+            border: '1px solid rgba(99,130,255,0.45)',
+          }}
+        />
+        {saving && <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />}
+      </div>
+    )
+  }
 
   return (
-    <div className="relative">
+    <div className="flex items-center gap-1 group/desc">
+      {esDivisionActiva && <Scissors className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#f87171' }} />}
+      <p className="truncate max-w-[160px]" style={{ color: `${tw}0.8)` }}>{texto || '—'}</p>
       <button
-        onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(o => !o) }}
-        title={tieneNota ? texto! : 'Agregar nota interna'}
-        className="flex items-center justify-center w-7 h-7 rounded-lg transition-all"
-        style={{
-          color: tieneNota ? '#F5B800' : 'rgba(255,255,255,0.25)',
-          background: tieneNota ? 'rgba(245,184,0,0.12)' : 'transparent',
-          border: tieneNota ? '1px solid rgba(245,184,0,0.25)' : '1px solid transparent',
-        }}
+        onClick={e => { e.preventDefault(); e.stopPropagation(); setEditando(true) }}
+        className="opacity-0 group-hover/desc:opacity-100 flex-shrink-0 p-0.5 rounded transition-opacity hover:bg-white/10"
+        style={{ color: 'rgba(255,255,255,0.35)' }}
+        title="Editar descripción"
       >
-        <StickyNote className="h-3.5 w-3.5" />
+        <Pencil className="h-3 w-3" />
       </button>
-
-      {open && (
-        <div
-          className="absolute right-0 z-50 rounded-xl shadow-2xl overflow-hidden"
-          style={{
-            top: '110%',
-            width: 260,
-            background: 'rgba(18,18,30,0.98)',
-            border: '1px solid rgba(245,184,0,0.25)',
-            backdropFilter: 'blur(16px)',
-          }}
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-3 py-2"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <span className="text-xs font-semibold" style={{ color: '#F5B800' }}>📝 Nota interna</span>
-            <button onClick={() => setOpen(false)} style={{ color: 'rgba(255,255,255,0.35)' }}>
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div className="p-3 space-y-2">
-            <textarea
-              ref={areaRef}
-              value={texto}
-              onChange={e => setTexto(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) guardar() }}
-              rows={3}
-              placeholder="Nota visible solo para admins..."
-              className="w-full rounded-lg px-2.5 py-2 text-xs text-white outline-none resize-none"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={guardar}
-                disabled={saving || saved}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-60"
-                style={saved
-                  ? { background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }
-                  : { background: 'rgba(245,184,0,0.15)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}
-              >
-                {saved ? <><Check className="h-3 w-3" /> Guardado</> : saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><StickyNote className="h-3 w-3" /> Guardar</>}
-              </button>
-              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>⌘+Enter</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -724,11 +704,12 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                       </td>
 
                       <td className="px-4 py-3 hidden md:table-cell">
+                        <DescripcionEditor
+                          paqueteId={p.id}
+                          descripcionInicial={p.descripcion}
+                          esDivisionActiva={esDivisionActiva}
+                        />
                         <Link href={`/admin/paquetes/${p.id}`} className="block">
-                          <div className="flex items-center gap-1.5">
-                            {esDivisionActiva && <Scissors className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#f87171' }} />}
-                            <p className="truncate max-w-[180px]" style={{ color: `${tw}0.8)` }}>{p.descripcion}</p>
-                          </div>
                           <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>{p.tienda}</p>
                           {(p.tracking_origen ?? p.tracking_casilla) && (
                             <p className="text-[11px] font-mono mt-0.5" style={{ color: `${tw}0.28)` }}>
@@ -783,50 +764,47 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                         </div>
                       </td>
 
-                      {/* Acciones: notas + eliminar paquete reportado */}
+                      {/* Acción rápida: eliminar paquete reportado */}
                       <td className="px-2 py-3 w-10">
-                        <div className="flex flex-col items-end gap-1">
-                          <NotasEditor paqueteId={p.id} notasIniciales={p.notas_internas} />
-                          {p.estado === 'reportado' && (
-                            deleteInlineId === p.id ? (
-                              <div className="flex flex-col items-end gap-1">
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    onClick={() => eliminarUno(p.id)}
-                                    disabled={deleteInlinePending}
-                                    className="flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold disabled:opacity-50 transition-all"
-                                    style={{ background: '#ef4444', color: 'white' }}
-                                    title="Confirmar eliminación"
-                                  >
-                                    {deleteInlinePending
-                                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                                      : <Trash2 className="h-3 w-3" />}
-                                  </button>
-                                  <button
-                                    onClick={() => { setDeleteInlineId(null); setDeleteInlineError('') }}
-                                    className="flex items-center justify-center w-7 h-7 rounded-lg transition-all"
-                                    style={{ color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
-                                    title="Cancelar"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                {deleteInlineError && (
-                                  <span className="text-[10px] text-red-400 text-right leading-tight max-w-[80px]">{deleteInlineError}</span>
-                                )}
+                        {p.estado === 'reportado' && (
+                          deleteInlineId === p.id ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => eliminarUno(p.id)}
+                                  disabled={deleteInlinePending}
+                                  className="flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold disabled:opacity-50 transition-all"
+                                  style={{ background: '#ef4444', color: 'white' }}
+                                  title="Confirmar eliminación"
+                                >
+                                  {deleteInlinePending
+                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                    : <Trash2 className="h-3 w-3" />}
+                                </button>
+                                <button
+                                  onClick={() => { setDeleteInlineId(null); setDeleteInlineError('') }}
+                                  className="flex items-center justify-center w-7 h-7 rounded-lg transition-all"
+                                  style={{ color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                  title="Cancelar"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
                               </div>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteInlineId(p.id); setDeleteInlineError('') }}
-                                className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:bg-red-500/20"
-                                style={{ color: 'rgba(239,68,68,0.6)' }}
-                                title="Eliminar paquete reportado"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )
-                          )}
-                        </div>
+                              {deleteInlineError && (
+                                <span className="text-[10px] text-red-400 text-right leading-tight max-w-[80px]">{deleteInlineError}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteInlineId(p.id); setDeleteInlineError('') }}
+                              className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-lg transition-all hover:bg-red-500/20"
+                              style={{ color: 'rgba(239,68,68,0.6)' }}
+                              title="Eliminar paquete reportado"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )
+                        )}
                       </td>
                     </tr>
                   )
