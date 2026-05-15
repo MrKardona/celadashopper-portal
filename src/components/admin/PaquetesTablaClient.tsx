@@ -501,19 +501,25 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                   const esPadreConHijosCompletos = hijosDelPadre.length > 0 &&
                     hijosDelPadre.every(h => ESTADOS_COLOMBIA.has(h.estado))
 
+                  // Es una división activa si es hijo (aún no fusionado) o padre con hijos activos
+                  const esDivisionActiva = esHijo || (hijosDelPadre.length > 0 && !esPadreConHijosCompletos)
+
                   return (
                     <tr
                       key={p.id}
                       className={`group transition-colors ${
                         isSelected
-                          ? 'bg-red-500/[0.07]'
-                          : faltanHermanos
-                            ? 'bg-red-500/[0.05] hover:bg-red-500/[0.08]'
+                          ? 'bg-red-500/[0.12]'
+                          : esDivisionActiva
+                            ? 'bg-red-500/[0.08] hover:bg-red-500/[0.12]'
                             : esPadreConHijosCompletos
                               ? 'bg-emerald-500/[0.04] hover:bg-emerald-500/[0.07]'
                               : `cursor-pointer hover:bg-white/[0.04] ${!p.cliente_id ? 'bg-amber-500/[0.03]' : ''}`
                       }`}
-                      style={{ borderBottom: `1px solid ${tw}0.05)` }}
+                      style={{
+                        borderBottom: `1px solid ${tw}0.05)`,
+                        ...(esDivisionActiva ? { borderLeft: '3px solid rgba(239,68,68,0.7)' } : {}),
+                      }}
                     >
                       {/* Checkbox */}
                       <td className="px-4 py-3 w-10">
@@ -558,10 +564,18 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                             )}
                             {/* Hijo con hermanos pendientes */}
                             {faltanHermanos && (
-                              <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded mt-1 w-fit font-semibold"
-                                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
-                                <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0" />
-                                División · {hermanosEnColombia}/{totalHermanos} partes llegaron
+                              <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded mt-1 w-fit font-bold"
+                                style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)' }}>
+                                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                                ✂ División · {hermanosEnColombia}/{totalHermanos} llegaron
+                              </span>
+                            )}
+                            {/* Hijo pero sin dato de hermanos (nueva división) */}
+                            {esHijo && totalHermanos === 0 && (
+                              <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded mt-1 w-fit font-bold"
+                                style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)' }}>
+                                <Scissors className="h-3 w-3 flex-shrink-0" />
+                                ✂ División
                               </span>
                             )}
                             {/* Hijo cuyas hermanos ya llegaron todos */}
@@ -570,6 +584,14 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                                 style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
                                 <Scissors className="h-2.5 w-2.5 flex-shrink-0" />
                                 División completa
+                              </span>
+                            )}
+                            {/* Padre con hijos activos */}
+                            {hijosDelPadre.length > 0 && !esPadreConHijosCompletos && (
+                              <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded mt-1 w-fit font-bold"
+                                style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)' }}>
+                                <Scissors className="h-3 w-3 flex-shrink-0" />
+                                ✂ Dividido · {hijosDelPadre.length} partes
                               </span>
                             )}
                             {/* Padre con todos los hijos llegados */}
@@ -611,7 +633,7 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                       <td className="px-4 py-3 hidden md:table-cell">
                         <Link href={`/admin/paquetes/${p.id}`} className="block">
                           <div className="flex items-center gap-1.5">
-                            {esHijo && <Scissors className="h-3 w-3 flex-shrink-0" style={{ color: faltanHermanos ? '#f87171' : `${tw}0.3)` }} />}
+                            {esDivisionActiva && <Scissors className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#f87171' }} />}
                             <p className="truncate max-w-[180px]" style={{ color: `${tw}0.8)` }}>{p.descripcion}</p>
                           </div>
                           <p className="text-xs mt-0.5" style={{ color: `${tw}0.35)` }}>{p.tienda}</p>
