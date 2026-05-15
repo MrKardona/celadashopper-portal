@@ -108,14 +108,21 @@ export default async function AdminDashboard() {
     { label: 'Clientes activos',   value: totalClientes,     icon: Users,        iconBg: 'rgba(52,211,153,0.12)', iconColor: '#6ee7b7' },
   ]
 
-  const reportados = conteo['reportado'] ?? 0
-  const recibidosUsa = (conteo['recibido_usa'] ?? 0) + (conteo['en_consolidacion'] ?? 0) + (conteo['listo_envio'] ?? 0)
+  const DONUT_ESTADOS = [
+    { key: 'reportado',         nombre: 'Reportado',     color: '#94a3b8', grupo: '🇺🇸 USA' },
+    { key: 'recibido_usa',      nombre: 'Recibido USA',  color: '#8899ff', grupo: '🇺🇸 USA' },
+    { key: 'en_consolidacion',  nombre: 'Consolidando',  color: '#F5B800', grupo: '🇺🇸 USA' },
+    { key: 'listo_envio',       nombre: 'Listo envío',   color: '#c084fc', grupo: '🇺🇸 USA' },
+    { key: 'en_transito',       nombre: 'En tránsito',   color: '#fb923c', grupo: '✈️ Tránsito' },
+    { key: 'en_colombia',       nombre: 'En Colombia',   color: '#22d3ee', grupo: '✈️ Tránsito' },
+    { key: 'en_bodega_local',   nombre: 'Bodega CO',     color: '#818cf8', grupo: '🇨🇴 Colombia' },
+    { key: 'en_camino_cliente', nombre: 'En camino',     color: '#a3e635', grupo: '🇨🇴 Colombia' },
+    { key: 'retenido',          nombre: 'Retenido',      color: '#f87171', grupo: '🇨🇴 Colombia' },
+  ]
 
-  const datosDonut = [
-    { nombre: 'Reportados',        valor: reportados,   color: '#94a3b8' },
-    { nombre: 'Recibidos en USA',  valor: recibidosUsa, color: '#22c55e' },
-    { nombre: 'En tránsito intl.', valor: enTransito,   color: '#a855f7' },
-  ].filter(d => d.valor > 0)
+  const datosDonut = DONUT_ESTADOS
+    .map(d => ({ nombre: d.nombre, valor: conteo[d.key] ?? 0, color: d.color, grupo: d.grupo }))
+    .filter(d => d.valor > 0)
 
   // Recepciones USA — últimos 14 días
   const recepcionesPorDia: Record<string, number> = {}

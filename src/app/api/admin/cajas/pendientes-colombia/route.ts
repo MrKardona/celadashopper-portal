@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data: cajas, error } = await admin
     .from('cajas_consolidacion')
-    .select('id, codigo_interno, tracking_usaco, courier, bodega_destino, peso_estimado, peso_real, fecha_despacho, estado, created_at')
+    .select('id, codigo_interno, tracking_usaco, courier, bodega_destino, peso_estimado, peso_real, fecha_despacho, estado, estado_usaco, created_at')
     .in('estado', ['despachada', 'cerrada'])
     .order('fecha_despacho', { ascending: true })
 
@@ -26,19 +26,27 @@ export async function GET() {
 
   if (!cajas?.length) return NextResponse.json({ cajas: [] })
 
-  // Conteo de paquetes por caja
+  // Conteo de paquetes por caja + breakdown de estados
   const cajaIds = cajas.map(c => c.id)
   const { data: paquetes } = await admin
     .from('paquetes')
-    .select('caja_id')
+    .select('caja_id, estado')
     .in('caja_id', cajaIds)
 
   const conteo: Record<string, number> = {}
+  const estadosPorCaja: Record<string, Record<string, number>> = {}
   for (const p of paquetes ?? []) {
-    if (p.caja_id) conteo[p.caja_id] = (conteo[p.caja_id] ?? 0) + 1
+    if (!p.caja_id) continue
+    conteo[p.caja_id] = (conteo[p.caja_id] ?? 0) + 1
+    if (!estadosPorCaja[p.caja_id]) estadosPorCaja[p.caja_id] = {}
+    estadosPorCaja[p.caja_id][p.estado] = (estadosPorCaja[p.caja_id][p.estado] ?? 0) + 1
   }
 
   return NextResponse.json({
-    cajas: cajas.map(c => ({ ...c, paquetes_count: conteo[c.id] ?? 0 })),
+    cajas: cajas.map(c => ({
+      ...c,
+      paquetes_count: conteo[c.id] ?? 0,
+      estados_paquetes: estadosPorCaja[c.id] ?? {},
+    })),
   })
 }

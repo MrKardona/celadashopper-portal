@@ -51,8 +51,25 @@ interface CajaPendiente {
   peso_real: number | null
   fecha_despacho: string | null
   estado: string
+  estado_usaco: string | null
   created_at: string
   paquetes_count: number
+  estados_paquetes: Record<string, number>
+}
+
+const USACO_STYLE: Record<string, { bg: string; color: string; border: string; label: string; emoji: string }> = {
+  'GuiaCreadaColaborador': { bg: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)',  border: 'rgba(255,255,255,0.08)', label: 'Guía creada',                 emoji: '🏷️' },
+  'Pre-Alertado':          { bg: 'rgba(99,130,255,0.1)',  color: '#8899ff',                 border: 'rgba(99,130,255,0.2)',   label: 'Pre-alertado',               emoji: '📋' },
+  'RecibidoOrigen':        { bg: 'rgba(99,130,255,0.12)', color: '#8899ff',                 border: 'rgba(99,130,255,0.25)',  label: 'En bodega Miami',            emoji: '📦' },
+  'IncluidoEnGuia':        { bg: 'rgba(168,85,247,0.12)', color: '#c084fc',                 border: 'rgba(168,85,247,0.25)',  label: 'Incluido en guía',           emoji: '🏷️' },
+  'TransitoInternacional': { bg: 'rgba(245,184,0,0.15)',  color: '#F5B800',                 border: 'rgba(245,184,0,0.3)',    label: 'Tránsito internacional',     emoji: '✈️' },
+  'ProcesoDeAduana':       { bg: 'rgba(251,146,60,0.15)', color: '#fb923c',                 border: 'rgba(251,146,60,0.3)',   label: 'En aduana',                  emoji: '🛃' },
+  'BodegaDestino':         { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'Llegó a Colombia',            emoji: '🇨🇴' },
+  'EnRuta':                { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'En ruta de entrega',          emoji: '🛵' },
+  'En ruta transito':      { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'En camino transportadora',    emoji: '🚚' },
+  'EnTransportadora':      { bg: 'rgba(52,211,153,0.12)', color: '#34d399',                 border: 'rgba(52,211,153,0.25)', label: 'Con transportadora',          emoji: '📬' },
+  'EntregaFallida':        { bg: 'rgba(239,68,68,0.12)',  color: '#f87171',                 border: 'rgba(239,68,68,0.25)',  label: 'Entrega fallida',             emoji: '⚠️' },
+  'Entregado':             { bg: 'rgba(52,211,153,0.15)', color: '#34d399',                 border: 'rgba(52,211,153,0.3)',  label: 'Entregado',                   emoji: '✅' },
 }
 
 const ESTADO_DARK: Record<string, { bg: string; color: string; border: string }> = {
@@ -582,12 +599,35 @@ export default function RecibirColombiaForm() {
                       style={{ color: `${tw}0.3)`, transform: expandido ? 'rotate(180deg)' : 'rotate(0deg)' }}
                     />
 
-                    {/* Tracking USACO */}
+                    {/* Tracking USACO + estado USACO de la caja */}
                     <div className="min-w-0 pr-2">
                       <p className="font-mono text-sm font-bold text-white truncate">
                         {c.tracking_usaco ?? <span style={{ color: `${tw}0.3)`, fontStyle: 'italic', fontWeight: 400 }}>Sin tracking</span>}
                       </p>
-                      <p className="text-[11px] truncate" style={{ color: `${tw}0.3)` }}>{c.codigo_interno}</p>
+                      <p className="text-[11px] truncate" style={{ color: `${tw}0.28)` }}>{c.codigo_interno}</p>
+                      {/* Badge USACO de la caja */}
+                      {c.estado_usaco && (() => {
+                        const esInconsistencia = c.estado_usaco.toLowerCase().includes('inconsistencia')
+                        const u = !esInconsistencia ? (USACO_STYLE[c.estado_usaco] ?? null) : null
+                        if (esInconsistencia) return (
+                          <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                            style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' }}>
+                            ⚠️ Inconsistencia
+                          </span>
+                        )
+                        if (u) return (
+                          <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                            style={{ background: u.bg, color: u.color, border: `1px solid ${u.border}` }}>
+                            {u.emoji} {u.label}
+                          </span>
+                        )
+                        return (
+                          <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                            style={{ background: `${tw}0.06)`, color: `${tw}0.4)`, border: `1px solid ${tw}0.1)` }}>
+                            {c.estado_usaco}
+                          </span>
+                        )
+                      })()}
                     </div>
 
                     {/* Paquetes */}

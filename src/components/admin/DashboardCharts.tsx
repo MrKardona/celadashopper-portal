@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import { PieChart as PieIcon, BarChart3, CheckCircle2 } from 'lucide-react'
 
-interface DatoDonut { nombre: string; valor: number; color: string }
+interface DatoDonut { nombre: string; valor: number; color: string; grupo?: string }
 interface DatoBarra { fecha: string; count: number }
 interface Props {
   datosDonut: DatoDonut[]
@@ -85,30 +85,61 @@ export default function DashboardCharts({ datosDonut, datosBarras, datosEntregad
             <div className="text-center py-12 text-sm" style={{ color: `${tw}0.35)` }}>Sin datos para mostrar</div>
           ) : (
             <div className="relative">
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={datosDonut} dataKey="valor" nameKey="nombre" cx="50%" cy="50%" innerRadius={55} outerRadius={88} paddingAngle={2} strokeWidth={0}>
+                  <Pie
+                    data={datosDonut}
+                    dataKey="valor"
+                    nameKey="nombre"
+                    cx="50%" cy="50%"
+                    innerRadius={52} outerRadius={82}
+                    paddingAngle={datosDonut.length > 4 ? 1.5 : 2}
+                    strokeWidth={0}
+                  >
                     {datosDonut.map((d) => <Cell key={d.nombre} fill={d.color} />)}
                   </Pie>
                   <Tooltip content={<CustomTooltipDonut />} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-3xl font-bold text-white">{totalDonut}</span>
-                <span className="text-[11px] uppercase tracking-wide" style={{ color: `${tw}0.4)` }}>activos</span>
+              {/* Centro del donut */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ top: 0, height: 200 }}>
+                <span className="text-3xl font-bold text-white tabular-nums">{totalDonut}</span>
+                <span className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: `${tw}0.4)` }}>activos</span>
               </div>
-              <div className="mt-3 space-y-1.5">
-                {datosDonut.map(d => (
-                  <div key={d.nombre} className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: d.color }} />
-                      <span style={{ color: `${tw}0.65)` }}>{d.nombre}</span>
-                    </span>
-                    <span className="font-semibold text-white">
-                      {d.valor} <span style={{ color: `${tw}0.35)` }} className="font-normal">({Math.round((d.valor / totalDonut) * 100)}%)</span>
-                    </span>
-                  </div>
-                ))}
+
+              {/* Leyenda agrupada por fase */}
+              <div className="mt-4 space-y-3">
+                {(() => {
+                  const grupos: Record<string, DatoDonut[]> = {}
+                  for (const d of datosDonut) {
+                    const g = d.grupo ?? 'Otros'
+                    if (!grupos[g]) grupos[g] = []
+                    grupos[g].push(d)
+                  }
+                  return Object.entries(grupos).map(([grupo, items]) => (
+                    <div key={grupo}>
+                      <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: `${tw}0.22)` }}>
+                        {grupo}
+                      </p>
+                      <div className="space-y-1">
+                        {items.map(d => (
+                          <div key={d.nombre} className="flex items-center justify-between text-xs">
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <span className="h-2 w-2 rounded-sm flex-shrink-0" style={{ backgroundColor: d.color }} />
+                              <span className="truncate" style={{ color: `${tw}0.6)` }}>{d.nombre}</span>
+                            </span>
+                            <span className="ml-2 font-semibold tabular-nums flex-shrink-0" style={{ color: 'white' }}>
+                              {d.valor}
+                              <span className="font-normal ml-1" style={{ color: `${tw}0.3)` }}>
+                                {Math.round((d.valor / totalDonut) * 100)}%
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()}
               </div>
             </div>
           )}

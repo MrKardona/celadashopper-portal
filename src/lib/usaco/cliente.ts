@@ -36,8 +36,6 @@ export async function consultarGuias(guias: string[]): Promise<UsacoGuia[]> {
         continue
       }
       const data = await res.json() as UsacoGuia[]
-      // Log temporal para inspeccionar campos completos de USACO
-      if (data.length > 0) console.log('[USACO raw sample]', JSON.stringify(data[0]))
       results.push(...data)
     } catch (err) {
       console.error('[USACO] Error en batch:', err)
