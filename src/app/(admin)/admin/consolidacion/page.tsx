@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Layers } from 'lucide-react'
 import { fechaCorta } from '@/lib/fecha'
+import ArmarCajaDesdeConsolidacion from '@/components/admin/ArmarCajaDesdeConsolidacion'
 
 const tw = 'rgba(255,255,255,'
 
@@ -409,11 +410,20 @@ function GrupoCard({ grupo, bodegaGrupo, accentColor = 'purple' }: { grupo: Grup
             style={{ color: '#F5B800' }}>
             Ver todos sus paquetes →
           </Link>
-          <Link href={secondLinkHref}
-            className="text-sm font-semibold transition-colors hover:opacity-80"
-            style={{ color: secondLinkColor }}>
-            {secondLinkLabel}
-          </Link>
+          {isGreen ? (
+            <Link href={secondLinkHref}
+              className="text-sm font-semibold transition-colors hover:opacity-80"
+              style={{ color: secondLinkColor }}>
+              {secondLinkLabel}
+            </Link>
+          ) : (
+            <ArmarCajaDesdeConsolidacion
+              paqueteIds={paquetes.map(p => p.id)}
+              bodega={bodega ?? 'medellin'}
+              pesoTotal={pesoTotal}
+              accentColor={accentColor}
+            />
+          )}
         </div>
       </div>
     </div>
