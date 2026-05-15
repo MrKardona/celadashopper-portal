@@ -54,7 +54,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id')
+    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, notas_internas, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id')
     .order('created_at', { ascending: false })
     .limit(q ? 500 : limite)  // sin límite estricto al buscar
 
@@ -151,6 +151,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
     fotoUrl: fotosMap[p.id] ?? null,
     paquete_origen_id: p.paquete_origen_id ?? null,
+    notas_internas: p.notas_internas ?? null,
   }))
 
   const selectClass = "glass-input text-sm px-3 py-2 rounded-xl"
