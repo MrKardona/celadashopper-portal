@@ -10,6 +10,9 @@ export interface UsacoGuia {
   casillero: string
 }
 
+// USACO trabaja sin ceros a la izquierda: "0000046377" → "46377"
+const normGuia = (g: string) => g.trim().replace(/^0+/, '') || '0'
+
 export async function consultarGuias(guias: string[]): Promise<UsacoGuia[]> {
   if (guias.length === 0) return []
 
@@ -19,7 +22,8 @@ export async function consultarGuias(guias: string[]): Promise<UsacoGuia[]> {
 
   // Máximo 100 por request según la documentación
   for (let i = 0; i < guias.length; i += 100) {
-    const batch = guias.slice(i, i + 100)
+    // Quitar ceros antes de enviar — USACO no los reconoce con padding
+    const batch = guias.slice(i, i + 100).map(normGuia)
     try {
       const res = await fetch(USACO_URL, {
         method: 'POST',
