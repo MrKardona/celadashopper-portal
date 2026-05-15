@@ -25,11 +25,6 @@ async function requireAdmin() {
   return admin
 }
 
-const ESTADOS_EN_COLOMBIA = new Set([
-  'BodegaDestino', 'EnRuta', 'En ruta transito',
-  'EnTransportadora', 'EntregaFallida', 'Entregado',
-])
-
 const IGNORAR_SIEMPRE = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado'])
 
 export async function POST() {
@@ -87,18 +82,14 @@ export async function POST() {
 
     if (!estadoUsaco || IGNORAR_SIEMPRE.has(estadoUsaco)) continue
 
-    const llegoColombia = ESTADOS_EN_COLOMBIA.has(estadoUsaco)
     const huboCambio = estadoUsaco !== caja.estado_usaco
 
-    // 3. Actualizar la caja — siempre actualizamos usaco_sync_at para registrar
-    //    la consulta. El trigger de DB propaga a paquetes cuando estado_usaco cambia.
+    // 3. Actualizar la caja — solo estado_usaco y usaco_sync_at.
+    //    El estado de la caja (despachada → recibida_colombia) lo maneja el admin manualmente.
+    //    El trigger de DB propaga estado_usaco a los paquetes cuando cambia.
     const update: Record<string, unknown> = {
       estado_usaco: estadoUsaco,
       usaco_sync_at: ahora,
-    }
-    if (llegoColombia) {
-      update.estado = 'recibida_colombia'
-      update.fecha_recepcion_colombia = ahora
     }
 
     const { error: errCaja } = await admin
