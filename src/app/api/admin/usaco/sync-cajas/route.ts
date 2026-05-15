@@ -63,24 +63,15 @@ export async function POST() {
     })
   }
 
-  // DEBUG TEMPORAL — ver qué devuelve USACO exactamente
-  const debug_muestra = resultados.slice(0, 5).map(r => ({
-    guia_raw: r.guia,
-    estado_raw: r.estado,
-    tracking_raw: r.tracking,
-  }))
-  const debug_trackings_enviados = trackingsUnicos.slice(0, 5)
-
   // Normalizar guía: quitar ceros a la izquierda para comparar
   // USACO puede devolver '46626' aunque guardemos '0000046626'
   const norm = (g: string) => g.trim().replace(/^0+/, '') || '0'
 
-  const resultadosValidos = resultados.filter(
-    r => r.estado && !r.estado.toLowerCase().includes('no se encontró')
-  )
-
+  // Ignorar "no encontrado" — las inconsistencias SÍ se guardan (solo admin las ve)
   const estadoMap = new Map(
-    resultadosValidos.map(r => [norm(r.guia), r.estado.trim()])
+    resultados
+      .filter(r => r.estado && !r.estado.toLowerCase().includes('no se encontró'))
+      .map(r => [norm(r.guia), r.estado.trim()])
   )
 
   const ahora = new Date().toISOString()
@@ -114,13 +105,5 @@ export async function POST() {
     ok: true,
     consultadas: cajas.length,
     actualizadas,
-    // DEBUG — borrar después de verificar
-    debug: {
-      total_resultados_usaco: resultados.length,
-      resultados_validos: resultadosValidos.length,
-      muestra_usaco: debug_muestra,
-      trackings_enviados_muestra: debug_trackings_enviados,
-      estados_en_mapa: estadoMap.size,
-    },
   })
 }
