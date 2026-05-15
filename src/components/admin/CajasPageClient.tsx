@@ -140,7 +140,8 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
     const isSelected = selectedId === caja.id
     // Usar estado_usaco de la caja directamente (actualizado por sync)
     const usacoEstado = caja.estado_usaco ?? estadoUsacoMap[caja.id]
-    const usacoStyle = usacoEstado ? (USACO_STYLE[usacoEstado] ?? null) : null
+    const tieneInconsistencia = !!usacoEstado && usacoEstado.toLowerCase().includes('inconsistencia')
+    const usacoStyle = usacoEstado && !tieneInconsistencia ? (USACO_STYLE[usacoEstado] ?? null) : null
 
     const esManejo = caja.tipo === 'manejo'
 
@@ -229,6 +230,18 @@ export default function CajasPageClient({ cajas, conteoMap, estadoUsacoMap }: Pr
             )}
           </div>
         </div>
+
+        {/* Banner inconsistencia USACO — solo visible para el admin */}
+        {tieneInconsistencia && (
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
+              style={{ background: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.35)' }}>
+              <span className="text-sm leading-none">⚠️</span>
+              <span className="flex-1">Inconsistencia reportada por USACO</span>
+              <span className="text-[10px] opacity-60 font-normal">Revisar</span>
+            </div>
+          </div>
+        )}
 
         {/* Banner USACO — estado actual del envío */}
         {usacoStyle && (
