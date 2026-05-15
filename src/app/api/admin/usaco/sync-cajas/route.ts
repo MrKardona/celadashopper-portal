@@ -69,7 +69,7 @@ export async function POST() {
 
   const estadoMap = new Map(
     resultados
-      .filter(r => r.estado && r.estado !== 'No se encontró el tracking')
+      .filter(r => r.estado && !r.estado.toLowerCase().includes('no se encontró'))
       .map(r => [norm(r.guia), r.estado.trim()])
   )
 
