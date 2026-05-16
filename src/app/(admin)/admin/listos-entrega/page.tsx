@@ -7,6 +7,7 @@ import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 import AsignarDomiciliarioButton from '@/components/admin/AsignarDomiciliarioButton'
 import LimitSelector from '@/components/ui/LimitSelector'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
@@ -95,6 +96,19 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
       if (!p.cliente_id) continue
       if (!pendientesPorCliente[p.cliente_id]) pendientesPorCliente[p.cliente_id] = []
       pendientesPorCliente[p.cliente_id].push(p)
+    }
+  }
+
+  // Primera foto por paquete
+  const fotosMap: Record<string, string> = {}
+  if (lista.length > 0) {
+    const { data: fotos } = await supabase
+      .from('fotos_paquetes')
+      .select('paquete_id, url')
+      .in('paquete_id', lista.map(p => p.id))
+      .order('created_at', { ascending: true })
+    for (const f of fotos ?? []) {
+      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
     }
   }
 
@@ -210,8 +224,19 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                 {/* Barra de acento superior */}
                 <div className="h-[3px] w-full flex-shrink-0" style={{ background: accentGrad }} />
 
-                {/* Body: info + acciones */}
+                {/* Body: thumbnail + info + acciones */}
                 <div className="flex flex-1 min-h-0">
+
+                  {/* Miniatura */}
+                  <div className="flex-shrink-0 p-3 pr-0 flex items-start pt-4">
+                    <FotoThumb
+                      url={fotosMap[p.id] ?? null}
+                      alt={p.descripcion ?? ''}
+                      width={54}
+                      height={54}
+                      radius="0.5rem"
+                    />
+                  </div>
 
                   {/* ── Panel izquierdo: info ───────────────────────── */}
                   <div className="flex-1 min-w-0 p-4 space-y-2.5">
