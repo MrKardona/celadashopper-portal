@@ -86,7 +86,7 @@ function Modal({ domiciliarioId, domiciliarioNombre, onClose }: Props & { onClos
   const [direccion, setDireccion] = useState('')
   const [telefono,  setTelefono]  = useState('')
   const [notas,     setNotas]     = useState('')
-  const [tipo,      setTipo]      = useState<'personal' | 'servicios' | 'productos'>('productos')
+  const [tipo,      setTipo]      = useState<'personal' | 'servicios' | 'productos'>('servicios')
   const [guardando, setGuardando] = useState(false)
   const [error,     setError]     = useState('')
   const [exito,     setExito]     = useState(false)
