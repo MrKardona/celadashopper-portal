@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Box } from 'lucide-react'
 import NuevaCajaButton from '@/components/admin/NuevaCajaButton'
 import SugerirArmadoButton from '@/components/admin/SugerirArmadoButton'
+import SyncCajasUsacoButton from '@/components/admin/SyncCajasUsacoButton'
 import CajasPageClient from '@/components/admin/CajasPageClient'
 
 const tw = 'rgba(255,255,255,'
@@ -57,7 +58,8 @@ export default async function CajasPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap items-start">
-<SugerirArmadoButton />
+          <SyncCajasUsacoButton />
+          <SugerirArmadoButton />
           <NuevaCajaButton />
         </div>
       </div>
