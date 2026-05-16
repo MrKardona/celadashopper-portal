@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { ESTADO_LABELS, ESTADO_COLORES, type EstadoPaquete } from '@/types'
 import { FadeUp, FadeUpScroll, StaggerGrid, StaggerGridScroll, StaggerItem, StaggerItemMount } from '@/components/portal/AnimateIn'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 /* ── Badge de estado ── */
 function EstadoBadge({ estado }: { estado: EstadoPaquete }) {
@@ -40,6 +41,16 @@ export default async function DashboardPage() {
     .from('paquetes').select('*').eq('cliente_id', user!.id)
     .is('paquete_origen_id', null)   // excluir divisiones
     .order('created_at', { ascending: false }).limit(5)
+
+  // Fotos de los paquetes recientes
+  const paqueteIds = paquetes?.map(p => p.id) ?? []
+  const { data: fotos } = paqueteIds.length > 0
+    ? await supabase.from('fotos_paquetes').select('paquete_id, url').in('paquete_id', paqueteIds).order('created_at')
+    : { data: [] as { paquete_id: string; url: string }[] }
+  const fotosMap: Record<string, string> = {}
+  for (const f of fotos ?? []) {
+    if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+  }
 
   const { data: todos } = await supabase
     .from('paquetes').select('estado').eq('cliente_id', user!.id)
@@ -168,11 +179,19 @@ export default async function DashboardPage() {
                 <StaggerItem key={paquete.id} index={i}>
                   <Link
                     href={`/paquetes/${paquete.id}`}
-                    className="flex items-center justify-between px-5 py-3.5 transition-all group"
+                    className="flex items-center gap-3 px-5 py-3.5 transition-all group"
                     style={{
                       borderBottom: i < paquetes.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     }}
                   >
+                    {/* Miniatura — stopPropagation interno, no navega */}
+                    <FotoThumb
+                      url={fotosMap[paquete.id] ?? null}
+                      alt={paquete.descripcion ?? ''}
+                      width={44}
+                      height={44}
+                      radius="0.5rem"
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate group-hover:text-yellow-300 transition-colors">
                         {paquete.descripcion}
@@ -187,7 +206,7 @@ export default async function DashboardPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-4 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <EstadoBadge estado={paquete.estado as EstadoPaquete} />
                       <ChevronRight className="h-3.5 w-3.5" style={{ color: `${tw}0.2)` }} />
                     </div>
