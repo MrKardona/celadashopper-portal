@@ -36,7 +36,6 @@ const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
       { href: '/admin/clientes',        label: 'Clientes',        icon: Users,      exact: false },
       { href: '/admin/domiciliarios',   label: 'Domiciliarios',   icon: Bike,       exact: false },
       { href: '/admin/tarifas',         label: 'Tarifas',         icon: DollarSign, exact: false },
-      { href: '/admin/usaco-comparar',  label: 'Auditoría USACO', icon: ScanBarcode, exact: false },
     ],
   },
 ]
