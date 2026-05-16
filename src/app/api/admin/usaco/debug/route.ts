@@ -51,9 +51,13 @@ export async function GET() {
     estado_usaco_db: c.estado_usaco,
   }))
 
-  // 2. Preparar guías normalizadas (quitando ceros)
-  const norm = (g: string) => g.trim().replace(/^0+/, '') || '0'
-  const guiasNormalizadas = [...new Set(cajas.map(c => norm(c.tracking_usaco as string)))]
+  // 2. Solo guías numéricas, enviadas tal cual (con ceros)
+  const esNumerico = (g: string) => /^\d+$/.test(g.trim())
+  const guiasNormalizadas = [...new Set(
+    cajas
+      .filter(c => esNumerico(c.tracking_usaco as string))
+      .map(c => (c.tracking_usaco as string).trim())
+  )]
 
   // 3. Llamar a USACO y guardar respuesta RAW
   let rawResponse: unknown = null

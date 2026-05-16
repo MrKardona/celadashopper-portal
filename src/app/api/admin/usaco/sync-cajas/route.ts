@@ -86,19 +86,24 @@ export async function POST() {
     })
   }
 
-  // 2. Consultar USACO
-  const trackingsUnicos = [...new Set(cajas.map(c => (c.tracking_usaco as string).trim()))]
+  // Solo cajas con tracking numérico válido
+  const esNumerico = (g: string) => /^\d+$/.test(g.trim())
+  const cajasValidas = cajas.filter(c => esNumerico(c.tracking_usaco as string))
+
+  // 2. Consultar USACO — enviamos los números tal cual (con ceros incluidos)
+  const trackingsUnicos = [...new Set(cajasValidas.map(c => (c.tracking_usaco as string).trim()))]
   const resultados = await consultarGuias(trackingsUnicos)
 
   if (resultados.length === 0) {
     return NextResponse.json({
-      ok: true, consultadas: cajas.length, actualizadas: 0,
+      ok: true, consultadas: cajasValidas.length, actualizadas: 0,
       mensaje: 'USACO no devolvió resultados',
     })
   }
 
+  // Mapa guia → estado (la guía puede venir con o sin ceros en la respuesta)
+  // Normalizamos SOLO para el lookup, comparando sin ceros en ambos lados
   const norm = (g: string) => g.trim().replace(/^0+/, '') || '0'
-
   const estadoMap = new Map(
     resultados
       .filter(r => r.estado && !r.estado.toLowerCase().includes('no se encontró'))
@@ -109,8 +114,8 @@ export async function POST() {
   let cajasActualizadas = 0
   let paquetesAvanzados = 0
 
-  for (const caja of cajas) {
-    const tracking   = norm(caja.tracking_usaco as string)
+  for (const caja of cajasValidas) {
+    const tracking    = norm(caja.tracking_usaco as string)
     const estadoUsaco = estadoMap.get(tracking)
 
     if (!estadoUsaco || IGNORAR.has(estadoUsaco)) continue

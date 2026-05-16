@@ -10,8 +10,8 @@ export interface UsacoGuia {
   casillero: string
 }
 
-// USACO trabaja sin ceros a la izquierda: "0000046377" → "46377"
-const normGuia = (g: string) => g.trim().replace(/^0+/, '') || '0'
+// Solo envía números reales (descarta textos como "PENDIENTE POR REVISAR")
+const esNumeroGuia = (g: string) => /^\d+$/.test(g.trim())
 
 export async function consultarGuias(guias: string[]): Promise<UsacoGuia[]> {
   if (guias.length === 0) return []
@@ -20,9 +20,13 @@ export async function consultarGuias(guias: string[]): Promise<UsacoGuia[]> {
   const password = process.env.USACO_PASSWORD ?? ''
   const results: UsacoGuia[] = []
 
+  // Filtrar solo guías numéricas y enviar TAL CUAL (con ceros) — USACO los necesita
+  const soloNumericas = guias.filter(esNumeroGuia)
+  if (soloNumericas.length === 0) return []
+
   // Máximo 100 por request según la documentación
-  for (let i = 0; i < guias.length; i += 100) {
-    const batch = guias.slice(i, i + 100).map(normGuia)
+  for (let i = 0; i < soloNumericas.length; i += 100) {
+    const batch = soloNumericas.slice(i, i + 100).map(g => g.trim())
     try {
       const res = await fetch(USACO_URL, {
         method: 'POST',
