@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
-import { Bike, Package, Phone, Eye, History, TableProperties } from 'lucide-react'
+import { Bike, Phone, Eye, History, TableProperties } from 'lucide-react'
 import Link from 'next/link'
 import NuevoDomiciliarioModal from '@/components/admin/NuevoDomiciliarioModal'
 import NuevoDomicilioManualModal from '@/components/admin/NuevoDomicilioManualModal'
@@ -203,8 +203,8 @@ export default async function DomiciliariosPage() {
                 {/* ── Separador ───────────────────────────────────── */}
                 <div className="mx-4" style={{ height: '1px', background: `${tw}0.06)` }} />
 
-                {/* ── Acciones de navegación (3 columnas) ─────────── */}
-                <div className="px-4 pt-3 pb-2 grid grid-cols-3 gap-2">
+                {/* ── Acciones de navegación (2 columnas) ─────────── */}
+                <div className="px-4 pt-3 pb-2 grid grid-cols-2 gap-2">
                   <Link
                     href={`/admin/domiciliarios/${d.id}`}
                     className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl text-[11px] font-medium transition-all"
@@ -216,18 +216,6 @@ export default async function DomiciliariosPage() {
                   >
                     <Eye className="h-4 w-4" />
                     Ver entregas
-                  </Link>
-                  <Link
-                    href={`/admin/listos-entrega?domiciliario=${d.id}`}
-                    className="flex flex-col items-center gap-1.5 py-2.5 rounded-xl text-[11px] font-medium transition-all"
-                    style={{
-                      background: `${tw}0.03)`,
-                      border: `1px solid ${tw}0.09)`,
-                      color: `${tw}0.5)`,
-                    }}
-                  >
-                    <Package className="h-4 w-4" />
-                    Listos
                   </Link>
                   <Link
                     href={`/admin/domiciliarios/${d.id}/historial`}
