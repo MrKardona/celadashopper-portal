@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import { MapPin, User, Phone, ExternalLink, AlertTriangle, Package, Bike } from 'lucide-react'
+import { ESTADO_LABELS, type EstadoPaquete } from '@/types'
 import Link from 'next/link'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
@@ -96,6 +97,22 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
       if (!p.cliente_id) continue
       if (!pendientesPorCliente[p.cliente_id]) pendientesPorCliente[p.cliente_id] = []
       pendientesPorCliente[p.cliente_id].push(p)
+    }
+  }
+
+  // Sub-paquetes (divisiones) por paquete padre
+  interface SubPaq { id: string; descripcion: string | null; tracking_casilla: string | null; estado: string; peso_libras: number | string | null }
+  const divisionesMap: Record<string, SubPaq[]> = {}
+  if (lista.length > 0) {
+    const { data: subPaquetes } = await supabase
+      .from('paquetes')
+      .select('id, paquete_origen_id, descripcion, tracking_casilla, estado, peso_libras')
+      .in('paquete_origen_id', lista.map(p => p.id))
+      .order('created_at', { ascending: true })
+    for (const sp of subPaquetes ?? []) {
+      if (!sp.paquete_origen_id) continue
+      if (!divisionesMap[sp.paquete_origen_id]) divisionesMap[sp.paquete_origen_id] = []
+      divisionesMap[sp.paquete_origen_id].push(sp)
     }
   }
 
@@ -219,6 +236,8 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
             const tel        = cli?.whatsapp ?? cli?.telefono ?? null
             const paqPend    = p.cliente_id ? (pendientesPorCliente[p.cliente_id] ?? []) : []
             const nPend      = paqPend.length
+            const divisiones = divisionesMap[p.id] ?? []
+            const nDiv       = divisiones.length
             const enCamino   = p.estado === 'en_camino_cliente'
 
             const dias = p.fecha_llegada_colombia
@@ -265,6 +284,12 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                         style={{ background: enCamino ? 'rgba(99,102,241,0.12)' : 'rgba(52,211,153,0.1)', color: enCamino ? '#818cf8' : '#34d399', border: `1px solid ${enCamino ? 'rgba(99,102,241,0.25)' : 'rgba(52,211,153,0.2)'}` }}>
                         {enCamino ? '🚴 En camino' : `📍 ${BODEGA_LABELS[p.bodega_destino] ?? p.bodega_destino}`}
                       </span>
+                      {nDiv > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                          style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.22)' }}>
+                          ✂️ {nDiv} parte{nDiv !== 1 ? 's' : ''}
+                        </span>
+                      )}
                       <Link href={`/admin/paquetes/${p.id}`}
                         className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium transition-all hover:opacity-80 flex-shrink-0"
                         style={{ background: `${tw}0.06)`, color: `${tw}0.4)`, border: `1px solid ${tw}0.09)` }}>
@@ -393,6 +418,44 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0"
                             style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171' }}>
                             {ESTADO_LABELS_PENDIENTE[pp.estado] ?? pp.estado}
+                          </span>
+                          <ExternalLink className="h-3 w-3 flex-shrink-0" style={{ color: `${tw}0.25)` }} />
+                        </Link>
+                      ))}
+                    </div>
+                  </details>
+                )}
+
+                {/* Divisiones del paquete — full width, al fondo */}
+                {nDiv > 0 && (
+                  <details className="border-t" style={{ borderColor: 'rgba(245,184,0,0.18)' }}>
+                    <summary className="flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none list-none"
+                      style={{ background: 'rgba(245,184,0,0.05)' }}>
+                      <span className="text-sm flex-shrink-0">✂️</span>
+                      <p className="text-xs flex-1" style={{ color: '#F5B800' }}>
+                        Este paquete fue dividido en <strong>{nDiv}</strong> parte{nDiv !== 1 ? 's' : ''} · ver
+                      </p>
+                      <span className="text-[9px] font-mono" style={{ color: 'rgba(245,184,0,0.4)' }}>▼</span>
+                    </summary>
+                    <div>
+                      {divisiones.map(sp => (
+                        <Link key={sp.id} href={`/admin/paquetes/${sp.id}`}
+                          className="flex items-center gap-3 px-4 py-2 hover:opacity-80 transition-opacity"
+                          style={{ background: 'rgba(245,184,0,0.03)', borderTop: '1px solid rgba(245,184,0,0.08)' }}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate text-white">{sp.descripcion ?? 'Sin descripción'}</p>
+                            {sp.tracking_casilla && (
+                              <p className="text-[10px] font-mono" style={{ color: `${tw}0.35)` }}>{sp.tracking_casilla}</p>
+                            )}
+                          </div>
+                          {sp.peso_libras && (
+                            <span className="text-[10px]" style={{ color: `${tw}0.35)` }}>
+                              {Number(sp.peso_libras).toFixed(1)} lb
+                            </span>
+                          )}
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0"
+                            style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800' }}>
+                            {ESTADO_LABELS[sp.estado as EstadoPaquete] ?? sp.estado}
                           </span>
                           <ExternalLink className="h-3 w-3 flex-shrink-0" style={{ color: `${tw}0.25)` }} />
                         </Link>

@@ -88,17 +88,30 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fetch primera foto por paquete
+  // Fetch primera foto de PRODUCTO por paquete (excluye recepción/guía/entrega)
   const paqueteIds = paquetes.map(p => p.id)
   const fotosMap: Record<string, string> = {}
   if (paqueteIds.length > 0) {
     const { data: fotos } = await admin
       .from('fotos_paquetes')
-      .select('paquete_id, url')
+      .select('paquete_id, url, descripcion')
       .in('paquete_id', paqueteIds)
       .order('created_at', { ascending: true })
+    const fotosGuiaFallback: Record<string, string> = {}
     for (const f of fotos ?? []) {
-      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+      const desc = (f.descripcion ?? '').toLowerCase()
+      const esNoProducto =
+        desc.includes('recepci') || desc.includes('entrega') ||
+        desc.includes('guía')    || desc.includes('guia')    ||
+        desc.includes('empaque') || desc.includes('miami')
+      if (esNoProducto) {
+        if (!fotosGuiaFallback[f.paquete_id]) fotosGuiaFallback[f.paquete_id] = f.url
+      } else {
+        if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+      }
+    }
+    for (const [pid, url] of Object.entries(fotosGuiaFallback)) {
+      if (!fotosMap[pid]) fotosMap[pid] = url
     }
   }
 
