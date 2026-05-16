@@ -128,15 +128,29 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
     return () => clearTimeout(t)
   }, [porcentaje])
 
-  // Pasos pendientes (para la lista de detalle)
+  // Eventos reales completados
   const completados = new Set(ordenados.map(e => e.evento))
-  let lastMainIdx = -1
-  for (let i = PASOS.length - 1; i >= 0; i--) {
-    if (completados.has(PASOS[i])) { lastMainIdx = i; break }
-  }
-  const pendientes = PASOS.filter((p, i) => !completados.has(p) && i > lastMainIdx)
 
-  if (ordenados.length === 0 && pendientes.length === 0) return null
+  // Eventos sintéticos: pasos cubiertos por pasoActivo pero sin evento real registrado
+  const sinteticos: TrackingEvento[] = []
+  for (let i = 0; i <= pasoActivo; i++) {
+    const paso = PASOS[i] as string
+    if (paso && !completados.has(paso)) {
+      sinteticos.push({ id: `syn-${paso}`, evento: paso, descripcion: null, fecha: '', fuente: 'sistema' })
+    }
+  }
+
+  // Lista completa de completados: reales + sintéticos, ordenados por paso
+  const todoCompletado = [...ordenados, ...sinteticos].sort(
+    (a, b) => (EVENTO_A_PASO[a.evento] ?? 0) - (EVENTO_A_PASO[b.evento] ?? 0)
+  )
+
+  // Pendientes: solo los pasos después de pasoActivo que no tienen evento real
+  const pendientes = PASOS.filter(
+    (p, i) => !completados.has(p) && i > pasoActivo
+  )
+
+  if (todoCompletado.length === 0 && pendientes.length === 0) return null
 
   return (
     <div className="space-y-5">
@@ -222,15 +236,19 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
 
       {/* ── Log de eventos completados ────────────────────────────────── */}
       <div>
-        {ordenados.map((evento, i) => {
+        {todoCompletado.map((evento, i) => {
           const def        = TRACKING_LABELS[evento.evento]
-          const isLastItem = i === ordenados.length - 1 && pendientes.length === 0
+          const esSintetico = evento.fuente === 'sistema'
+          const isLastItem = i === todoCompletado.length - 1 && pendientes.length === 0
           return (
             <div key={evento.id} className="flex gap-3">
               <div className="flex flex-col items-center shrink-0">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                  style={{ background: 'rgba(245,184,0,0.15)', border: '1px solid rgba(245,184,0,0.3)' }}
+                  style={{
+                    background: esSintetico ? 'rgba(245,184,0,0.07)' : 'rgba(245,184,0,0.15)',
+                    border: `1px solid ${esSintetico ? 'rgba(245,184,0,0.15)' : 'rgba(245,184,0,0.3)'}`,
+                  }}
                 >
                   {def?.emoji ?? '📍'}
                 </div>
@@ -240,15 +258,19 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
                 )}
               </div>
               <div className="pb-4 min-w-0">
-                <p className="text-sm font-medium text-white">{def?.label ?? evento.evento}</p>
+                <p className="text-sm font-medium" style={{ color: esSintetico ? 'rgba(255,255,255,0.55)' : 'white' }}>
+                  {def?.label ?? evento.evento}
+                </p>
                 {evento.descripcion && (
                   <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>
                     {evento.descripcion}
                   </p>
                 )}
-                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                  {fechaHoraLarga(evento.fecha)}
-                </p>
+                {evento.fecha && (
+                  <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                    {fechaHoraLarga(evento.fecha)}
+                  </p>
+                )}
               </div>
             </div>
           )
