@@ -99,16 +99,31 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
     }
   }
 
-  // Primera foto por paquete
+  // Primera foto de PRODUCTO por paquete (excluye fotos de guía/recepción/entrega)
   const fotosMap: Record<string, string> = {}
   if (lista.length > 0) {
     const { data: fotos } = await supabase
       .from('fotos_paquetes')
-      .select('paquete_id, url')
+      .select('paquete_id, url, descripcion')
       .in('paquete_id', lista.map(p => p.id))
       .order('created_at', { ascending: true })
+
+    const fotosGuiaFallback: Record<string, string> = {}
     for (const f of fotos ?? []) {
-      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+      const desc = (f.descripcion ?? '').toLowerCase()
+      const esNoProducto =
+        desc.includes('recepci') || desc.includes('entrega') ||
+        desc.includes('guía')    || desc.includes('guia')    ||
+        desc.includes('empaque') || desc.includes('miami')
+      if (esNoProducto) {
+        if (!fotosGuiaFallback[f.paquete_id]) fotosGuiaFallback[f.paquete_id] = f.url
+      } else {
+        if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+      }
+    }
+    // Si no hay foto de producto, usar la de guía como fallback
+    for (const [pid, url] of Object.entries(fotosGuiaFallback)) {
+      if (!fotosMap[pid]) fotosMap[pid] = url
     }
   }
 
