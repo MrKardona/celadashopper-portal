@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import {
-  ScanBarcode, Search, Package, CheckCircle2, AlertCircle, Loader2,
+  ScanBarcode, Search, CheckCircle2, AlertCircle, Loader2,
   X, MapPin, MessageCircle, Camera, PackageCheck, Clock, ChevronDown,
 } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS, type EstadoPaquete, type CategoriaProducto } from '@/types'
@@ -24,6 +24,7 @@ interface PaqueteCaja {
   bodega_destino: string
   paquete_origen_id: string | null
   espera_hermanos: boolean
+  foto_url: string | null
   cliente: { nombre_completo: string; numero_casilla: string | null } | null
 }
 
@@ -450,7 +451,7 @@ export default function RecibirColombiaForm() {
                       className="h-4 w-4 rounded"
                       style={{ accentColor: '#F5B800' }}
                     />
-                    <Package className="h-4 w-4 flex-shrink-0" style={{ color: p.espera_hermanos ? '#f87171' : `${tw}0.3)` }} />
+                    <FotoThumb url={p.foto_url} alt={p.descripcion} width={36} height={36} radius="0.375rem" />
                     <span className="font-mono text-xs font-semibold w-32 truncate" style={{ color: '#F5B800' }}>
                       {p.tracking_casilla}
                     </span>

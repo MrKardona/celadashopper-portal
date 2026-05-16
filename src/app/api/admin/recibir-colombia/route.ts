@@ -88,6 +88,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Fetch primera foto por paquete
+  const paqueteIds = paquetes.map(p => p.id)
+  const fotosMap: Record<string, string> = {}
+  if (paqueteIds.length > 0) {
+    const { data: fotos } = await admin
+      .from('fotos_paquetes')
+      .select('paquete_id, url')
+      .in('paquete_id', paqueteIds)
+      .order('created_at', { ascending: true })
+    for (const f of fotos ?? []) {
+      if (!fotosMap[f.paquete_id]) fotosMap[f.paquete_id] = f.url
+    }
+  }
+
   // Estadísticas de la caja
   const estados = paquetes.reduce((acc: Record<string, number>, p) => {
     acc[p.estado] = (acc[p.estado] ?? 0) + 1
@@ -109,6 +123,7 @@ export async function GET(req: NextRequest) {
       estados,
       paquetes: paquetes.map(p => ({
         ...p,
+        foto_url: fotosMap[p.id] ?? null,
         cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
         espera_hermanos: esperaHermanosSet.has(p.id),
       })),
