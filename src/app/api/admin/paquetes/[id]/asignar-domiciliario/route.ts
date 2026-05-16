@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: Props) {
   // Verificar que el paquete existe y está en bodega local
   const { data: paquete } = await admin
     .from('paquetes')
-    .select('id, estado, descripcion, tracking_casilla')
+    .select('id, estado, descripcion, tracking_casilla, lote_entrega_id')
     .eq('id', paqueteId)
     .maybeSingle()
 
@@ -49,6 +49,38 @@ export async function POST(req: NextRequest, { params }: Props) {
   }
 
   const ahora = new Date().toISOString()
+
+  // Si el paquete está en un lote, asignar a TODOS los paquetes del lote
+  if (paquete.lote_entrega_id) {
+    // Cargar todos los paquetes del mismo lote
+    const { data: lotePaquetes } = await admin
+      .from('paquetes')
+      .select('id, estado')
+      .eq('lote_entrega_id', paquete.lote_entrega_id)
+      .in('estado', ['en_bodega_local', 'en_camino_cliente'])
+
+    if (lotePaquetes && lotePaquetes.length > 0) {
+      const ids = lotePaquetes.map(p => p.id)
+      await admin
+        .from('paquetes')
+        .update({ domiciliario_id: body.domiciliario_id, fecha_asignacion_domiciliario: ahora, estado: 'en_camino_cliente', updated_at: ahora })
+        .in('id', ids)
+
+      const eventos = lotePaquetes.map(p => ({
+        paquete_id: p.id,
+        estado_anterior: p.estado,
+        estado_nuevo: 'en_camino_cliente',
+        descripcion: `Asignado a domiciliario: ${domiciliario.nombre_completo} (lote)`,
+        ubicacion: 'Colombia',
+      }))
+      await admin.from('eventos_paquete').insert(eventos)
+        .then(() => {}, e => console.error('[asignar-domiciliario] eventos lote:', e))
+
+      return NextResponse.json({ ok: true, domiciliario: domiciliario.nombre_completo, lote: true, total: ids.length })
+    }
+  }
+
+  // Paquete individual (sin lote)
   const { error } = await admin
     .from('paquetes')
     .update({

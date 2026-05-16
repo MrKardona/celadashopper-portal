@@ -1,14 +1,17 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
-import { MapPin, User, Phone, ExternalLink, AlertTriangle, Package, Bike } from 'lucide-react'
+import { MapPin, User, Phone, ExternalLink, AlertTriangle, Package, Bike, Layers } from 'lucide-react'
 import { ESTADO_LABELS, type EstadoPaquete } from '@/types'
 import Link from 'next/link'
 import EntregarPaqueteButton from '@/components/admin/EntregarPaqueteButton'
+import EntregarLoteButton from '@/components/admin/EntregarLoteButton'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 import AsignarDomiciliarioButton from '@/components/admin/AsignarDomiciliarioButton'
 import LimitSelector from '@/components/ui/LimitSelector'
 import FotoThumb from '@/components/ui/FotoThumb'
+import CrearLoteButton from '@/components/admin/CrearLoteButton'
+import DisolverLoteButton from '@/components/admin/DisolverLoteButton'
 
 const BODEGA_LABELS: Record<string, string> = {
   medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
@@ -31,7 +34,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
 
   let q = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, estado, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega, domiciliario_id')
+    .select('id, tracking_casilla, tracking_origen, descripcion, peso_libras, costo_servicio, estado, factura_id, factura_pagada, bodega_destino, fecha_llegada_colombia, cliente_id, direccion_entrega, barrio_entrega, referencia_entrega, domiciliario_id, lote_entrega_id')
     .in('estado', ['en_bodega_local', 'en_camino_cliente'])
     .eq('visible_cliente', true)
     .is('paquete_origen_id', null)
@@ -66,16 +69,33 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
     for (const p of perfiles ?? []) perfilesMap[p.id] = p
   }
 
-  // Clientes con múltiples paquetes en la misma bodega
+  // Clientes con múltiples paquetes SIN LOTE en la misma bodega → candidatos a crear lote
   const paquetesPorCliente: Record<string, typeof lista> = {}
   for (const p of lista) {
     if (!p.cliente_id) continue
+    const lid = (p as typeof lista[number] & { lote_entrega_id?: string | null }).lote_entrega_id
+    if (lid) continue // ya está en un lote
     const key = `${p.cliente_id}::${p.bodega_destino ?? ''}`
     if (!paquetesPorCliente[key]) paquetesPorCliente[key] = []
     paquetesPorCliente[key].push(p)
   }
   const gruposConsolidar = Object.values(paquetesPorCliente).filter(g => g.length >= 2)
   const clientesConMultiples = new Set(gruposConsolidar.flatMap(g => g.map(p => p.cliente_id).filter(Boolean)))
+
+  // Agrupar paquetes en lotes (admin-side)
+  type PaqListo = typeof lista[number]
+  const lotesMap: Record<string, PaqListo[]> = {}
+  const sinLote: PaqListo[] = []
+  for (const p of lista) {
+    const lid = (p as PaqListo & { lote_entrega_id?: string | null }).lote_entrega_id
+    if (lid) {
+      if (!lotesMap[lid]) lotesMap[lid] = []
+      lotesMap[lid].push(p)
+    } else {
+      sinLote.push(p)
+    }
+  }
+  const loteEntries = Object.entries(lotesMap)
 
   // Paquetes pendientes por llegar
   const ESTADOS_PENDIENTES = ['reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio', 'en_transito']
@@ -173,6 +193,12 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
                 <Bike className="h-3 w-3 inline mr-1" />{nCamino} en camino
               </span>
             )}
+            {loteEntries.length > 0 && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.22)' }}>
+                <Layers className="h-3 w-3 inline mr-1" />{loteEntries.length} lote{loteEntries.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
         </div>
         <LimitSelector actual={limite} />
@@ -206,12 +232,19 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
             {gruposConsolidar.map((grupo, i) => {
               const cli = grupo[0].cliente_id ? perfilesMap[grupo[0].cliente_id] : null
               return (
-                <div key={i} className="px-5 py-2.5 flex items-center justify-between gap-3">
+                <div key={i} className="px-5 py-2.5 flex items-center justify-between gap-3 flex-wrap">
                   <p className="text-sm font-semibold text-white">{cli?.nombre_completo ?? 'Sin asignar'}</p>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                    style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399' }}>
-                    {grupo.length} paquetes · {BODEGA_LABELS[grupo[0].bodega_destino] ?? grupo[0].bodega_destino}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399' }}>
+                      {grupo.length} paquetes · {BODEGA_LABELS[grupo[0].bodega_destino] ?? grupo[0].bodega_destino}
+                    </span>
+                    <CrearLoteButton
+                      paqueteIds={grupo.map(p => p.id)}
+                      clienteNombre={cli?.nombre_completo ?? 'Cliente'}
+                      descripciones={grupo.map(p => p.descripcion ?? 'Sin descripción')}
+                    />
+                  </div>
                 </div>
               )
             })}
@@ -227,8 +260,127 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
           <p className="text-xs mt-1" style={{ color: `${tw}0.25)` }}>Cuando recibas cajas en Colombia, los paquetes aparecerán aquí</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          {lista.map(p => {
+        <div className="space-y-3">
+
+          {/* ── Tarjetas de lote ────────────────────────────────────────── */}
+          {loteEntries.map(([loteId, paqsLote]) => {
+            const cliLote    = paqsLote[0]?.cliente_id ? perfilesMap[paqsLote[0].cliente_id] : null
+            const telLote    = cliLote?.whatsapp ?? cliLote?.telefono ?? null
+            const domLoteId  = paqsLote.find(p => p.domiciliario_id)?.domiciliario_id ?? null
+            const enCaminoLote = paqsLote.every(p => p.estado === 'en_camino_cliente')
+            const diasLote   = paqsLote[0]?.fecha_llegada_colombia
+              ? Math.floor((Date.now() - new Date(paqsLote[0].fecha_llegada_colombia).getTime()) / 86_400_000)
+              : null
+            const dirLote    = paqsLote[0]?.direccion_entrega ?? cliLote?.direccion ?? null
+            const barrioLote = paqsLote[0]?.barrio_entrega    ?? cliLote?.barrio    ?? null
+            const refLote    = paqsLote[0]?.referencia_entrega ?? cliLote?.referencia ?? null
+
+            return (
+              <div key={loteId} className="glass-card overflow-hidden flex flex-col"
+                style={{ borderColor: 'rgba(245,184,0,0.25)' }}>
+
+                {/* Barra dorada */}
+                <div className="h-[3px] w-full" style={{ background: 'linear-gradient(to right,#F5B800,#fde68a)' }} />
+
+                {/* Header del lote */}
+                <div className="flex items-center gap-3 px-5 py-3 flex-wrap"
+                  style={{ background: 'rgba(245,184,0,0.04)', borderBottom: '1px solid rgba(245,184,0,0.1)' }}>
+                  <Layers className="h-4 w-4 flex-shrink-0" style={{ color: '#F5B800' }} />
+                  <span className="text-sm font-bold text-white flex-1">
+                    {cliLote?.nombre_completo ?? 'Cliente'}
+                    {cliLote?.numero_casilla && (
+                      <span className="text-xs font-mono font-bold ml-2" style={{ color: '#F5B800' }}>{cliLote.numero_casilla}</span>
+                    )}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: 'rgba(245,184,0,0.1)', color: '#F5B800' }}>
+                    Lote · {paqsLote.length} paquetes
+                  </span>
+                  {enCaminoLote && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
+                      style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+                      🚴 En camino
+                    </span>
+                  )}
+                  <DisolverLoteButton loteId={loteId} />
+                </div>
+
+                {/* Lista de paquetes del lote */}
+                <div className="divide-y" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                  {paqsLote.map(p => (
+                    <div key={p.id} className="flex items-center gap-3 px-5 py-3">
+                      <FotoThumb url={fotosMap[p.id] ?? null} alt={p.descripcion ?? ''} width={40} height={40} radius="0.375rem" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{p.descripcion}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="font-mono text-[10px]" style={{ color: '#F5B800' }}>{p.tracking_casilla ?? p.tracking_origen}</span>
+                          {p.peso_libras && <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>{Number(p.peso_libras).toFixed(1)} lb</span>}
+                        </div>
+                      </div>
+                      <Link href={`/admin/paquetes/${p.id}`}
+                        className="flex-shrink-0 p-1.5 rounded-lg transition-colors"
+                        style={{ color: 'rgba(255,255,255,0.3)' }}
+                        title="Ver paquete">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Footer: dirección + acciones */}
+                <div className="flex flex-1 min-h-0">
+                  <div className="flex-1 min-w-0 px-5 py-3 space-y-2">
+                    {telLote && (
+                      <a href={`https://wa.me/${telLote.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[11px] w-fit hover:underline"
+                        style={{ color: '#34d399' }}>
+                        <Phone className="h-3 w-3" />{telLote}
+                      </a>
+                    )}
+                    {dirLote ? (
+                      <div className="flex items-start gap-1.5 text-xs">
+                        <MapPin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" style={{ color: '#F5B800' }} />
+                        <div>
+                          <p style={{ color: 'rgba(255,255,255,0.7)' }}>{dirLote}</p>
+                          {(barrioLote || refLote) && (
+                            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>{[barrioLote, refLote].filter(Boolean).join(' · ')}</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg w-fit"
+                        style={{ background: 'rgba(245,184,0,0.07)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.15)' }}>
+                        <MapPin className="h-3 w-3" />Sin dirección registrada
+                      </div>
+                    )}
+                    {diasLote !== null && (
+                      <p className="text-[11px]" style={{ color: diasLote > 7 ? '#f87171' : diasLote > 3 ? '#f59e0b' : 'rgba(255,255,255,0.35)' }}>
+                        🕐 {diasLote === 0 ? 'Llegó hoy' : `${diasLote}d en bodega`}
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-px my-3" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="w-48 p-3 flex flex-col gap-2 justify-center flex-shrink-0">
+                    <AsignarDomiciliarioButton
+                      paqueteId={paqsLote[0].id}
+                      descripcion={`Lote (${paqsLote.length} paquetes)`}
+                      domiciliarios={domiciliarios}
+                      domiciliarioActual={domLoteId ? { id: domLoteId, nombre_completo: domMap[domLoteId] ?? 'Domiciliario' } : null}
+                    />
+                    <EntregarLoteButton
+                      loteId={loteId}
+                      paquetes={paqsLote.map(p => ({ id: p.id, descripcion: p.descripcion, tracking_casilla: p.tracking_casilla }))}
+                      clienteEmail={cliLote?.email ?? null}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          {/* ── Tarjetas individuales (sin lote) ────────────────────────── */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {sinLote.map(p => {
             const cli        = p.cliente_id ? perfilesMap[p.cliente_id] : null
             const direccion  = p.direccion_entrega ?? cli?.direccion ?? null
             const barrio     = p.barrio_entrega ?? cli?.barrio ?? null
@@ -466,6 +618,7 @@ export default async function ListosEntregaPage({ searchParams }: Props) {
               </div>
             )
           })}
+          </div>
         </div>
       )}
     </div>
