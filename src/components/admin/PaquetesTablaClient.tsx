@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle, ZoomIn, ZoomOut, RotateCcw, Pencil } from 'lucide-react'
+import { Camera, Trash2, Package, CheckSquare, Square, X, AlertCircle, Loader2, Merge, Scissors, AlertTriangle, ZoomIn, ZoomOut, RotateCcw, Pencil, Box } from 'lucide-react'
 import { ESTADO_LABELS, CATEGORIA_LABELS } from '@/types'
 import FacturaBadge from '@/components/admin/FacturaBadge'
 
@@ -52,8 +52,17 @@ interface PaqueteRow {
   nombre_etiqueta: string | null
   fecha_recepcion_usa: string | null
   paquete_origen_id: string | null
+  caja_id: string | null
   cliente: { nombre_completo: string; numero_casilla: string } | null
   fotoUrl: string | null
+}
+
+interface CajaOption {
+  id: string
+  codigo_interno: string
+  bodega_destino: string | null
+  estado: string
+  tipo: string | null
 }
 
 interface Props {
@@ -61,6 +70,7 @@ interface Props {
   error?: string | null
   consolidacionMap?: Record<string, number>
   childrenByParent?: Record<string, { id: string; estado: string }[]>
+  cajasActivas?: CajaOption[]
 }
 
 const MIN_SCALE_LOCAL = 0.25
@@ -251,7 +261,103 @@ function DescripcionEditor({ paqueteId, descripcionInicial, esDivisionActiva }: 
   )
 }
 
-export default function PaquetesTablaClient({ paquetes, error, consolidacionMap = {}, childrenByParent = {} }: Props) {
+function AsignarCajaCell({ paqueteId, cajaIdActual, cajas, onSuccess }: {
+  paqueteId: string
+  cajaIdActual: string | null
+  cajas: CajaOption[]
+  onSuccess: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const fn = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', fn)
+    return () => document.removeEventListener('mousedown', fn)
+  }, [open])
+
+  async function asignar(cajaId: string | null) {
+    setLoading(true); setErr('')
+    try {
+      const res = await fetch(`/api/admin/paquetes/${paqueteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caja_id: cajaId }),
+      })
+      if (!res.ok) { const d = await res.json() as { error?: string }; setErr(d.error ?? 'Error'); return }
+      setOpen(false); onSuccess()
+    } catch { setErr('Error de red') } finally { setLoading(false) }
+  }
+
+  const cajaActual = cajas.find(c => c.id === cajaIdActual)
+
+  return (
+    <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
+      {cajaActual ? (
+        <button onClick={() => setOpen(o => !o)}
+          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-semibold transition-all hover:opacity-75"
+          style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}
+          title={`En caja ${cajaActual.codigo_interno}`}>
+          <Box className="h-3 w-3" />
+          {cajaActual.codigo_interno}
+        </button>
+      ) : (
+        <button onClick={() => setOpen(o => !o)}
+          className="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium transition-all"
+          style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.1)' }}
+          title="Agregar a caja">
+          <Box className="h-3 w-3" />
+          <span>Caja</span>
+        </button>
+      )}
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 rounded-xl shadow-2xl overflow-hidden w-52"
+          style={{ background: 'rgba(12,12,22,0.98)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(16px)' }}>
+          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: 'rgba(255,255,255,0.3)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            Asignar a caja
+          </div>
+          <div className="py-1 max-h-52 overflow-y-auto">
+            {cajas.length === 0 && (
+              <p className="px-3 py-2 text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>No hay cajas abiertas</p>
+            )}
+            {cajas.map(c => (
+              <button key={c.id} onClick={() => asignar(c.id)} disabled={loading}
+                className="w-full text-left px-3 py-2 text-xs font-medium transition-all hover:bg-white/5 flex items-center justify-between gap-2 disabled:opacity-50"
+                style={{ color: c.id === cajaIdActual ? '#F5B800' : 'rgba(255,255,255,0.75)' }}>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  {loading && c.id === cajaIdActual ? <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" /> : <Box className="h-3 w-3 flex-shrink-0" style={{ color: c.id === cajaIdActual ? '#F5B800' : 'rgba(255,255,255,0.35)' }} />}
+                  <span className="font-bold">{c.codigo_interno}</span>
+                  {c.id === cajaIdActual && <span className="text-[10px]">✓</span>}
+                </span>
+                <span className="text-[10px] capitalize shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  {c.bodega_destino ?? '—'}
+                </span>
+              </button>
+            ))}
+            {cajaIdActual && (
+              <>
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '2px 8px' }} />
+                <button onClick={() => asignar(null)} disabled={loading}
+                  className="w-full text-left px-3 py-2 text-xs transition-all hover:bg-red-500/10 disabled:opacity-50"
+                  style={{ color: 'rgba(239,68,68,0.75)' }}>
+                  Quitar de caja
+                </button>
+              </>
+            )}
+          </div>
+          {err && <p className="text-xs px-3 py-2 text-red-400 border-t border-white/5">{err}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function PaquetesTablaClient({ paquetes, error, consolidacionMap = {}, childrenByParent = {}, cajasActivas = [] }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmando, setConfirmando] = useState(false)
@@ -543,13 +649,14 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Bodega</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden lg:table-cell" style={{ color: `${tw}0.35)` }}>Factura</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden md:table-cell" style={{ color: `${tw}0.35)` }}>Peso / Valor / Costo</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide hidden md:table-cell" style={{ color: `${tw}0.35)` }}>Caja</th>
                 <th className="w-10 px-2" />
               </tr>
             </thead>
             <tbody>
               {visiblePaquetes.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12" style={{ color: `${tw}0.3)` }}>
+                  <td colSpan={11} className="text-center py-12" style={{ color: `${tw}0.3)` }}>
                     <Package className="h-10 w-10 mx-auto mb-2 opacity-20" />
                     {error ? `Error: ${error}` : 'No hay paquetes con esos filtros'}
                   </td>
@@ -614,17 +721,29 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                           )}
                           <Link href={`/admin/paquetes/${p.id}`} className="min-w-0 block">
                             {diasEnBodega !== null ? (
-                              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border ${
-                                diasEnBodega > 14
-                                  ? 'bg-red-500/15 text-red-400 border-red-500/25'
-                                  : diasEnBodega > 7
-                                    ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
-                                    : 'bg-white/[0.06] border-white/10'
-                              }`}
-                              style={diasEnBodega <= 7 ? { color: `${tw}0.55)` } : {}}
-                              >
-                                {diasEnBodega === 0 ? '🕐 Hoy' : `⏱ ${diasEnBodega}d`}
-                              </span>
+                              <div>
+                                <div className={`inline-flex items-baseline gap-1 px-2.5 py-1.5 rounded-lg border font-bold leading-none ${
+                                  diasEnBodega > 14
+                                    ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                                    : diasEnBodega > 7
+                                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                      : diasEnBodega === 0
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                                        : 'bg-white/[0.06] border-white/10'
+                                }`} style={diasEnBodega > 0 && diasEnBodega <= 7 ? { color: `${tw}0.65)` } : {}}>
+                                  <span className="text-sm tabular-nums">
+                                    {diasEnBodega === 0 ? 'Hoy' : diasEnBodega}
+                                  </span>
+                                  {diasEnBodega > 0 && (
+                                    <span className="text-[10px] opacity-70">
+                                      {diasEnBodega === 1 ? 'día' : 'días'}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] font-mono mt-1 tabular-nums" style={{ color: `${tw}0.28)` }}>
+                                  {new Date(p.fecha_recepcion_usa!).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                                </p>
+                              </div>
                             ) : (
                               <span className="text-xs italic" style={{ color: `${tw}0.25)` }}>Sin fecha</span>
                             )}
@@ -762,6 +881,16 @@ export default function PaquetesTablaClient({ paquetes, error, consolidacionMap 
                             </p>
                           )}
                         </div>
+                      </td>
+
+                      {/* Caja */}
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <AsignarCajaCell
+                          paqueteId={p.id}
+                          cajaIdActual={p.caja_id}
+                          cajas={cajasActivas}
+                          onSuccess={() => startTransition(() => router.refresh())}
+                        />
                       </td>
 
                       {/* Acción rápida: eliminar paquete reportado */}

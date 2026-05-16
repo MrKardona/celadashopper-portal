@@ -54,7 +54,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   let q1 = supabase
     .from('paquetes')
-    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, notas_internas, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id')
+    .select('id, tracking_casilla, tracking_origen, cliente_id, descripcion, tienda, categoria, estado, bodega_destino, peso_facturable, peso_libras, costo_servicio, valor_declarado, factura_id, factura_pagada, requiere_consolidacion, notas_consolidacion, notas_internas, nombre_etiqueta, fecha_recepcion_usa, created_at, updated_at, paquete_origen_id, caja_id')
     .order('created_at', { ascending: false })
     .limit(q ? 500 : limite)  // sin límite estricto al buscar
 
@@ -103,7 +103,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
     childrenByParent[h.paquete_origen_id].push({ id: h.id, estado: h.estado })
   }
 
-  const [perfilesRes, fotosRes, consolidacionUsaRes] = await Promise.all([
+  const [perfilesRes, fotosRes, consolidacionUsaRes, cajasRes] = await Promise.all([
     clienteIds.length > 0
       ? supabase.from('perfiles').select('id, nombre_completo, numero_casilla').in('id', clienteIds)
       : Promise.resolve({ data: [] }),
@@ -117,6 +117,12 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
           .in('estado', ['recibido_usa', 'en_consolidacion', 'listo_envio'])
           .in('cliente_id', clienteIds)
       : Promise.resolve({ data: [] }),
+    supabase
+      .from('cajas_consolidacion')
+      .select('id, codigo_interno, bodega_destino, estado, tipo')
+      .in('estado', ['abierta', 'cerrada'])
+      .order('created_at', { ascending: false })
+      .limit(50),
   ])
 
   const perfilesMap: Record<string, { nombre_completo: string; numero_casilla: string }> =
@@ -146,12 +152,15 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
 
   const filtrados = lista
 
+  const cajasActivas = (cajasRes.data ?? []) as { id: string; codigo_interno: string; bodega_destino: string | null; estado: string; tipo: string | null }[]
+
   const paquetesConCliente = filtrados.map(p => ({
     ...p,
     cliente: p.cliente_id ? (perfilesMap[p.cliente_id] ?? null) : null,
     fotoUrl: fotosMap[p.id] ?? null,
     paquete_origen_id: p.paquete_origen_id ?? null,
     notas_internas: p.notas_internas ?? null,
+    caja_id: p.caja_id ?? null,
   }))
 
   const selectClass = "glass-input text-sm px-3 py-2 rounded-xl"
@@ -231,6 +240,7 @@ export default async function AdminPaquetesPage({ searchParams }: Props) {
         error={errPaq?.message ?? null}
         consolidacionMap={consolidacionMap}
         childrenByParent={childrenByParent}
+        cajasActivas={cajasActivas}
       />
     </div>
   )

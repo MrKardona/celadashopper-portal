@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   const {
     estado, bodega_destino, categoria, descripcion, peso_libras, peso_facturable, tarifa_aplicada,
     costo_servicio, tracking_usaco, notas_cliente, condicion, cantidad, valor_declarado,
-    notificar, estado_anterior,
+    notificar, estado_anterior, caja_id,
   } = body
 
   // Estado actual del paquete antes del update (para detectar cambios reales)
@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   if (condicion !== undefined) updates.condicion = condicion
   if (cantidad !== undefined) updates.cantidad = cantidad
   if (valor_declarado !== undefined) updates.valor_declarado = valor_declarado
+  if (caja_id !== undefined) updates.caja_id = caja_id  // null = quitar de caja
 
   // Marcar timestamp de la actualización
   updates.updated_at = new Date().toISOString()
