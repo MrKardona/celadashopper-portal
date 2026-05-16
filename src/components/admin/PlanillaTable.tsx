@@ -139,8 +139,7 @@ function EditManualRow({ m, onCancel, onSaved }: {
         <select
           value={tipo}
           onChange={e => setTipo(e.target.value)}
-          className="text-xs px-2 py-1.5 rounded-lg w-full"
-          style={{ ...inputStyle, colorScheme: 'dark' }}
+          className="glass-input text-xs py-1.5 w-full"
         >
           {TIPO_OPCIONES.map(t => (
             <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
