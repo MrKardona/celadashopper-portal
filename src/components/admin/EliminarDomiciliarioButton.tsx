@@ -7,12 +7,13 @@ import { useRouter } from 'next/navigation'
 interface Props {
   id: string
   nombre: string
+  compact?: boolean
 }
 
-export default function EliminarDomiciliarioButton({ id, nombre }: Props) {
-  const [step, setStep]     = useState<'idle' | 'confirm' | 'loading'>('idle')
-  const [error, setError]   = useState<string | null>(null)
-  const router              = useRouter()
+export default function EliminarDomiciliarioButton({ id, nombre, compact }: Props) {
+  const [step, setStep]   = useState<'idle' | 'confirm' | 'loading'>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const router            = useRouter()
 
   async function handleEliminar() {
     setStep('loading')
@@ -31,7 +32,16 @@ export default function EliminarDomiciliarioButton({ id, nombre }: Props) {
   }
 
   if (step === 'idle') {
-    return (
+    return compact ? (
+      <button
+        onClick={() => setStep('confirm')}
+        className="flex items-center gap-1 text-[11px] font-medium transition-opacity hover:opacity-100 opacity-40 hover:opacity-60"
+        style={{ color: '#ef4444' }}
+      >
+        <Trash2 className="h-3 w-3" />
+        Eliminar
+      </button>
+    ) : (
       <button
         onClick={() => setStep('confirm')}
         className="flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium transition-all w-full"
