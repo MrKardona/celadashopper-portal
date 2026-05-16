@@ -26,6 +26,45 @@ const ESTADO_BADGE: Record<string, { bg: string; color: string; border: string }
   retenido:           { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
 }
 
+// Mismos mapeos que paquetes/page.tsx — para sincronizar el badge con el tracker
+const PASO_ESTADOS: Record<string, number> = {
+  reportado:         0,
+  recibido_usa:      1,
+  retenido:          1,
+  en_consolidacion:  2,
+  listo_envio:       2,
+  en_transito:       4,
+  en_colombia:       6,
+  llego_colombia:    6,
+  en_bodega_local:   7,
+  listo_entrega:     7,
+  en_camino_cliente: 7,
+  entregado:         8,
+  devuelto:          8,
+}
+const USACO_A_PASO: Record<string, number> = {
+  GuiaCreadaColaborador: 3,
+  TransitoInternacional: 4,
+  ProcesoDeAduana:       5,
+  BodegaDestino:         6,
+  EnRuta:                7,
+  'En ruta transito':    7,
+  EnTransportadora:      7,
+  EntregaFallida:        7,
+  Entregado:             8,
+}
+const PASO_BADGE: Record<number, { bg: string; color: string; border: string }> = {
+  0: { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  1: { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  2: { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  3: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  4: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  5: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  6: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  7: { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.3)'  },
+  8: { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.3)'  },
+}
+
 const tw = 'rgba(255,255,255,'
 
 export default async function DetallePaquetePage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,7 +101,23 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
   const nextPaquete = nextRes.data
 
   const esProblema = ['retenido', 'devuelto'].includes(paquete.estado)
-  const badge           = ESTADO_BADGE[paquete.estado] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' }
+
+  // Paso efectivo — igual que la lista de paquetes
+  const esMedellin  = !paquete.bodega_destino || paquete.bodega_destino === 'medellin'
+  const PASO_LABEL  = esMedellin
+    ? ['Reportado', 'En Miami', 'Procesado', 'Guía creada', 'En tránsito', 'En aduana', 'En Colombia', 'En bodega local', 'Entregado']
+    : ['Reportado', 'En Miami', 'Procesado', 'Guía creada', 'En tránsito', 'En aduana', 'En Colombia', 'En ruta', 'Entregado']
+  const pasoEstado  = PASO_ESTADOS[paquete.estado as string] ?? 0
+  const pasoUsaco   = paquete.estado_usaco ? (USACO_A_PASO[paquete.estado_usaco as string] ?? 0) : 0
+  const paso        = Math.max(pasoEstado, pasoUsaco)
+
+  // Badge y label sincronizados con el paso efectivo
+  const badge = esProblema
+    ? (ESTADO_BADGE[paquete.estado] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' })
+    : (PASO_BADGE[paso] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' })
+  const labelBadge = esProblema
+    ? (ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado)
+    : (PASO_LABEL[paso] ?? ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado)
 
   return (
     <div className="max-w-2xl mx-auto space-y-5" style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -124,7 +179,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
               style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
-              {ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado}
+              {labelBadge}
             </span>
             {paquete.tracking_origen && (
               <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>
@@ -221,7 +276,7 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
             <h2 className="font-semibold text-white">📍 Seguimiento del paquete</h2>
           </div>
           <div className="p-5">
-            <TrackingTimeline eventos={trackingEventos} bodegaKey={paquete.bodega_destino ?? 'medellin'} />
+            <TrackingTimeline eventos={trackingEventos} bodegaKey={paquete.bodega_destino ?? 'medellin'} estadoUsaco={paquete.estado_usaco} />
           </div>
         </div>
       </FadeUpScroll>

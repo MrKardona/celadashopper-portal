@@ -15,6 +15,20 @@ interface TrackingEvento {
 interface Props {
   eventos: TrackingEvento[]
   bodegaKey?: string
+  estadoUsaco?: string | null
+}
+
+// Estado USACO raw → índice de paso (mismo mapa que paquetes/page.tsx)
+const USACO_A_PASO: Record<string, number> = {
+  GuiaCreadaColaborador: 3,
+  TransitoInternacional: 4,
+  ProcesoDeAduana:       5,
+  BodegaDestino:         6,
+  EnRuta:                7,
+  'En ruta transito':    7,
+  EnTransportadora:      7,
+  EntregaFallida:        7,
+  Entregado:             8,
 }
 
 // 9 hitos — coincide exactamente con el tracker del correo
@@ -77,7 +91,7 @@ const BG_INNER = '#19193a'
 const BORDER   = '#3a3a68'
 const MUTED    = '#6868a0'
 
-export function TrackingTimeline({ eventos, bodegaKey }: Props) {
+export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco }: Props) {
   const esMedellin = !bodegaKey || bodegaKey === 'medellin'
   const hitos      = esMedellin ? HITOS_MEDELLIN : HITOS_BOGOTA
   const PASOS      = esMedellin ? PASOS_PRINCIPALES_MEDELLIN : PASOS_PRINCIPALES_BOGOTA
@@ -93,11 +107,16 @@ export function TrackingTimeline({ eventos, bodegaKey }: Props) {
     return true
   })
 
-  // Paso activo = máximo índice alcanzado entre todos los eventos
+  // Paso activo = máximo entre eventos de tracking Y estado_usaco
   let pasoActivo = 0
   for (const e of ordenados) {
     const p = EVENTO_A_PASO[e.evento] ?? -1
     if (p > pasoActivo) pasoActivo = p
+  }
+  // Si estado_usaco indica un paso más avanzado, usarlo
+  if (estadoUsaco) {
+    const pasoUsaco = USACO_A_PASO[estadoUsaco] ?? 0
+    if (pasoUsaco > pasoActivo) pasoActivo = pasoUsaco
   }
 
   const porcentaje = Math.round((pasoActivo / (hitos.length - 1)) * 100)
