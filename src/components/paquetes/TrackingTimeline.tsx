@@ -154,34 +154,34 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
 
   return (
     <div className="space-y-5">
-      {/* ── Barra de 9 pasos (igual al email) ────────────────────────── */}
+      {/* ── Barra de 9 pasos ──────────────────────────────────────────── */}
       <div style={{
         background: BG_INNER,
         border: `1px solid ${BORDER}`,
         borderRadius: 12,
-        padding: '18px 8px 16px',
+        padding: '14px 4px 12px',
       }}>
         <p style={{
           textAlign: 'center',
-          fontSize: 10,
+          fontSize: 9,
           color: MUTED,
           letterSpacing: '1.5px',
           textTransform: 'uppercase',
           fontWeight: 'bold',
-          margin: '0 0 12px 0',
+          margin: '0 0 10px 0',
         }}>
           Estado del envío
         </p>
 
         {/* Barra de progreso animada */}
         <div style={{
-          height: 3,
+          height: 2,
           background: BORDER,
           borderRadius: 2,
-          margin: '0 14px 14px 14px',
+          margin: '0 10px 10px 10px',
         }}>
           <div style={{
-            height: 3,
+            height: 2,
             background: GOLD,
             borderRadius: 2,
             width: `${barWidth}%`,
@@ -189,7 +189,7 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
           }} />
         </div>
 
-        {/* Círculos de pasos */}
+        {/* Círculos de pasos — 26px para caber en 375px */}
         <div style={{ display: 'flex' }}>
           {hitos.map((h, i) => {
             const completado = i < pasoActivo
@@ -202,8 +202,8 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
             return (
               <div key={i} style={{ flex: 1, textAlign: 'center', padding: '0 1px' }}>
                 <div style={{
-                  width: 30,
-                  height: 30,
+                  width: 26,
+                  height: 26,
                   borderRadius: '50%',
                   background: circleBg,
                   color: circleClr,
@@ -211,7 +211,7 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 11,
+                  fontSize: 10,
                   outline: actual ? `2px solid ${GOLD_DIM}` : 'none',
                   outlineOffset: actual ? 2 : 0,
                   animation: actual ? 'csTrackPulse 2.2s ease-in-out infinite' : 'none',
@@ -219,12 +219,13 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo =
                   {h.emoji}
                 </div>
                 <p style={{
-                  margin: '4px 0 0',
-                  fontSize: 7.5,
+                  margin: '3px 0 0',
+                  fontSize: 7,
                   fontWeight: labelW,
                   color: labelClr,
                   lineHeight: 1.2,
                   fontFamily: 'inherit',
+                  wordBreak: 'break-word',
                 }}>
                   {h.label}
                 </p>

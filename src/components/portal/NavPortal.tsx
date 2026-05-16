@@ -110,27 +110,27 @@ export default function NavPortal({ perfil }: { perfil: Perfil | null }) {
           </div>
         </div>
 
-        {/* Nav móvil */}
-        <nav className="md:hidden flex gap-1 pb-3 overflow-x-auto">
+        {/* Nav móvil — grid equidistante, sin scroll */}
+        <nav className={`md:hidden grid pb-3 gap-1 ${perfil?.rol === 'admin' ? 'grid-cols-5' : 'grid-cols-4'}`}>
           {navItems.map(({ href, label, icon: Icon }) => (
             <a
               key={href}
               href={href}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
                 pathname === href.split('?')[0] ? 'nav-item-active' : 'nav-item'
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-4 w-4" />
               {label}
             </a>
           ))}
           {perfil?.rol === 'admin' && (
             <a
               href="/admin"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all"
+              className="flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all"
               style={{ background: 'rgba(245,184,0,0.1)', border: '1px solid rgba(245,184,0,0.2)', color: '#F5B800' }}
             >
-              <ShieldCheck className="h-3.5 w-3.5" />
+              <ShieldCheck className="h-4 w-4" />
               Admin
             </a>
           )}

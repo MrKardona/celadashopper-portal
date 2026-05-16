@@ -92,11 +92,11 @@ export default async function PaquetesPage() {
     <div className="space-y-6" style={{ fontFamily: "'Outfit', sans-serif" }}>
 
       <FadeUp>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Mis paquetes</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Mis paquetes</h1>
           <Link
             href="/reportar"
-            className="btn-gold inline-flex items-center gap-2 px-4 py-2.5 text-sm rounded-xl font-bold"
+            className="btn-gold inline-flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-sm rounded-xl font-bold shrink-0"
           >
             <PlusCircle className="h-4 w-4" />
             Nuevo
@@ -249,9 +249,9 @@ function PaqueteCard({ paquete }: { paquete: any }) {
             </div>
 
             {/* Thumbnail + chevron */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <FotoThumb url={thumbUrl} alt={paquete.descripcion} width={52} height={52} radius="0.75rem" />
-              <ChevronRight className="h-5 w-5 transition-colors group-hover:text-yellow-300"
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <FotoThumb url={thumbUrl} alt={paquete.descripcion} width={44} height={44} radius="0.6rem" />
+              <ChevronRight className="h-4 w-4 transition-colors group-hover:text-yellow-300"
                 style={{ color: `${tw}0.2)` }} />
             </div>
           </div>

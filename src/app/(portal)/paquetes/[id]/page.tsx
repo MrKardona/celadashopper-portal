@@ -124,32 +124,32 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
 
       {/* Header */}
       <FadeUp>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link
             href="/paquetes"
-            className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+            className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all shrink-0"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             <ArrowLeft className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-white truncate">{paquete.descripcion}</h1>
-            <p className="text-sm" style={{ color: `${tw}0.45)` }}>{paquete.tienda}</p>
+            <h1 className="text-base sm:text-xl font-bold text-white truncate">{paquete.descripcion}</h1>
+            <p className="text-xs sm:text-sm truncate" style={{ color: `${tw}0.45)` }}>{paquete.tienda}</p>
           </div>
 
           {/* Navegación prev/next */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             {prevPaquete ? (
               <Link
                 href={`/paquetes/${prevPaquete.id}`}
                 title={prevPaquete.descripcion ?? 'Paquete anterior'}
-                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 <ChevronLeft className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
               </Link>
             ) : (
-              <span className="flex items-center justify-center w-9 h-9 rounded-xl"
+              <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <ChevronLeft className="h-4 w-4" style={{ color: `${tw}0.2)` }} />
               </span>
@@ -158,13 +158,13 @@ export default async function DetallePaquetePage({ params }: { params: Promise<{
               <Link
                 href={`/paquetes/${nextPaquete.id}`}
                 title={nextPaquete.descripcion ?? 'Paquete siguiente'}
-                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all"
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
                 <ChevronRight className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
               </Link>
             ) : (
-              <span className="flex items-center justify-center w-9 h-9 rounded-xl"
+              <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <ChevronRight className="h-4 w-4" style={{ color: `${tw}0.2)` }} />
               </span>
