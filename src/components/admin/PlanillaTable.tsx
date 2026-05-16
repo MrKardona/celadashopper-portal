@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Calendar, RefreshCw, CheckCircle2, Loader2, FileText, Package, Pencil, X, Download, ChevronRight } from 'lucide-react'
+import { Calendar, RefreshCw, CheckCircle2, Loader2, FileText, Package, Pencil, Trash2, X, Download, ChevronRight } from 'lucide-react'
 
 const tw = 'rgba(255,255,255,'
 
@@ -216,6 +216,8 @@ export default function PlanillaTable() {
   const [error,       setError]       = useState('')
   const [lastSync,    setLastSync]    = useState<Date | null>(null)
   const [editingId,   setEditingId]   = useState<string | null>(null)
+  const [deletingId,  setDeletingId]  = useState<string | null>(null)  // id del manual en confirmación
+  const [deleting,    setDeleting]    = useState(false)
   const [descargando, setDescargando] = useState(false)
 
   const esRango = fechaDesde !== fechaHasta
@@ -266,6 +268,27 @@ export default function PlanillaTable() {
       setPaquetes(prev => prev.map(p => p.id === id ? { ...p, valor_domicilio: valor } : p))
     } else {
       setManuales(prev => prev.map(m => m.id === id ? { ...m, valor } : m))
+    }
+  }
+
+  async function eliminarManual(id: string) {
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/admin/domiciliarios/planilla', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) {
+        const d = await res.json() as { error?: string }
+        throw new Error(d.error ?? 'Error al eliminar')
+      }
+      setManuales(prev => prev.filter(m => m.id !== id))
+      setDeletingId(null)
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error al eliminar')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -515,14 +538,46 @@ export default function PlanillaTable() {
                               <ValorCell tipo="manual" id={m.id} inicial={m.valor} onSave={guardarValor} />
                             </td>
                             <td className="px-2 py-2.5">
-                              <button
-                                onClick={() => setEditingId(m.id)}
-                                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-opacity"
-                                style={{ color: `${tw}0.35)` }}
-                                title="Editar domicilio"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
+                              {deletingId === m.id ? (
+                                /* Confirmación inline de eliminación */
+                                <div className="flex items-center gap-1 animate-in fade-in">
+                                  <span className="text-[10px] whitespace-nowrap" style={{ color: '#f87171' }}>¿Eliminar?</span>
+                                  <button
+                                    onClick={() => eliminarManual(m.id)}
+                                    disabled={deleting}
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold disabled:opacity-50"
+                                    style={{ background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+                                  >
+                                    {deleting ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : 'Sí'}
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingId(null)}
+                                    className="px-1.5 py-0.5 rounded text-[10px]"
+                                    style={{ color: `${tw}0.35)` }}
+                                  >
+                                    No
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => setEditingId(m.id)}
+                                    className="p-1.5 rounded-lg"
+                                    style={{ color: `${tw}0.35)` }}
+                                    title="Editar"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingId(m.id)}
+                                    className="p-1.5 rounded-lg"
+                                    style={{ color: 'rgba(239,68,68,0.45)' }}
+                                    title="Eliminar"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         )

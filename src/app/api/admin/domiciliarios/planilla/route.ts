@@ -127,3 +127,16 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ ok: true })
 }
+
+export async function DELETE(req: NextRequest) {
+  const admin = await requireAdmin()
+  if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+  const body = await req.json() as { id: string }
+  if (!body.id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+
+  const { error } = await admin.from('domicilios_manuales').delete().eq('id', body.id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
