@@ -16,6 +16,7 @@ interface Props {
   eventos: TrackingEvento[]
   bodegaKey?: string
   estadoUsaco?: string | null
+  pasoMinimo?: number   // piso calculado desde paquete.estado + estado_usaco
 }
 
 // Estado USACO raw → índice de paso (mismo mapa que paquetes/page.tsx)
@@ -91,7 +92,7 @@ const BG_INNER = '#19193a'
 const BORDER   = '#3a3a68'
 const MUTED    = '#6868a0'
 
-export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco }: Props) {
+export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco, pasoMinimo = 0 }: Props) {
   const esMedellin = !bodegaKey || bodegaKey === 'medellin'
   const hitos      = esMedellin ? HITOS_MEDELLIN : HITOS_BOGOTA
   const PASOS      = esMedellin ? PASOS_PRINCIPALES_MEDELLIN : PASOS_PRINCIPALES_BOGOTA
@@ -107,13 +108,12 @@ export function TrackingTimeline({ eventos, bodegaKey, estadoUsaco }: Props) {
     return true
   })
 
-  // Paso activo = máximo entre eventos de tracking Y estado_usaco
-  let pasoActivo = 0
+  // Paso activo = máximo entre: eventos de tracking, estado_usaco, y estado interno del paquete
+  let pasoActivo = pasoMinimo  // piso: lo que ya sabe la página desde paquete.estado + estado_usaco
   for (const e of ordenados) {
     const p = EVENTO_A_PASO[e.evento] ?? -1
     if (p > pasoActivo) pasoActivo = p
   }
-  // Si estado_usaco indica un paso más avanzado, usarlo
   if (estadoUsaco) {
     const pasoUsaco = USACO_A_PASO[estadoUsaco] ?? 0
     if (pasoUsaco > pasoActivo) pasoActivo = pasoUsaco
