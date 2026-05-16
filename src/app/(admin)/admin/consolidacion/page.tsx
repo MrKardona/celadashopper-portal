@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { Layers } from 'lucide-react'
+import { Layers, Package } from 'lucide-react'
 import { fechaCorta } from '@/lib/fecha'
 import ArmarCajaDesdeConsolidacion from '@/components/admin/ArmarCajaDesdeConsolidacion'
 import FotoThumb from '@/components/ui/FotoThumb'
@@ -91,13 +91,12 @@ export default async function ConsolidacionPage() {
 
   const paquetesCol: PaqueteUS[] = (paquetesColRaw ?? []) as PaqueteUS[]
 
-  // Fotos para todos los paquetes
+  // Fotos
   const todosIds = [...paquetes, ...paquetesCol].map(p => p.id)
   const { data: fotosRaw } = todosIds.length > 0
     ? await supabase.from('fotos_paquetes').select('paquete_id, url, descripcion, created_at').in('paquete_id', todosIds).order('created_at')
     : { data: [] as { paquete_id: string; url: string; descripcion?: string | null; created_at: string }[] }
 
-  // Pick content photo (or first) per package
   const fotosGrupo: Record<string, { url: string; descripcion?: string | null; created_at: string }[]> = {}
   for (const f of (fotosRaw ?? []) as { paquete_id: string; url: string; descripcion?: string | null; created_at: string }[]) {
     if (!fotosGrupo[f.paquete_id]) fotosGrupo[f.paquete_id] = []
@@ -111,195 +110,135 @@ export default async function ConsolidacionPage() {
     if (thumb) fotosMap[pid] = thumb.url
   }
 
-  // Gather unique cliente_ids (US + Colombia)
-  const clienteIdsUS = [...new Set(paquetes.map(p => p.cliente_id).filter((id): id is string => !!id))]
+  const clienteIdsUS  = [...new Set(paquetes.map(p => p.cliente_id).filter((id): id is string => !!id))]
   const clienteIdsCol = [...new Set(paquetesCol.map(p => p.cliente_id).filter((id): id is string => !!id))]
-  const clienteIds = [...new Set([...clienteIdsUS, ...clienteIdsCol])]
+  const clienteIds    = [...new Set([...clienteIdsUS, ...clienteIdsCol])]
 
   let perfilesMap: Record<string, Perfil> = {}
   if (clienteIds.length > 0) {
     const { data: perfiles } = await supabase
-      .from('perfiles')
-      .select('id, nombre_completo, numero_casilla')
-      .in('id', clienteIds)
-    if (perfiles) {
-      perfilesMap = Object.fromEntries(
-        (perfiles as Perfil[]).map(p => [p.id, p])
-      )
-    }
+      .from('perfiles').select('id, nombre_completo, numero_casilla').in('id', clienteIds)
+    if (perfiles) perfilesMap = Object.fromEntries((perfiles as Perfil[]).map(p => [p.id, p]))
   }
 
-  // Group by cliente_id → bodega_destino
-  const byCliente: Record<string, PaqueteUS[]> = {}
-  for (const p of paquetes) {
-    if (!p.cliente_id) continue
-    if (!byCliente[p.cliente_id]) byCliente[p.cliente_id] = []
-    byCliente[p.cliente_id].push(p)
-  }
-
-  const grupos: GrupoCliente[] = Object.entries(byCliente).map(([clienteId, pkgs]) => {
-    // Group by bodega
-    const byBodega: Record<string, PaqueteUS[]> = {}
-    for (const p of pkgs) {
-      const key = p.bodega_destino ?? '__null__'
-      if (!byBodega[key]) byBodega[key] = []
-      byBodega[key].push(p)
+  function buildGrupos(list: PaqueteUS[]): GrupoCliente[] {
+    const byCliente: Record<string, PaqueteUS[]> = {}
+    for (const p of list) {
+      if (!p.cliente_id) continue
+      if (!byCliente[p.cliente_id]) byCliente[p.cliente_id] = []
+      byCliente[p.cliente_id].push(p)
     }
-
-    const bodegas: GrupoBodega[] = Object.entries(byBodega).map(([bodegaKey, bpkgs]) => {
-      const bodega = bodegaKey === '__null__' ? null : bodegaKey
-      // Compute total weight only if all packages have a weight
-      const allHaveWeight = bpkgs.every(p => (p.peso_facturable ?? p.peso_libras) !== null)
-      const pesoTotal = allHaveWeight
-        ? bpkgs.reduce((sum, p) => sum + (p.peso_facturable ?? p.peso_libras ?? 0), 0)
-        : null
-      return { bodega, paquetes: bpkgs, pesoTotal }
+    return Object.entries(byCliente).map(([clienteId, pkgs]) => {
+      const byBodega: Record<string, PaqueteUS[]> = {}
+      for (const p of pkgs) {
+        const key = p.bodega_destino ?? '__null__'
+        if (!byBodega[key]) byBodega[key] = []
+        byBodega[key].push(p)
+      }
+      const bodegas: GrupoBodega[] = Object.entries(byBodega).map(([bodegaKey, bpkgs]) => {
+        const bodega = bodegaKey === '__null__' ? null : bodegaKey
+        const allHaveWeight = bpkgs.every(p => (p.peso_facturable ?? p.peso_libras) !== null)
+        const pesoTotal = allHaveWeight ? bpkgs.reduce((sum, p) => sum + (p.peso_facturable ?? p.peso_libras ?? 0), 0) : null
+        return { bodega, paquetes: bpkgs, pesoTotal }
+      })
+      bodegas.sort((a, b) => b.paquetes.length - a.paquetes.length)
+      const oldestDate = pkgs.reduce((o, p) => (p.created_at < o ? p.created_at : o), pkgs[0].created_at)
+      return { cliente: perfilesMap[clienteId] ?? null, clienteId, bodegas, totalPaquetes: pkgs.length, oldestDate }
+    }).sort((a, b) => {
+      if (b.totalPaquetes !== a.totalPaquetes) return b.totalPaquetes - a.totalPaquetes
+      return a.oldestDate.localeCompare(b.oldestDate)
     })
-
-    // Sort bodegas: multi-package first
-    bodegas.sort((a, b) => b.paquetes.length - a.paquetes.length)
-
-    const oldestDate = pkgs.reduce((oldest, p) => (p.created_at < oldest ? p.created_at : oldest), pkgs[0].created_at)
-
-    return {
-      cliente: perfilesMap[clienteId] ?? null,
-      clienteId,
-      bodegas,
-      totalPaquetes: pkgs.length,
-      oldestDate,
-    }
-  })
-
-  // Sort: more packages first, then oldest date
-  grupos.sort((a, b) => {
-    if (b.totalPaquetes !== a.totalPaquetes) return b.totalPaquetes - a.totalPaquetes
-    return a.oldestDate.localeCompare(b.oldestDate)
-  })
-
-  // Separate: multi-package (any bodega group with 2+) vs single
-  const multiGrupos = grupos.filter(g => g.bodegas.some(b => b.paquetes.length >= 2))
-  const soloGrupos  = grupos.filter(g => g.bodegas.every(b => b.paquetes.length < 2))
-
-  // Colombia groups
-  const byClienteCol: Record<string, PaqueteUS[]> = {}
-  for (const p of paquetesCol) {
-    if (!p.cliente_id) continue
-    if (!byClienteCol[p.cliente_id]) byClienteCol[p.cliente_id] = []
-    byClienteCol[p.cliente_id].push(p)
   }
 
-  const gruposCol: GrupoCliente[] = Object.entries(byClienteCol).map(([clienteId, pkgs]) => {
-    const byBodega: Record<string, PaqueteUS[]> = {}
-    for (const p of pkgs) {
-      const key = p.bodega_destino ?? '__null__'
-      if (!byBodega[key]) byBodega[key] = []
-      byBodega[key].push(p)
-    }
-    const bodegas: GrupoBodega[] = Object.entries(byBodega).map(([bodegaKey, bpkgs]) => {
-      const bodega = bodegaKey === '__null__' ? null : bodegaKey
-      const allHaveWeight = bpkgs.every(p => (p.peso_facturable ?? p.peso_libras) !== null)
-      const pesoTotal = allHaveWeight ? bpkgs.reduce((sum, p) => sum + (p.peso_facturable ?? p.peso_libras ?? 0), 0) : null
-      return { bodega, paquetes: bpkgs, pesoTotal }
-    })
-    bodegas.sort((a, b) => b.paquetes.length - a.paquetes.length)
-    const oldestDate = pkgs.reduce((oldest, p) => (p.created_at < oldest ? p.created_at : oldest), pkgs[0].created_at)
-    return { cliente: perfilesMap[clienteId] ?? null, clienteId, bodegas, totalPaquetes: pkgs.length, oldestDate }
-  })
+  const grupos    = buildGrupos(paquetes)
+  const gruposCol = buildGrupos(paquetesCol)
 
-  gruposCol.sort((a, b) => {
-    if (b.totalPaquetes !== a.totalPaquetes) return b.totalPaquetes - a.totalPaquetes
-    return a.oldestDate.localeCompare(b.oldestDate)
-  })
-
+  const multiGrupos    = grupos.filter(g => g.bodegas.some(b => b.paquetes.length >= 2))
+  const soloGrupos     = grupos.filter(g => g.bodegas.every(b => b.paquetes.length < 2))
   const multiGruposCol = gruposCol.filter(g => g.bodegas.some(b => b.paquetes.length >= 2))
+
+  // Stats globales
+  const totalPaqUS    = paquetes.length
+  const totalPesoUS   = paquetes.filter(p => p.peso_facturable ?? p.peso_libras).reduce((s, p) => s + (p.peso_facturable ?? p.peso_libras ?? 0), 0)
+  const listos        = paquetes.filter(p => p.estado === 'listo_envio').length
 
   return (
     <div className="space-y-6">
-      {/* Back link */}
-      <Link href="/admin" className="inline-flex items-center gap-1.5 text-sm transition-colors"
-        style={{ color: `${tw}0.4)` }}>
-        ← Volver al dashboard
+      <Link href="/admin" className="inline-flex items-center gap-1.5 text-sm" style={{ color: `${tw}0.35)` }}>
+        ← Dashboard
       </Link>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Consolidación de paquetes</h1>
-        <p className="text-sm mt-1" style={{ color: `${tw}0.45)` }}>
-          Clientes con varios paquetes en bodega Miami
-        </p>
+      {/* ── Header + stats ───────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Consolidación</h1>
+          <p className="text-sm mt-0.5" style={{ color: `${tw}0.4)` }}>Clientes con varios paquetes en Miami</p>
+        </div>
+
+        {/* Resumen rápido */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Stat label="En USA" value={totalPaqUS} icon="📦" />
+          {listos > 0 && <Stat label="Listos" value={listos} icon="✅" accent="#c084fc" />}
+          {totalPesoUS > 0 && <Stat label="Peso total" value={`${totalPesoUS.toFixed(1)} lb`} icon="⚖️" />}
+        </div>
       </div>
 
-      {/* Alert banner */}
-      <div className="flex items-center gap-3 px-5 py-4 rounded-2xl"
-        style={{
-          background: 'rgba(168,85,247,0.08)',
-          border: '1px solid rgba(168,85,247,0.25)',
-        }}>
-        <Layers className="h-5 w-5 flex-shrink-0" style={{ color: '#c084fc' }} />
+      {/* Banner */}
+      <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl"
+        style={{ background: 'rgba(168,85,247,0.07)', border: '1px solid rgba(168,85,247,0.2)' }}>
+        <Layers className="h-4 w-4 flex-shrink-0" style={{ color: '#c084fc' }} />
         <p className="text-sm" style={{ color: '#c084fc' }}>
           {multiGrupos.length === 0
-            ? 'No hay grupos para consolidar en este momento.'
-            : multiGrupos.length === 1
-              ? '1 cliente con varios paquetes en Miami — puede consolidarse en una sola caja.'
-              : `${multiGrupos.length} clientes con varios paquetes en Miami — pueden consolidarse en una sola caja.`}
+            ? 'Sin grupos para consolidar.'
+            : `${multiGrupos.length} cliente${multiGrupos.length !== 1 ? 's' : ''} con varios paquetes en Miami — pueden ir en una sola caja.`}
         </p>
       </div>
 
-      {/* ── Multi-package section ── */}
+      {/* ── Multi-package ────────────────────────────────────────────── */}
       {multiGrupos.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <div className="text-4xl mb-3">✅</div>
-          <p className="font-semibold text-white">No hay paquetes para consolidar</p>
-          <p className="text-sm mt-1" style={{ color: `${tw}0.4)` }}>
-            Todos los clientes tienen 1 paquete en bodega
-          </p>
+          <p className="text-3xl mb-2">✅</p>
+          <p className="font-semibold text-white">Todo en orden</p>
+          <p className="text-sm mt-1" style={{ color: `${tw}0.4)` }}>Todos los clientes tienen 1 paquete en bodega</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: `${tw}0.3)` }}>
-            Consolidar ahora — {multiGrupos.length} cliente{multiGrupos.length !== 1 ? 's' : ''}
-          </h2>
-
-          {multiGrupos.map(grupo => (
-            <div key={grupo.clienteId}>
-              {grupo.bodegas.filter(b => b.paquetes.length >= 2).map(bodegaGrupo => (
-                <GrupoCard
-                  key={`${grupo.clienteId}-${bodegaGrupo.bodega}`}
-                  grupo={grupo}
-                  bodegaGrupo={bodegaGrupo}
-                  fotosMap={fotosMap}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+        <section className="space-y-3">
+          <SectionTitle icon="🟣" label="Consolidar ahora" count={multiGrupos.length} />
+          {multiGrupos.map(grupo =>
+            grupo.bodegas.filter(b => b.paquetes.length >= 2).map(bodegaGrupo => (
+              <GrupoCard
+                key={`${grupo.clienteId}-${bodegaGrupo.bodega}`}
+                grupo={grupo}
+                bodegaGrupo={bodegaGrupo}
+                fotosMap={fotosMap}
+              />
+            ))
+          )}
+        </section>
       )}
 
-      {/* ── Single-package section ── */}
+      {/* ── Single-package (colapsado) ───────────────────────────────── */}
       {soloGrupos.length > 0 && (
         <details className="group">
-          <summary className="cursor-pointer list-none flex items-center gap-2 py-2">
-            <span className="text-xs font-bold uppercase tracking-widest select-none" style={{ color: `${tw}0.25)` }}>
-              Clientes con 1 paquete — {soloGrupos.length}
+          <summary className="cursor-pointer list-none flex items-center gap-2 py-2 select-none">
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: `${tw}0.22)` }}>
+              Clientes con 1 paquete ({soloGrupos.length})
             </span>
-            <span className="text-xs" style={{ color: `${tw}0.18)` }}>▸</span>
+            <span className="text-xs group-open:rotate-90 transition-transform inline-block" style={{ color: `${tw}0.15)` }}>▸</span>
           </summary>
-          <div className="mt-3 space-y-2">
-            {soloGrupos.map(grupo => (
+          <div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${tw}0.06)` }}>
+            {soloGrupos.map((grupo, i) => (
               <div key={grupo.clienteId}
-                className="flex items-center justify-between px-4 py-3 rounded-xl"
-                style={{ background: `${tw}0.03)`, border: `1px solid ${tw}0.06)` }}>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: `${tw}0.5)` }}>
-                    {grupo.cliente?.nombre_completo ?? grupo.clienteId}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: `${tw}0.25)` }}>
-                    {grupo.cliente?.numero_casilla ?? '—'} · {grupo.bodegas[0]?.paquetes[0]?.descripcion ?? '—'}
-                  </p>
+                className="flex items-center gap-3 px-4 py-2.5"
+                style={{ borderTop: i > 0 ? `1px solid ${tw}0.05)` : undefined }}>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium text-white truncate block">{grupo.cliente?.nombre_completo ?? grupo.clienteId}</span>
+                  <span className="text-[10px]" style={{ color: `${tw}0.28)` }}>
+                    {grupo.cliente?.numero_casilla} · {grupo.bodegas[0]?.paquetes[0]?.descripcion ?? '—'}
+                  </span>
                 </div>
                 <Link href={`/admin/paquetes?cliente_id=${grupo.clienteId}`}
-                  className="text-xs ml-3 flex-shrink-0"
-                  style={{ color: `${tw}0.3)` }}>
+                  className="text-[11px] flex-shrink-0" style={{ color: `${tw}0.3)` }}>
                   Ver →
                 </Link>
               </div>
@@ -308,121 +247,192 @@ export default async function ConsolidacionPage() {
         </details>
       )}
 
-      {/* ── Colombia section ── */}
+      {/* ── Colombia ─────────────────────────────────────────────────── */}
       {multiGruposCol.length > 0 && (
-        <div className="space-y-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            🇨🇴 Entregar juntos — Bodega Colombia — {multiGruposCol.length} cliente{multiGruposCol.length !== 1 ? 's' : ''}
-          </h2>
-          {multiGruposCol.map(grupo => (
-            <div key={grupo.clienteId}>
-              {grupo.bodegas.filter(b => b.paquetes.length >= 2).map(bodegaGrupo => (
-                <GrupoCard
-                  key={`col-${grupo.clienteId}-${bodegaGrupo.bodega}`}
-                  grupo={grupo}
-                  bodegaGrupo={bodegaGrupo}
-                  accentColor="green"
-                  fotosMap={fotosMap}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+        <section className="space-y-3 pt-4" style={{ borderTop: `1px solid ${tw}0.06)` }}>
+          <SectionTitle icon="🇨🇴" label="Entregar juntos — Bodega Colombia" count={multiGruposCol.length} />
+          {multiGruposCol.map(grupo =>
+            grupo.bodegas.filter(b => b.paquetes.length >= 2).map(bodegaGrupo => (
+              <GrupoCard
+                key={`col-${grupo.clienteId}-${bodegaGrupo.bodega}`}
+                grupo={grupo}
+                bodegaGrupo={bodegaGrupo}
+                accentColor="green"
+                fotosMap={fotosMap}
+              />
+            ))
+          )}
+        </section>
       )}
     </div>
   )
 }
 
+// ── Componentes auxiliares ──────────────────────────────────────────────────
+
+function SectionTitle({ icon, label, count }: { icon: string; label: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm">{icon}</span>
+      <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.28)' }}>
+        {label}
+      </h2>
+      <span className="text-xs font-bold px-2 py-0.5 rounded-full tabular-nums"
+        style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>
+        {count}
+      </span>
+    </div>
+  )
+}
+
+function Stat({ label, value, icon, accent }: { label: string; value: string | number; icon: string; accent?: string }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <span className="text-base leading-none">{icon}</span>
+      <div>
+        <p className="text-xs leading-none" style={{ color: 'rgba(255,255,255,0.35)' }}>{label}</p>
+        <p className="text-sm font-bold mt-0.5 leading-none" style={{ color: accent ?? 'white' }}>{value}</p>
+      </div>
+    </div>
+  )
+}
+
+// ── GrupoCard ───────────────────────────────────────────────────────────────
+
 function GrupoCard({
-  grupo,
-  bodegaGrupo,
-  accentColor = 'purple',
-  fotosMap = {},
+  grupo, bodegaGrupo, accentColor = 'purple', fotosMap = {},
 }: {
   grupo: GrupoCliente
   bodegaGrupo: GrupoBodega
   accentColor?: 'purple' | 'green'
   fotosMap?: Record<string, string>
 }) {
-  const { cliente, clienteId } = grupo
+  const { cliente, clienteId, oldestDate } = grupo
   const { bodega, paquetes, pesoTotal } = bodegaGrupo
-  const count = paquetes.length
 
   const isGreen = accentColor === 'green'
+  const dias    = Math.floor((Date.now() - new Date(oldestDate).getTime()) / 86_400_000)
 
-  const cardBorderColor  = isGreen ? 'rgba(52,211,153,0.2)'  : 'rgba(168,85,247,0.2)'
-  const stripGradient    = isGreen
-    ? 'linear-gradient(90deg, rgba(52,211,153,0.7) 0%, rgba(52,211,153,0.2) 100%)'
-    : 'linear-gradient(90deg, rgba(168,85,247,0.7) 0%, rgba(99,130,255,0.4) 100%)'
-  const bodegaBadgeBg    = isGreen ? 'rgba(52,211,153,0.1)'  : 'rgba(168,85,247,0.1)'
-  const bodegaBadgeColor = isGreen ? '#34d399'               : '#c084fc'
-  const bodegaBadgeBorder= isGreen ? 'rgba(52,211,153,0.22)' : 'rgba(168,85,247,0.22)'
+  const stripGradient   = isGreen
+    ? 'linear-gradient(90deg,#10b981 0%,rgba(52,211,153,0.25) 100%)'
+    : 'linear-gradient(90deg,#a855f7 0%,rgba(99,130,255,0.3) 100%)'
+  const cardBorderColor = isGreen ? 'rgba(52,211,153,0.18)' : 'rgba(168,85,247,0.18)'
+
+  // Estado breakdown
+  const estadoCount: Record<string, number> = {}
+  for (const p of paquetes) estadoCount[p.estado] = (estadoCount[p.estado] ?? 0) + 1
+
+  // Semáforo de urgencia por días
+  const diasColor = dias > 14 ? '#f87171' : dias > 7 ? '#f59e0b' : 'rgba(255,255,255,0.3)'
+  const diasBg    = dias > 14 ? 'rgba(239,68,68,0.1)' : dias > 7 ? 'rgba(245,158,11,0.1)' : 'rgba(255,255,255,0.04)'
 
   return (
     <div className="glass-card overflow-hidden" style={{ borderColor: cardBorderColor }}>
-      {/* Top accent strip */}
-      <div className="h-0.5 w-full" style={{ background: stripGradient }} />
+      {/* Barra de acento */}
+      <div className="h-[3px]" style={{ background: stripGradient }} />
 
-      <div className="p-5">
-        {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0 flex-1">
-            <Link href={`/admin/paquetes?cliente_id=${clienteId}`}
-              className="font-bold text-white text-base leading-tight hover:underline decoration-white/30 underline-offset-2">
-              {cliente?.nombre_completo ?? clienteId}
-            </Link>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs font-mono" style={{ color: `${tw}0.38)` }}>
-                {cliente?.numero_casilla ?? '—'}
-              </span>
+      <div className="p-4 space-y-3">
+
+        {/* ── Header ─────────────────────────────────────────────────── */}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={`/admin/paquetes?cliente_id=${clienteId}`}
+                className="font-bold text-white text-base leading-tight hover:underline decoration-white/30 underline-offset-2 truncate">
+                {cliente?.nombre_completo ?? clienteId}
+              </Link>
+              {cliente?.numero_casilla && (
+                <span className="text-xs font-mono font-semibold flex-shrink-0" style={{ color: '#F5B800' }}>
+                  {cliente.numero_casilla}
+                </span>
+              )}
+            </div>
+
+            {/* Sub-info: bodega + peso + días */}
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {bodega && (
-                <span className="text-[11px] px-1.5 py-0.5 rounded-md font-semibold"
-                  style={{ background: bodegaBadgeBg, color: bodegaBadgeColor, border: `1px solid ${bodegaBadgeBorder}` }}>
+                <span className="text-[11px] px-2 py-0.5 rounded-md font-semibold"
+                  style={{
+                    background: isGreen ? 'rgba(52,211,153,0.1)' : 'rgba(168,85,247,0.1)',
+                    color:      isGreen ? '#34d399'              : '#c084fc',
+                    border:     `1px solid ${isGreen ? 'rgba(52,211,153,0.2)' : 'rgba(168,85,247,0.2)'}`,
+                  }}>
                   📍 {BODEGA_LABELS[bodega] ?? bodega}
                 </span>
               )}
               {pesoTotal !== null && (
-                <span className="text-[11px] px-1.5 py-0.5 rounded-md font-semibold"
-                  style={{ background: `${tw}0.06)`, color: `${tw}0.45)`, border: `1px solid ${tw}0.09)` }}>
-                  {pesoTotal.toFixed(2)} lb
+                <span className="text-[11px] px-2 py-0.5 rounded-md font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  ⚖️ {pesoTotal.toFixed(2)} lb
                 </span>
               )}
+              <span className="text-[11px] px-2 py-0.5 rounded-md font-semibold"
+                style={{ background: diasBg, color: diasColor, border: `1px solid ${diasColor}30` }}>
+                ⏱ {dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : `${dias} días`}
+              </span>
+            </div>
+
+            {/* Estado breakdown */}
+            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+              {Object.entries(estadoCount).map(([estado, n]) => {
+                const s = ESTADO_DARK[estado] ?? { bg: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)', border: 'rgba(255,255,255,0.1)' }
+                return (
+                  <span key={estado} className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap"
+                    style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                    {n} {ESTADO_LABELS[estado] ?? estado}
+                  </span>
+                )
+              })}
             </div>
           </div>
-          {/* Package count badge */}
-          <span className="flex-shrink-0 text-sm font-bold px-3 py-1.5 rounded-full tabular-nums"
-            style={{ background: 'rgba(245,184,0,0.14)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.3)' }}>
-            {count} paq.
-          </span>
+
+          {/* Count badge */}
+          <div className="flex-shrink-0 text-center px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(245,184,0,0.1)', border: '1px solid rgba(245,184,0,0.22)' }}>
+            <p className="text-xl font-bold leading-none tabular-nums" style={{ color: '#F5B800' }}>{paquetes.length}</p>
+            <p className="text-[9px] font-bold uppercase mt-0.5" style={{ color: 'rgba(245,184,0,0.6)' }}>paq.</p>
+          </div>
         </div>
 
-        {/* ── Package list ── */}
-        <div className="space-y-2">
-          {paquetes.map(p => {
-            const s = ESTADO_DARK[p.estado] ?? { bg: `${tw}0.07)`, color: `${tw}0.6)`, border: `${tw}0.12)` }
+        {/* ── Lista de paquetes ───────────────────────────────────────── */}
+        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+          {paquetes.map((p, i) => {
+            const s      = ESTADO_DARK[p.estado] ?? { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' }
             const fotoUrl = fotosMap[p.id] ?? null
+            const peso    = p.peso_facturable ?? p.peso_libras
             return (
               <Link key={p.id} href={`/admin/paquetes/${p.id}`}
-                className="flex items-center gap-3 py-2.5 px-3 rounded-xl transition-all hover:bg-white/[0.05]"
-                style={{ background: `${tw}0.025)`, border: `1px solid ${tw}0.05)` }}>
+                className="flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-white/[0.04]"
+                style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : undefined }}>
+
                 {/* Miniatura */}
-                <FotoThumb url={fotoUrl} width={44} height={44} radius="0.5rem" />
-                {/* Info central */}
+                <FotoThumb url={fotoUrl} width={36} height={36} radius="0.4rem" />
+
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate leading-snug" style={{ color: `${tw}0.88)` }}>
+                  <p className="text-xs font-medium leading-snug truncate" style={{ color: 'rgba(255,255,255,0.85)' }}>
                     {p.descripcion ?? '—'}
                   </p>
-                  <p className="text-[11px] font-mono mt-0.5 truncate" style={{ color: `${tw}0.32)` }}>
-                    {p.tracking_origen ?? p.tracking_casilla ?? 'Sin tracking'}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-[10px] font-mono truncate" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                      {p.tracking_origen ?? p.tracking_casilla ?? '—'}
+                    </p>
+                    {peso && (
+                      <span className="text-[10px] flex-shrink-0" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                        {peso.toFixed(1)} lb
+                      </span>
+                    )}
+                  </div>
                 </div>
+
                 {/* Estado + fecha */}
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
                     style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
                     {ESTADO_LABELS[p.estado] ?? p.estado}
                   </span>
-                  <span className="text-[10px]" style={{ color: `${tw}0.28)` }}>
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.22)' }}>
                     {fechaCorta(p.created_at)}
                   </span>
                 </div>
@@ -431,19 +441,18 @@ function GrupoCard({
           })}
         </div>
 
-        {/* ── Footer ── */}
-        <div className="flex items-center gap-4 mt-4 pt-4"
-          style={{ borderTop: `1px solid ${tw}0.06)` }}>
+        {/* ── Footer: acciones ────────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-3 pt-1">
           <Link href={`/admin/paquetes?cliente_id=${clienteId}`}
-            className="text-sm font-semibold transition-opacity hover:opacity-70"
-            style={{ color: '#F5B800' }}>
-            Ver todos →
+            className="text-xs font-medium transition-opacity hover:opacity-70"
+            style={{ color: 'rgba(255,255,255,0.35)' }}>
+            Ver todos los paquetes →
           </Link>
           {isGreen ? (
             <Link href="/admin/listos-entrega"
-              className="text-sm font-semibold transition-opacity hover:opacity-70"
-              style={{ color: '#34d399' }}>
-              Listos entrega →
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }}>
+              🚴 Listos entrega
             </Link>
           ) : (
             <ArmarCajaDesdeConsolidacion
