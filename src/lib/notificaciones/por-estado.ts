@@ -10,7 +10,7 @@ import {
 } from '@/lib/email/notificaciones'
 import { calcularTarifa } from '@/lib/tarifas/calcular'
 import type { ResultadoEmail } from '@/lib/email/transporter'
-import { insertarEventoTracking } from '@/lib/usaco/tracking'
+import { insertarEventoTracking } from '@/lib/tracking'
 import sharp from 'sharp'
 
 function getSupabase() {

@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { verificarAdmin } from '@/lib/auth/admin'
-import { insertarEventoTracking } from '@/lib/usaco/tracking'
+import { insertarEventoTracking } from '@/lib/tracking'
 import { notificarCambioEstado } from '@/lib/notificaciones/por-estado'
 
 interface Props {

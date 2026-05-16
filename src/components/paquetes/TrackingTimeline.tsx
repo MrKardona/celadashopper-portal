@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TRACKING_LABELS, PASOS_PRINCIPALES_MEDELLIN, PASOS_PRINCIPALES_BOGOTA } from '@/lib/usaco/tracking'
+import { TRACKING_LABELS, PASOS_PRINCIPALES_MEDELLIN, PASOS_PRINCIPALES_BOGOTA } from '@/lib/tracking'
 import { fechaHoraLarga } from '@/lib/fecha'
 
 interface TrackingEvento {
