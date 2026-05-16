@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 
 type Resultado = {
   consultadas: number
@@ -16,13 +15,6 @@ export default function SyncCajasUsacoButton() {
   const [estado,    setEstado]    = useState<Estado>('idle')
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [error,     setError]     = useState('')
-  const router = useRouter()
-
-  useEffect(() => {
-    if (estado !== 'ok' && estado !== 'error') return
-    const t = setTimeout(() => { setEstado('idle'); setResultado(null) }, 6000)
-    return () => clearTimeout(t)
-  }, [estado])
 
   async function sincronizar() {
     setEstado('loading')
@@ -34,7 +26,8 @@ export default function SyncCajasUsacoButton() {
       if (!res.ok) throw new Error(data.error ?? 'Error al sincronizar')
       setResultado(data)
       setEstado('ok')
-      router.refresh()
+      // Esperar 1.2s para que el usuario vea el resultado, luego recargar datos frescos
+      setTimeout(() => window.location.reload(), 1200)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error desconocido')
       setEstado('error')
