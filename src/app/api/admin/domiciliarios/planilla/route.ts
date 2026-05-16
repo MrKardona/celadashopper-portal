@@ -1,5 +1,7 @@
 // GET  /api/admin/domiciliarios/planilla?fecha=YYYY-MM-DD
-// PATCH /api/admin/domiciliarios/planilla  { tipo, id, valor }
+//       /api/admin/domiciliarios/planilla?fechaDesde=YYYY-MM-DD&fechaHasta=YYYY-MM-DD
+// PATCH /api/admin/domiciliarios/planilla  { tipo, id, valor? }  — actualizar valor
+//                                          { tipo:'manual', id, campos:{nombre?,direccion?,tipo?} } — editar campos
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
@@ -23,14 +25,24 @@ async function requireAdmin() {
   return admin
 }
 
+/** Calcula inicio/fin UTC a partir de una fecha en zona Bogotá (UTC-5 = T05:00:00Z) */
+function rangoUTC(fechaDesde: string, fechaHasta: string) {
+  const inicio = new Date(`${fechaDesde}T05:00:00.000Z`)
+  const fin    = new Date(new Date(`${fechaHasta}T05:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000 - 1)
+  return { inicio, fin }
+}
+
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const fechaParam = req.nextUrl.searchParams.get('fecha')
-  const fechaBog   = fechaParam ?? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-  const inicio = new Date(`${fechaBog}T05:00:00.000Z`)
-  const fin    = new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1)
+  const sp = req.nextUrl.searchParams
+  const hoyBog = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+
+  const fechaDesde = sp.get('fechaDesde') ?? sp.get('fecha') ?? hoyBog
+  const fechaHasta = sp.get('fechaHasta') ?? sp.get('fecha') ?? hoyBog
+
+  const { inicio, fin } = rangoUTC(fechaDesde, fechaHasta)
 
   const { data: domiciliarios } = await admin
     .from('perfiles')
@@ -60,7 +72,6 @@ export async function GET(req: NextRequest) {
       .order('domiciliario_id').order('completado_at'),
   ])
 
-  // Nombres de clientes
   const clienteIds = [...new Set((paqRes.data ?? []).map(p => p.cliente_id).filter(Boolean))] as string[]
   const clienteNombres: Record<string, string> = {}
   if (clienteIds.length > 0) {
@@ -80,18 +91,38 @@ export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const body = await req.json() as { tipo: 'paquete' | 'manual'; id: string; valor: number | null }
+  const body = await req.json() as {
+    tipo: 'paquete' | 'manual'
+    id: string
+    valor?: number | null
+    campos?: { nombre?: string; direccion?: string | null; tipo?: string }
+  }
 
   if (!body.id || !['paquete', 'manual'].includes(body.tipo)) {
     return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 })
   }
 
-  if (body.tipo === 'paquete') {
-    const { error } = await admin.from('paquetes').update({ valor_domicilio: body.valor }).eq('id', body.id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  } else {
-    const { error } = await admin.from('domicilios_manuales').update({ valor: body.valor }).eq('id', body.id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // ── Actualizar valor ──────────────────────────────────────────────────────
+  if (body.valor !== undefined) {
+    if (body.tipo === 'paquete') {
+      const { error } = await admin.from('paquetes').update({ valor_domicilio: body.valor }).eq('id', body.id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    } else {
+      const { error } = await admin.from('domicilios_manuales').update({ valor: body.valor }).eq('id', body.id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+  }
+
+  // ── Editar campos de domicilio manual ─────────────────────────────────────
+  if (body.campos && body.tipo === 'manual') {
+    const campos: Record<string, unknown> = {}
+    if (body.campos.nombre    !== undefined) campos.nombre    = body.campos.nombre
+    if (body.campos.direccion !== undefined) campos.direccion = body.campos.direccion
+    if (body.campos.tipo      !== undefined) campos.tipo      = body.campos.tipo
+    if (Object.keys(campos).length > 0) {
+      const { error } = await admin.from('domicilios_manuales').update(campos).eq('id', body.id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ ok: true })
