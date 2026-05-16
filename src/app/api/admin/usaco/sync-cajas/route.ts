@@ -1,10 +1,11 @@
 // POST /api/admin/usaco/sync-cajas
-// Consulta USACO y actualiza el estado de las cajas despachadas.
+// Consulta USACO, actualiza estado en cajas Y propaga cambios a paquetes.
 
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { consultarGuias } from '@/lib/usaco/cliente'
+import { insertarEventoTracking } from '@/lib/tracking'
 
 function getAdmin() {
   return createClient(
@@ -24,7 +25,45 @@ async function requireAdmin() {
   return admin
 }
 
-const IGNORAR_SIEMPRE = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado'])
+// Ignora estados internos de USACO que no representan progreso real
+const IGNORAR = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado', 'GuiaCreadaColaborador'])
+
+// Estado USACO → estado interno del paquete
+// Solo se aplica si el paquete está en un estado ANTERIOR (ver orden abajo)
+const USACO_A_ESTADO_PAQ: Record<string, string> = {
+  'TransitoInternacional': 'en_transito',
+  'ProcesoDeAduana':       'en_transito',
+  'BodegaDestino':         'en_colombia',
+  'EnRuta':                'en_colombia',
+  'En ruta transito':      'en_colombia',
+  'EnTransportadora':      'en_colombia',
+  'EntregaFallida':        'en_colombia',
+  // 'Entregado': NO — entrega se confirma manualmente con foto
+}
+
+// Estado USACO → evento de tracking visible al cliente
+const USACO_A_EVENTO_TRACKING: Record<string, string> = {
+  'TransitoInternacional': 'transito_internacional',
+  'ProcesoDeAduana':       'proceso_aduana',
+  'BodegaDestino':         'llego_colombia',
+  'EnRuta':                'en_ruta',
+  'En ruta transito':      'en_ruta_transito',
+  'EnTransportadora':      'en_transportadora',
+  'EntregaFallida':        'entrega_fallida',
+}
+
+// Orden de estados para decidir si avanzar o no
+const ORDEN_ESTADO: Record<string, number> = {
+  reportado:         0,
+  recibido_usa:      1,
+  en_consolidacion:  2,
+  listo_envio:       3,
+  en_transito:       4,
+  en_colombia:       5,
+  en_bodega_local:   6,
+  en_camino_cliente: 7,
+  entregado:         8,
+}
 
 export async function POST() {
   const admin = await requireAdmin()
@@ -42,22 +81,18 @@ export async function POST() {
 
   if (!cajas || cajas.length === 0) {
     return NextResponse.json({
-      ok: true,
-      consultadas: 0,
-      actualizadas: 0,
+      ok: true, consultadas: 0, actualizadas: 0,
       mensaje: 'No hay cajas despachadas con tracking USACO',
     })
   }
 
-  // 2. Consultar USACO (guías únicas)
+  // 2. Consultar USACO
   const trackingsUnicos = [...new Set(cajas.map(c => (c.tracking_usaco as string).trim()))]
   const resultados = await consultarGuias(trackingsUnicos)
 
   if (resultados.length === 0) {
     return NextResponse.json({
-      ok: true,
-      consultadas: cajas.length,
-      actualizadas: 0,
+      ok: true, consultadas: cajas.length, actualizadas: 0,
       mensaje: 'USACO no devolvió resultados',
     })
   }
@@ -71,23 +106,87 @@ export async function POST() {
   )
 
   const ahora = new Date().toISOString()
-  let actualizadas = 0
+  let cajasActualizadas = 0
+  let paquetesAvanzados = 0
 
   for (const caja of cajas) {
-    const tracking = norm(caja.tracking_usaco as string)
+    const tracking   = norm(caja.tracking_usaco as string)
     const estadoUsaco = estadoMap.get(tracking)
 
-    if (!estadoUsaco || IGNORAR_SIEMPRE.has(estadoUsaco)) continue
+    if (!estadoUsaco || IGNORAR.has(estadoUsaco)) continue
 
-    const huboCambio = estadoUsaco !== caja.estado_usaco
+    const huboCambioCaja = estadoUsaco !== caja.estado_usaco
 
-    const { error: errCaja } = await admin
+    // 3. Actualizar caja
+    await admin
       .from('cajas_consolidacion')
       .update({ estado_usaco: estadoUsaco, usaco_sync_at: ahora })
       .eq('id', caja.id)
 
-    if (!errCaja && huboCambio) actualizadas++
+    if (huboCambioCaja) cajasActualizadas++
+
+    // 4. Propagar a paquetes dentro de esta caja si hay un estado mapeado
+    const estadoNuevoPaq = USACO_A_ESTADO_PAQ[estadoUsaco]
+    const eventoTracking = USACO_A_EVENTO_TRACKING[estadoUsaco]
+
+    if (!estadoNuevoPaq && !eventoTracking) continue
+
+    // Cargar paquetes de la caja (excluyendo sub-paquetes y ya entregados)
+    const { data: paquetes } = await admin
+      .from('paquetes')
+      .select('id, estado')
+      .eq('caja_id', caja.id)
+      .is('paquete_origen_id', null)     // solo paquetes principales
+      .not('estado', 'in', '("entregado","devuelto","en_bodega_local","en_camino_cliente")')
+
+    for (const paq of paquetes ?? []) {
+      const ordenActual = ORDEN_ESTADO[paq.estado] ?? 0
+      const ordenNuevo  = estadoNuevoPaq ? (ORDEN_ESTADO[estadoNuevoPaq] ?? 0) : 0
+
+      // Solo avanzar estado, nunca retroceder
+      if (estadoNuevoPaq && ordenNuevo > ordenActual) {
+        const { error: errPaq } = await admin
+          .from('paquetes')
+          .update({ estado: estadoNuevoPaq, updated_at: ahora })
+          .eq('id', paq.id)
+
+        if (!errPaq) {
+          // Registrar evento interno
+          await admin.from('eventos_paquete').insert({
+            paquete_id:     paq.id,
+            estado_anterior: paq.estado,
+            estado_nuevo:   estadoNuevoPaq,
+            descripcion:    `Actualizado vía USACO (${estadoUsaco}) — caja ${caja.codigo_interno}`,
+            ubicacion:      estadoUsaco === 'TransitoInternacional' || estadoUsaco === 'ProcesoDeAduana'
+              ? 'En tránsito'
+              : 'Colombia',
+          }).then(() => null, () => null)
+
+          paquetesAvanzados++
+        }
+      }
+
+      // Insertar evento de tracking visible al cliente (si aplica y no existe ya)
+      if (eventoTracking) {
+        const { data: existe } = await admin
+          .from('paquetes_tracking')
+          .select('id')
+          .eq('paquete_id', paq.id)
+          .eq('evento', eventoTracking)
+          .maybeSingle()
+
+        if (!existe) {
+          await insertarEventoTracking(admin, paq.id, eventoTracking, 'usaco',
+            `${estadoUsaco} — caja ${caja.codigo_interno}`)
+        }
+      }
+    }
   }
 
-  return NextResponse.json({ ok: true, consultadas: cajas.length, actualizadas })
+  return NextResponse.json({
+    ok: true,
+    consultadas:       cajas.length,
+    actualizadas:      cajasActualizadas,
+    paquetes_avanzados: paquetesAvanzados,
+  })
 }
