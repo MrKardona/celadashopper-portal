@@ -6,6 +6,10 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { consultarGuias } from '@/lib/usaco/cliente'
 import { insertarEventoTracking } from '@/lib/tracking'
+import {
+  notificarEstadoUsacoBogota,
+  notificarCambioEstado,
+} from '@/lib/notificaciones/por-estado'
 
 function getAdmin() {
   return createClient(
@@ -139,18 +143,49 @@ export async function POST() {
     const estadoNuevoPaq = USACO_A_ESTADO_PAQ[estadoUsaco]
     const eventoTracking = USACO_A_EVENTO_TRACKING[estadoUsaco]
 
-    if (!estadoNuevoPaq && !eventoTracking) continue
+    // 'Entregado' no tiene mapeo general (Medellín confirma manualmente),
+    // pero sí se procesa para paquetes de Bogotá — por eso no hacemos continue aquí.
+    if (!estadoNuevoPaq && !eventoTracking && estadoUsaco !== 'Entregado') continue
 
     // Cargar paquetes de la caja (excluyendo sub-paquetes y ya entregados)
     const { data: paquetes } = await admin
       .from('paquetes')
-      .select('id, estado')
+      .select('id, estado, bodega_destino')
       .eq('caja_id', caja.id)
       .is('paquete_origen_id', null)     // solo paquetes principales
       .not('estado', 'in', '("entregado","devuelto","en_bodega_local","en_camino_cliente")')
 
     for (const paq of paquetes ?? []) {
       const ordenActual = ORDEN_ESTADO[paq.estado] ?? 0
+      const esBogota    = paq.bodega_destino === 'bogota'
+
+      // ── Bogotá: USACO Entregado → confirmar entrega automáticamente ──────
+      // Medellín mantiene confirmación manual con foto; aquí solo Bogotá.
+      if (estadoUsaco === 'Entregado') {
+        if (!esBogota) continue
+        const ordenEntregado = ORDEN_ESTADO['entregado'] ?? 8
+        if (ordenEntregado > ordenActual) {
+          const { error: errEnt } = await admin
+            .from('paquetes')
+            .update({ estado: 'entregado', updated_at: ahora })
+            .eq('id', paq.id)
+          if (!errEnt) {
+            await admin.from('eventos_paquete').insert({
+              paquete_id:      paq.id,
+              estado_anterior: paq.estado,
+              estado_nuevo:    'entregado',
+              descripcion:     `Entregado automáticamente vía USACO (${estadoUsaco}) — caja ${caja.codigo_interno}`,
+              ubicacion:       'Colombia',
+            }).then(() => null, () => null)
+            paquetesAvanzados++
+            // Notifica: WA cs_entregado_jutpck + email + inserta tracking event 'entregado'
+            notificarCambioEstado(paq.id, 'entregado')
+              .catch(err => console.error('[sync-cajas] notificar entregado bogota:', err))
+          }
+        }
+        continue
+      }
+
       const ordenNuevo  = estadoNuevoPaq ? (ORDEN_ESTADO[estadoNuevoPaq] ?? 0) : 0
 
       // Solo avanzar estado, nunca retroceder
@@ -188,6 +223,15 @@ export async function POST() {
         if (!existe) {
           await insertarEventoTracking(admin, paq.id, eventoTracking, 'usaco',
             `${estadoUsaco} — caja ${caja.codigo_interno}`)
+
+          // Notificar al cliente de Bogotá vía USACO (dedup natural: solo cuando
+          // el tracking event no existía).
+          // BodegaDestino → WA cs_listo_recoger_v2_04nkhl + email
+          // Resto de estados → email únicamente
+          if (esBogota) {
+            notificarEstadoUsacoBogota(paq.id, estadoUsaco)
+              .catch(err => console.error('[sync-cajas] notificarEstadoUsacoBogota:', err))
+          }
         }
       }
     }

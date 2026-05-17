@@ -742,11 +742,14 @@ export async function notificarTrackingActualizado(paqueteId: string): Promise<v
 }
 
 // ─── Notificar estado USACO para paquetes de Bogotá ─────────────────────────
+// Email: todos los estados significativos.
+// WhatsApp: solo BodegaDestino (llego_colombia) — template aprobado cs_listo_recoger_v2_04nkhl.
+// El estado Entregado NO pasa por aquí; se maneja con notificarCambioEstado directamente.
 export async function notificarEstadoUsacoBogota(
   paqueteId: string,
   estadoUsaco: string,
 ): Promise<void> {
-  // Mapeo de estado USACO raw → estado email interno
+  // Estado USACO → clave de email
   const USACO_A_EMAIL: Record<string, string> = {
     'GuiaCreadaColaborador': 'guia_creada',
     'TransitoInternacional': 'en_transito',
@@ -758,6 +761,15 @@ export async function notificarEstadoUsacoBogota(
     'EntregaFallida':        'entrega_fallida',
   }
 
+  // Estado USACO → template WA aprobado (solo los estados con template disponible)
+  const USACO_A_WA: Record<string, { name: string; params: (vars: Record<string, string>, paq: PaqRaw) => string[] }> = {
+    // BodegaDestino = paquete llegó a Colombia → reutilizamos cs_listo_recoger_v2_04nkhl
+    'BodegaDestino': {
+      name: 'cs_listo_recoger_v2_04nkhl',
+      params: (vars) => [vars.nombre, vars.descripcion || 'tu paquete'],
+    },
+  }
+
   const estadoEmail = USACO_A_EMAIL[estadoUsaco]
   if (!estadoEmail) {
     console.warn(`[notificarEstadoUsacoBogota] Estado USACO "${estadoUsaco}" sin mapeo a email`)
@@ -767,33 +779,43 @@ export async function notificarEstadoUsacoBogota(
   try {
     const ctx = await cargarContexto(paqueteId, `usaco_bogota_${estadoEmail}`)
     if (!ctx) return
-    if (!ctx.perfil.email) {
-      console.warn(`[notificarEstadoUsacoBogota] paquete=${paqueteId} sin email — sin notificación`)
-      return
+
+    // ── WhatsApp (solo estados con template aprobado) ─────────────────────
+    const waDef = USACO_A_WA[estadoUsaco]
+    let envioWaOk = false
+    if (waDef && ctx.phone) {
+      const params = waDef.params(ctx.vars, ctx.paquete as PaqRaw)
+      envioWaOk = await enviarMetaTemplate(ctx.phone, waDef.name, params)
+      console.log(`[notificarEstadoUsacoBogota] WA paquete=${paqueteId} template=${waDef.name} ok=${envioWaOk}`)
     }
 
-    const emailRes = await enviarEmailPorEstado(estadoEmail, {
-      emailDestino: ctx.perfil.email,
-      nombre: ctx.vars.nombre,
-      paqueteId,
-      tracking: ctx.vars.tracking,
-      descripcion: ctx.vars.descripcion,
-      tracking_origen: ctx.paquete.tracking_origen,
-      tracking_usaco: ctx.paquete.tracking_usaco,
-      peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras,
-      costo_servicio: ctx.paquete.costo_servicio,
-      bodega_destino: ctx.paquete.bodega_destino,
-      tienda: ctx.paquete.tienda,
-    })
-    console.log(`[notificarEstadoUsacoBogota] paquete=${paqueteId} estadoUsaco=${estadoUsaco} estadoEmail=${estadoEmail} ok=${emailRes.ok}`)
+    // ── Email (canal principal, siempre intentamos) ───────────────────────
+    let emailRes: ResultadoEmail = { ok: false, error: 'Cliente sin email' }
+    if (ctx.perfil.email) {
+      emailRes = await enviarEmailPorEstado(estadoEmail, {
+        emailDestino: ctx.perfil.email,
+        nombre: ctx.vars.nombre,
+        paqueteId,
+        tracking: ctx.vars.tracking,
+        descripcion: ctx.vars.descripcion,
+        tracking_origen: ctx.paquete.tracking_origen,
+        tracking_usaco: ctx.paquete.tracking_usaco,
+        peso_libras: ctx.paquete.peso_facturable ?? ctx.paquete.peso_libras,
+        costo_servicio: ctx.paquete.costo_servicio,
+        bodega_destino: ctx.paquete.bodega_destino,
+        tienda: ctx.paquete.tienda,
+      })
+      console.log(`[notificarEstadoUsacoBogota] EMAIL paquete=${paqueteId} estadoUsaco=${estadoUsaco} estadoEmail=${estadoEmail} ok=${emailRes.ok}`)
+    }
 
+    const metaInfo = getUltimoMetaInfo()
     await logNotificacion(ctx.supabase, {
       cliente_id: ctx.paquete.cliente_id,
       paquete_id: paqueteId,
       tipo: 'usaco_bogota',
-      titulo: `USACO Bogotá: ${estadoUsaco} → ${estadoEmail}`,
-      mensaje: `estado_usaco=${estadoUsaco}`,
-      enviada_whatsapp: false,
+      titulo: `USACO Bogotá: ${estadoUsaco} → ${estadoEmail}${envioWaOk ? ' [WA ✓]' : ''}${metaInfo.rawError ? ' [WA ERR]' : ''}`,
+      mensaje: `estado_usaco=${estadoUsaco}${metaInfo.messageId ? ` | wa_msg_id=${metaInfo.messageId}` : ''}${metaInfo.rawError ? ` | wa_error=${metaInfo.rawError}` : ''}`,
+      enviada_whatsapp: envioWaOk,
       enviada_email: emailRes.ok,
       email_message_id: emailRes.messageId ?? null,
       email_error: emailRes.error ?? null,
