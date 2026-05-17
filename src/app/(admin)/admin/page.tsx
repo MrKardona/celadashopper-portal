@@ -41,9 +41,9 @@ export default async function AdminDashboard() {
     entregadosTotalRes, entregadosMesRes, recepcionesUsaRes, devueltosTotalRes,
     cajasActivasRes, consolidacionRes, entregadosRecientesRes,
   ] = await Promise.all([
-    supabase.from('paquetes').select('estado').not('estado', 'in', '("entregado","devuelto")'),
-    supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, created_at').order('created_at', { ascending: false }).limit(8),
-    supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, updated_at').not('estado', 'in', '("entregado","devuelto")').lt('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order('updated_at', { ascending: true }).limit(5),
+    supabase.from('paquetes').select('estado').not('estado', 'in', '("entregado","devuelto")').is('paquete_origen_id', null),
+    supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, created_at').is('paquete_origen_id', null).order('created_at', { ascending: false }).limit(8),
+    supabase.from('paquetes').select('id, tracking_casilla, tracking_origen, descripcion, estado, cliente_id, updated_at').is('paquete_origen_id', null).not('estado', 'in', '("entregado","devuelto")').lt('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).order('updated_at', { ascending: true }).limit(5),
     supabase.from('perfiles').select('id', { count: 'exact', head: true }).eq('rol', 'cliente').eq('activo', true),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'entregado'),
     supabase.from('paquetes').select('id', { count: 'exact', head: true }).eq('estado', 'entregado').gte('updated_at', hace30Dias),
@@ -54,7 +54,8 @@ export default async function AdminDashboard() {
       .from('paquetes')
       .select('cliente_id')
       .in('estado', ['recibido_usa', 'en_consolidacion', 'listo_envio'])
-      .not('cliente_id', 'is', null),
+      .not('cliente_id', 'is', null)
+      .is('paquete_origen_id', null),
     supabase.from('paquetes').select('updated_at').eq('estado', 'entregado').gte('updated_at', hace30Dias),
   ])
 
