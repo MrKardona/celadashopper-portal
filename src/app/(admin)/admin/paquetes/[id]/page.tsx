@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ChevronLeft, ChevronRight, Package, MapPin, Scale, DollarSign, Camera, FileText } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Package, MapPin, Scale, DollarSign, Camera, FileText, Mail, Phone, Home, ExternalLink, UserCog, Pencil } from 'lucide-react'
 import { fechaHora } from '@/lib/fecha'
 import PaqueteEditForm from '@/components/admin/PaqueteEditForm'
 import EliminarPaqueteButton from '@/components/admin/EliminarPaqueteButton'
-import PruebaWhatsappButton from '@/components/admin/PruebaWhatsappButton'
-import PruebaEmailButton from '@/components/admin/PruebaEmailButton'
 import AsignarClienteButton from '@/components/admin/AsignarClienteButton'
 import { FotoGaleria } from '@/components/portal/FotoGaleria'
 import CrearFacturaZohoButton from '@/components/admin/CrearFacturaZohoButton'
@@ -321,89 +319,119 @@ export default async function AdminPaqueteDetalle({ params }: Props) {
         <div className="space-y-5">
           {/* Cliente */}
           <div className="glass-card overflow-hidden" style={!perfil ? { borderColor: 'rgba(245,184,0,0.2)' } : {}}>
-            <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
-              <MapPin className="h-4 w-4" style={{ color: '#F5B800' }} />
-              <h3 className="text-sm font-semibold text-white">Cliente</h3>
+
+            {/* Header */}
+            <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${tw}0.06)` }}>
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#F5B800' }} />
+              <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: `${tw}0.5)` }}>Cliente</h3>
             </div>
-            <div className="px-5 py-4 space-y-3 text-sm">
-              {!perfil ? (
-                <>
-                  <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
-                    <p className="font-semibold text-sm" style={{ color: '#F5B800' }}>⏳ Paquete sin asignar</p>
-                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      Este paquete aún no tiene cliente. Asígnalo manualmente.
-                    </p>
+
+            {!perfil ? (
+              <div className="px-5 py-5 space-y-3">
+                <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(245,184,0,0.06)', border: '1px dashed rgba(245,184,0,0.25)' }}>
+                  <p className="font-semibold text-sm text-white">Sin cliente asignado</p>
+                  <p className="text-xs mt-1" style={{ color: `${tw}0.4)` }}>Asígnalo manualmente para continuar el seguimiento.</p>
+                </div>
+                <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'} clienteActual={null} variante="primary" categoriaActual={p.categoria} />
+              </div>
+            ) : (
+              <div className="divide-y" style={{ '--tw-divide-opacity': 1, borderColor: 'transparent' } as React.CSSProperties}>
+
+                {/* Identidad */}
+                <div className="px-5 py-4 flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm"
+                    style={{ background: 'rgba(245,184,0,0.12)', color: '#F5B800' }}>
+                    {perfil.nombre_completo.charAt(0).toUpperCase()}
                   </div>
-                  <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'} clienteActual={null} variante="primary" categoriaActual={p.categoria} />
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="font-semibold text-white">{perfil.nombre_completo}</p>
-                    <p className="font-mono text-xs mt-0.5" style={{ color: '#F5B800' }}>{perfil.numero_casilla}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm text-white leading-tight">{perfil.nombre_completo}</p>
+                    <p className="font-mono text-xs mt-0.5" style={{ color: '#F5B800' }}>Casilla #{perfil.numero_casilla}</p>
+                    <Link href={`/admin/paquetes?cliente_id=${p.cliente_id}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium mt-1.5 transition-opacity hover:opacity-80"
+                      style={{ color: `${tw}0.35)` }}>
+                      <ExternalLink className="h-2.5 w-2.5" />
+                      Ver todos sus paquetes
+                    </Link>
                   </div>
+                </div>
+
+                {/* Contacto */}
+                <div className="px-5 py-3 space-y-2" style={{ borderTop: `1px solid ${tw}0.06)` }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: `${tw}0.25)` }}>Contacto</p>
                   {perfil.email && (
-                    <a href={`mailto:${perfil.email}`} className="text-xs hover:underline block truncate" style={{ color: '#8899ff' }}>
-                      {perfil.email}
+                    <a href={`mailto:${perfil.email}`}
+                      className="flex items-center gap-2.5 text-xs py-1.5 px-2.5 rounded-lg transition-colors group"
+                      style={{ background: 'rgba(136,153,255,0.06)', border: '1px solid rgba(136,153,255,0.12)' }}>
+                      <Mail className="h-3 w-3 flex-shrink-0" style={{ color: '#8899ff' }} />
+                      <span className="truncate group-hover:underline" style={{ color: '#8899ff' }}>{perfil.email}</span>
                     </a>
                   )}
                   {(perfil.whatsapp ?? perfil.telefono) && (
                     <a href={`https://wa.me/${(perfil.whatsapp ?? perfil.telefono)?.replace(/\D/g, '')}`}
                       target="_blank" rel="noopener noreferrer"
-                      className="text-xs hover:underline block" style={{ color: '#34d399' }}>
-                      WhatsApp: {perfil.whatsapp ?? perfil.telefono}
+                      className="flex items-center gap-2.5 text-xs py-1.5 px-2.5 rounded-lg transition-colors group"
+                      style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.12)' }}>
+                      <Phone className="h-3 w-3 flex-shrink-0" style={{ color: '#34d399' }} />
+                      <span className="group-hover:underline" style={{ color: '#34d399' }}>{perfil.whatsapp ?? perfil.telefono}</span>
                     </a>
                   )}
+                  {!perfil.email && !(perfil.whatsapp ?? perfil.telefono) && (
+                    <p className="text-xs" style={{ color: `${tw}0.25)` }}>Sin datos de contacto</p>
+                  )}
+                </div>
 
-                  {(perfil.direccion || perfil.barrio || perfil.referencia || perfil.ciudad) && (
-                    <div className="pt-3 mt-2" style={{ borderTop: `1px solid ${tw}0.06)` }}>
-                      <p className="text-[11px] uppercase tracking-wide font-medium mb-1" style={{ color: `${tw}0.3)` }}>Dirección de entrega</p>
-                      {perfil.direccion && <p className="text-xs leading-relaxed" style={{ color: `${tw}0.65)` }}>{perfil.direccion}</p>}
-                      {perfil.barrio && <p className="text-xs mt-0.5" style={{ color: `${tw}0.4)` }}>Barrio: {perfil.barrio}</p>}
-                      {perfil.ciudad && <p className="text-xs" style={{ color: `${tw}0.4)` }}>{perfil.ciudad}</p>}
-                      {perfil.referencia && <p className="text-xs mt-0.5 italic" style={{ color: `${tw}0.35)` }}>Ref: {perfil.referencia}</p>}
-                      {!perfil.direccion && !perfil.barrio && !perfil.referencia && perfil.ciudad && (
-                        <p className="text-[11px] italic" style={{ color: '#F5B800' }}>⚠️ Solo tiene ciudad, sin dirección detallada</p>
-                      )}
+                {/* Dirección */}
+                <div className="px-5 py-3" style={{ borderTop: `1px solid ${tw}0.06)` }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: `${tw}0.25)` }}>Dirección de entrega</p>
+                  {(perfil.direccion || perfil.barrio || perfil.ciudad) ? (
+                    <div className="flex items-start gap-2">
+                      <Home className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
+                      <div className="min-w-0 space-y-0.5">
+                        {perfil.direccion && <p className="text-xs leading-relaxed" style={{ color: `${tw}0.7)` }}>{perfil.direccion}</p>}
+                        {(perfil.barrio || perfil.ciudad) && (
+                          <p className="text-xs" style={{ color: `${tw}0.4)` }}>
+                            {[perfil.barrio, perfil.ciudad].filter(Boolean).join(', ')}
+                          </p>
+                        )}
+                        {perfil.referencia && (
+                          <p className="text-[11px] italic" style={{ color: `${tw}0.35)` }}>Ref: {perfil.referencia}</p>
+                        )}
+                        {!perfil.direccion && !perfil.barrio && perfil.ciudad && (
+                          <p className="text-[11px] italic" style={{ color: '#F5B800' }}>Solo ciudad, sin dirección detallada</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg"
+                      style={{ background: 'rgba(245,184,0,0.06)', border: '1px solid rgba(245,184,0,0.18)' }}>
+                      <Home className="h-3 w-3 flex-shrink-0" style={{ color: '#F5B800' }} />
+                      <p className="text-xs" style={{ color: '#F5B800' }}>Sin dirección registrada</p>
                     </div>
                   )}
-                  {!perfil.direccion && !perfil.ciudad && (
-                    <div className="pt-2 mt-2" style={{ borderTop: `1px solid ${tw}0.06)` }}>
-                      <p className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(245,184,0,0.08)', color: '#F5B800', border: '1px solid rgba(245,184,0,0.2)' }}>
-                        ⚠️ Cliente sin dirección registrada
-                      </p>
-                    </div>
-                  )}
+                </div>
 
-                  <Link href={`/admin/paquetes?cliente_id=${p.cliente_id}`}
-                    className="text-xs font-semibold block pt-2 hover:underline" style={{ color: '#F5B800' }}>
-                    Ver todos los paquetes de este cliente →
-                  </Link>
-
-                  <div className="pt-3 space-y-2" style={{ borderTop: `1px solid ${tw}0.06)` }}>
-                    <PruebaEmailButton emailSugerido={perfil.email} nombreSugerido={perfil.nombre_completo} />
-                    <PruebaWhatsappButton telefonoSugerido={perfil.whatsapp ?? perfil.telefono ?? null} />
+                {/* Acciones */}
+                <div className="px-5 py-3 space-y-2" style={{ borderTop: `1px solid ${tw}0.06)` }}>
+                  <div className="flex gap-2">
                     <AsignarClienteButton paqueteId={id} trackingCasilla={p.tracking_casilla ?? '—'} descripcion={p.descripcion ?? '—'}
                       clienteActual={{ nombre: perfil.nombre_completo, casilla: perfil.numero_casilla }} variante="subtle" categoriaActual={p.categoria} />
                   </div>
+                  <ClienteEditInline perfil={{
+                    id: p.cliente_id!,
+                    nombre_completo: perfil.nombre_completo,
+                    numero_casilla: perfil.numero_casilla,
+                    email: perfil.email,
+                    whatsapp: perfil.whatsapp,
+                    telefono: perfil.telefono,
+                    ciudad: perfil.ciudad,
+                    direccion: perfil.direccion,
+                    barrio: perfil.barrio,
+                    referencia: perfil.referencia,
+                  }} />
+                </div>
 
-                  <div className="pt-3" style={{ borderTop: `1px solid ${tw}0.06)` }}>
-                    <ClienteEditInline perfil={{
-                      id: p.cliente_id!,
-                      nombre_completo: perfil.nombre_completo,
-                      numero_casilla: perfil.numero_casilla,
-                      email: perfil.email,
-                      whatsapp: perfil.whatsapp,
-                      telefono: perfil.telefono,
-                      ciudad: perfil.ciudad,
-                      direccion: perfil.direccion,
-                      barrio: perfil.barrio,
-                      referencia: perfil.referencia,
-                    }} />
-                  </div>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Tarifa */}
