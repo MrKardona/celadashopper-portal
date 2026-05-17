@@ -263,6 +263,45 @@ export async function PATCH(req: NextRequest, { params }: Props) {
             .eq('id', id)
         }
 
+        // ── Pasos intermedios del portal del cliente ─────────────────────────
+        // Asignar tracking_usaco = guía creada = el paquete fue procesado antes.
+        // Siempre insertar estos dos eventos del timeline si no existen aún.
+        const estadoBaseActual = estado ?? paqueteAntes?.estado ?? 'reportado'
+        const ordenBase        = ORDEN_ESTADO[estadoBaseActual] ?? 0
+
+        async function insertarSiNoExiste(evento: string, descripcionEvt: string) {
+          const { data: existe } = await supabaseAdmin
+            .from('paquetes_tracking')
+            .select('id')
+            .eq('paquete_id', id)
+            .eq('evento', evento)
+            .maybeSingle()
+          if (!existe) {
+            await insertarEventoTracking(supabaseAdmin, id, evento, 'usaco', descripcionEvt)
+          }
+        }
+
+        // 3a. "Procesado y empacado" — ocurrió antes de crear la guía
+        await insertarSiNoExiste('procesado', `Paquete procesado — guía USACO ${guia} asignada`)
+
+        // 3b. "Guía de envío generada" — asignar tracking_usaco ES este evento
+        await insertarSiNoExiste('guia_creada', `Guía USACO ${guia} generada`)
+
+        // 3c. Avanzar estado del paquete a mínimo listo_envio si está por debajo
+        if (ordenBase < (ORDEN_ESTADO['listo_envio'] ?? 3)) {
+          await supabaseAdmin
+            .from('paquetes')
+            .update({ estado: 'listo_envio', updated_at: ahora })
+            .eq('id', id)
+
+          await supabaseAdmin.from('eventos_paquete').insert({
+            paquete_id:      id,
+            estado_anterior: estadoBaseActual,
+            estado_nuevo:    'listo_envio',
+            descripcion:     `Guía USACO ${guia} asignada — listo para envío`,
+          }).then(() => null, () => null)
+        }
+
         // 4. Consultar USACO en tiempo real para este tracking
         const resultados = await consultarGuias([guia])
         const estadoUsaco = resultados
@@ -283,8 +322,10 @@ export async function PATCH(req: NextRequest, { params }: Props) {
             const eventoTracking = USACO_A_EVENTO_TRACKING[estadoUsaco]
 
             if (estadoPaqNuevo) {
-              // Estado actual del paquete tras el PATCH ya aplicado
-              const estadoActual = estado ?? paqueteAntes?.estado ?? 'reportado'
+              // Estado actual = el mayor entre lo que tenía y listo_envio (ya aplicado arriba)
+              const estadoActual = ordenBase < (ORDEN_ESTADO['listo_envio'] ?? 3)
+                ? 'listo_envio'
+                : (estado ?? paqueteAntes?.estado ?? 'reportado')
               const ordenActual  = ORDEN_ESTADO[estadoActual] ?? 0
               const ordenNuevo   = ORDEN_ESTADO[estadoPaqNuevo] ?? 0
 
