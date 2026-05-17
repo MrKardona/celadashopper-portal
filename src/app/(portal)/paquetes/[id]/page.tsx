@@ -1,217 +1,339 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, Package, MapPin, Calendar, DollarSign, Scale } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Package, MapPin, DollarSign, Scale } from 'lucide-react'
 import {
-  ESTADO_LABELS, ESTADO_COLORES, CATEGORIA_LABELS,
+  ESTADO_LABELS, CATEGORIA_LABELS,
   type EstadoPaquete, type CategoriaProducto
 } from '@/types'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { fechaHoraLarga } from '@/lib/fecha'
+import { FadeUp, FadeUpScroll } from '@/components/portal/AnimateIn'
+import { FotoGaleria } from '@/components/portal/FotoGaleria'
+import { TrackingTimeline } from '@/components/paquetes/TrackingTimeline'
 
-const ESTADOS_ORDEN: EstadoPaquete[] = [
-  'reportado', 'recibido_usa', 'en_consolidacion', 'listo_envio',
-  'en_transito', 'en_colombia', 'en_bodega_local', 'en_camino_cliente', 'entregado'
-]
+const ESTADO_BADGE: Record<string, { bg: string; color: string; border: string }> = {
+  recibido:           { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  reportado:          { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  recibido_usa:       { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  en_consolidacion:   { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  listo_envio:        { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  en_transito:        { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  en_colombia:        { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  en_bodega_local:    { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  en_camino_cliente:  { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.3)'  },
+  entregado:          { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.3)'  },
+  devuelto:           { bg: 'rgba(239,68,68,0.12)',   color: '#f87171', border: 'rgba(239,68,68,0.25)'  },
+  retenido:           { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+}
 
-export default async function DetallePaquetePage({ params }: { params: { id: string } }) {
+// Mismos mapeos que paquetes/page.tsx — para sincronizar el badge con el tracker
+const PASO_ESTADOS: Record<string, number> = {
+  reportado:         0,
+  recibido_usa:      1,
+  retenido:          1,
+  en_consolidacion:  2,
+  listo_envio:       2,
+  en_transito:       4,
+  en_colombia:       6,
+  llego_colombia:    6,
+  en_bodega_local:   7,
+  listo_entrega:     7,
+  en_camino_cliente: 7,
+  entregado:         8,
+  devuelto:          8,
+}
+const USACO_A_PASO: Record<string, number> = {
+  GuiaCreadaColaborador: 3,
+  TransitoInternacional: 4,
+  ProcesoDeAduana:       5,
+  BodegaDestino:         6,
+  EnRuta:                7,
+  'En ruta transito':    7,
+  EnTransportadora:      7,
+  EntregaFallida:        7,
+  Entregado:             8,
+}
+const PASO_BADGE: Record<number, { bg: string; color: string; border: string }> = {
+  0: { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  1: { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  2: { bg: 'rgba(99,130,255,0.12)',  color: '#8899ff', border: 'rgba(99,130,255,0.25)' },
+  3: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  4: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  5: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  6: { bg: 'rgba(245,184,0,0.12)',   color: '#F5B800', border: 'rgba(245,184,0,0.3)'   },
+  7: { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.3)'  },
+  8: { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.3)'  },
+}
+
+const tw = 'rgba(255,255,255,'
+
+export default async function DetallePaquetePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: paquete } = await supabase
-    .from('paquetes')
-    .select('*, fotos_paquetes(*), eventos_paquete(*)')
-    .eq('id', params.id)
-    .eq('cliente_id', user!.id)
-    .single()
+  const [paqueteRes, fotosRes, eventosRes, trackingRes] = await Promise.all([
+    supabase.from('paquetes').select('*').eq('id', id).eq('cliente_id', user!.id).eq('visible_cliente', true).maybeSingle(),
+    supabase.from('fotos_paquetes').select('*').eq('paquete_id', id).order('created_at'),
+    supabase.from('eventos_paquete').select('*').eq('paquete_id', id).order('created_at', { ascending: false }),
+    supabase.from('paquetes_tracking').select('id, evento, descripcion, fecha, fuente').eq('paquete_id', id).order('fecha'),
+  ])
 
+  const paquete = paqueteRes.data
   if (!paquete) notFound()
 
-  const estadoActualIdx = ESTADOS_ORDEN.indexOf(paquete.estado as EstadoPaquete)
+  const todasLasFotos     = fotosRes.data ?? []
+  // Separar foto(s) de entrega del resto de fotos del paquete
+  const fotosEntrega      = todasLasFotos.filter(f => (f.descripcion ?? '').toLowerCase().includes('entrega'))
+  const fotosRegulares    = todasLasFotos.filter(f => !(f.descripcion ?? '').toLowerCase().includes('entrega'))
+  paquete.fotos_paquetes  = fotosRegulares
+  paquete.eventos_paquete = eventosRes.data ?? []
+  const trackingEventos   = trackingRes.data ?? []
+
+  // Prev / next navigation (solo paquetes del mismo cliente, visibles)
+  const [prevRes, nextRes] = await Promise.all([
+    supabase.from('paquetes').select('id, descripcion').eq('cliente_id', user!.id).eq('visible_cliente', true)
+      .gt('created_at', paquete.created_at).order('created_at', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('paquetes').select('id, descripcion').eq('cliente_id', user!.id).eq('visible_cliente', true)
+      .lt('created_at', paquete.created_at).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+  ])
+  const prevPaquete = prevRes.data
+  const nextPaquete = nextRes.data
+
   const esProblema = ['retenido', 'devuelto'].includes(paquete.estado)
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/paquetes">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 truncate">{paquete.descripcion}</h1>
-          <p className="text-sm text-gray-500">{paquete.tienda}</p>
-        </div>
-      </div>
+  // Paso efectivo — igual que la lista de paquetes
+  const esMedellin  = !paquete.bodega_destino || paquete.bodega_destino === 'medellin'
+  const PASO_LABEL  = esMedellin
+    ? ['Reportado', 'En Miami', 'Procesado', 'Guía creada', 'En tránsito', 'En aduana', 'En Colombia', 'En bodega local', 'Entregado']
+    : ['Reportado', 'En Miami', 'Procesado', 'Guía creada', 'En tránsito', 'En aduana', 'En Colombia', 'En ruta', 'Entregado']
+  const pasoEstado  = PASO_ESTADOS[paquete.estado as string] ?? 0
+  const pasoUsaco   = paquete.estado_usaco ? (USACO_A_PASO[paquete.estado_usaco as string] ?? 0) : 0
+  const paso        = Math.max(pasoEstado, pasoUsaco)
 
-      {/* Estado actual */}
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex items-center justify-between mb-4">
-            <Badge className={`text-sm px-3 py-1 ${ESTADO_COLORES[paquete.estado as EstadoPaquete]}`}>
-              {ESTADO_LABELS[paquete.estado as EstadoPaquete]}
-            </Badge>
-            <span className="text-xs text-gray-400 font-mono">{paquete.tracking_casilla}</span>
+  // Badge y label sincronizados con el paso efectivo
+  const badge = esProblema
+    ? (ESTADO_BADGE[paquete.estado] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' })
+    : (PASO_BADGE[paso] ?? { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)', border: 'rgba(255,255,255,0.12)' })
+  const labelBadge = esProblema
+    ? (ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado)
+    : (PASO_LABEL[paso] ?? ESTADO_LABELS[paquete.estado as EstadoPaquete] ?? paquete.estado)
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-5" style={{ fontFamily: "'Outfit', sans-serif" }}>
+
+      {/* Header */}
+      <FadeUp>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/paquetes"
+            className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all shrink-0"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            <ArrowLeft className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base sm:text-xl font-bold text-white truncate">{paquete.descripcion}</h1>
+            <p className="text-xs sm:text-sm truncate" style={{ color: `${tw}0.45)` }}>{paquete.tienda}</p>
           </div>
 
-          {/* Barra de progreso */}
-          {!esProblema && (
-            <div className="space-y-3">
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>Reportado</span>
-                <span>En tránsito</span>
-                <span>Entregado</span>
-              </div>
-              <div className="flex gap-1">
-                {ESTADOS_ORDEN.map((estado, idx) => (
-                  <div
-                    key={estado}
-                    className={`h-2 flex-1 rounded-full transition-colors ${
-                      idx <= estadoActualIdx ? 'bg-orange-500' : 'bg-gray-200'
-                    }`}
-                  />
-                ))}
-              </div>
-              <div className="text-xs text-gray-500 text-center">
-                Paso {estadoActualIdx + 1} de {ESTADOS_ORDEN.length}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          {/* Navegación prev/next */}
+          <div className="flex items-center gap-1 shrink-0">
+            {prevPaquete ? (
+              <Link
+                href={`/paquetes/${prevPaquete.id}`}
+                title={prevPaquete.descripcion ?? 'Paquete anterior'}
+                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <ChevronLeft className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
+              </Link>
+            ) : (
+              <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <ChevronLeft className="h-4 w-4" style={{ color: `${tw}0.2)` }} />
+              </span>
+            )}
+            {nextPaquete ? (
+              <Link
+                href={`/paquetes/${nextPaquete.id}`}
+                title={nextPaquete.descripcion ?? 'Paquete siguiente'}
+                className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <ChevronRight className="h-4 w-4" style={{ color: `${tw}0.7)` }} />
+              </Link>
+            ) : (
+              <span className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <ChevronRight className="h-4 w-4" style={{ color: `${tw}0.2)` }} />
+              </span>
+            )}
+          </div>
+        </div>
+      </FadeUp>
 
-      {/* Fotos */}
-      {paquete.fotos_paquetes && paquete.fotos_paquetes.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">📷 Fotos del paquete</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {paquete.fotos_paquetes.map((foto: any) => (
-                <a key={foto.id} href={foto.url} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={foto.url}
-                    alt={foto.descripcion ?? 'Foto del paquete'}
-                    className="w-full aspect-square object-cover rounded-lg hover:opacity-90 transition-opacity"
-                  />
-                  {foto.descripcion && (
-                    <p className="text-xs text-gray-500 mt-1 text-center capitalize">{foto.descripcion}</p>
-                  )}
-                </a>
-              ))}
+      {/* Estado actual — solo badge; el tracker de 9 pasos vive en Seguimiento */}
+      <FadeUp delay={0.08}>
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold px-3 py-1.5 rounded-full"
+              style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
+              {labelBadge}
+            </span>
+            {paquete.tracking_origen && (
+              <span className="text-xs font-mono" style={{ color: `${tw}0.35)` }}>
+                {paquete.tracking_origen}
+              </span>
+            )}
+          </div>
+        </div>
+      </FadeUp>
+
+      {/* Comprobante de entrega — foto tomada por el domiciliario */}
+      {fotosEntrega.length > 0 && (
+        <FadeUpScroll>
+          <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(52,211,153,0.22)' }}>
+            <div className="px-5 py-4 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(52,211,153,0.12)', background: 'rgba(52,211,153,0.04)' }}>
+              <span className="text-base">📸</span>
+              <h2 className="font-semibold" style={{ color: '#34d399' }}>Comprobante de entrega</h2>
             </div>
-          </CardContent>
-        </Card>
+            <FotoGaleria fotos={fotosEntrega} />
+          </div>
+        </FadeUpScroll>
       )}
 
-      {/* Datos del paquete */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Información del pedido</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="space-y-3">
-            <div className="flex items-start gap-3">
-              <Package className="h-4 w-4 text-gray-400 mt-0.5" />
-              <div>
-                <dt className="text-xs text-gray-500">Categoría</dt>
-                <dd className="text-sm font-medium">{CATEGORIA_LABELS[paquete.categoria as CategoriaProducto]}</dd>
-              </div>
+      {/* Fotos del paquete (empaque / contenido — tomadas en bodega USA) */}
+      {paquete.fotos_paquetes && paquete.fotos_paquetes.length > 0 && (
+        <FadeUpScroll>
+          <div className="glass-card overflow-hidden">
+            <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+              <h2 className="font-semibold text-white">📷 Fotos del paquete</h2>
             </div>
-            {paquete.tracking_origen && (
-              <div className="flex items-start gap-3">
-                <Package className="h-4 w-4 text-gray-400 mt-0.5" />
-                <div>
-                  <dt className="text-xs text-gray-500">Tracking original</dt>
-                  <dd className="text-sm font-mono">{paquete.tracking_origen}</dd>
-                </div>
-              </div>
-            )}
+            <FotoGaleria fotos={paquete.fotos_paquetes} />
+          </div>
+        </FadeUpScroll>
+      )}
+
+      {/* Información del pedido */}
+      <FadeUpScroll>
+        <div className="glass-card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+            <h2 className="font-semibold text-white">Información del pedido</h2>
+          </div>
+          <div className="p-5 space-y-4">
+
+            <InfoRow icon={<Package className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
+              label="Categoría" value={CATEGORIA_LABELS[paquete.categoria as CategoriaProducto]} />
+
+
             {paquete.tracking_usaco && (
-              <div className="flex items-start gap-3">
-                <Package className="h-4 w-4 text-gray-400 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 rounded-xl"
+                style={{ background: 'rgba(245,184,0,0.07)', border: '1px solid rgba(245,184,0,0.18)' }}>
+                <span className="text-base mt-0.5">✈️</span>
                 <div>
-                  <dt className="text-xs text-gray-500">Tracking USACO</dt>
-                  <dd className="text-sm font-mono">{paquete.tracking_usaco}</dd>
+                  <dt className="text-xs font-medium" style={{ color: '#F5B800' }}>Guía de envío internacional</dt>
+                  <dd className="text-sm font-mono font-semibold text-white mt-0.5">{paquete.tracking_usaco}</dd>
                 </div>
               </div>
             )}
-            <div className="flex items-start gap-3">
-              <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
-              <div>
-                <dt className="text-xs text-gray-500">Ciudad destino</dt>
-                <dd className="text-sm font-medium capitalize">{paquete.bodega_destino}</dd>
-              </div>
-            </div>
+
+            <InfoRow icon={<MapPin className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
+              label="Ciudad destino" value={paquete.bodega_destino} capitalize />
+
             {paquete.peso_libras && (
-              <div className="flex items-start gap-3">
-                <Scale className="h-4 w-4 text-gray-400 mt-0.5" />
-                <div>
-                  <dt className="text-xs text-gray-500">Peso</dt>
-                  <dd className="text-sm font-medium">{paquete.peso_libras} lbs</dd>
-                </div>
-              </div>
+              <InfoRow icon={<Scale className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
+                label="Peso" value={`${paquete.peso_libras} lbs`} />
             )}
+
             {paquete.valor_declarado && (
-              <div className="flex items-start gap-3">
-                <DollarSign className="h-4 w-4 text-gray-400 mt-0.5" />
-                <div>
-                  <dt className="text-xs text-gray-500">Valor declarado</dt>
-                  <dd className="text-sm font-medium">${paquete.valor_declarado} USD</dd>
-                </div>
-              </div>
+              <InfoRow icon={<DollarSign className="h-4 w-4" style={{ color: `${tw}0.4)` }} />}
+                label="Valor declarado" value={`$${paquete.valor_declarado} USD`} />
             )}
+
             {paquete.costo_servicio && (
-              <div className="flex items-start gap-3 bg-orange-50 -mx-4 px-4 py-3 rounded-lg">
-                <DollarSign className="h-4 w-4 text-orange-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-4 rounded-xl"
+                style={{ background: 'rgba(245,184,0,0.08)', border: '1px solid rgba(245,184,0,0.2)' }}>
+                <DollarSign className="h-4 w-4 mt-0.5" style={{ color: '#F5B800' }} />
                 <div>
-                  <dt className="text-xs text-orange-600">Costo del servicio</dt>
-                  <dd className="text-lg font-bold text-orange-700">${paquete.costo_servicio.toFixed(2)} USD</dd>
+                  <dt className="text-xs font-medium" style={{ color: '#F5B800' }}>Costo del servicio</dt>
+                  <dd className="text-xl font-bold text-white">${paquete.costo_servicio.toFixed(2)} USD</dd>
                   {!paquete.factura_pagada && (
-                    <dd className="text-xs text-red-600 mt-0.5">Pendiente de pago</dd>
+                    <dd className="text-xs mt-0.5" style={{ color: '#f87171' }}>Pendiente de pago</dd>
                   )}
                 </div>
               </div>
             )}
-          </dl>
-        </CardContent>
-      </Card>
 
-      {/* Historial de eventos */}
+          </div>
+        </div>
+      </FadeUpScroll>
+
+      {/* Seguimiento del paquete */}
+      <FadeUpScroll delay={0.05}>
+        <div className="glass-card overflow-hidden">
+          <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+            <h2 className="font-semibold text-white">📍 Seguimiento del paquete</h2>
+          </div>
+          <div className="p-5">
+            <TrackingTimeline eventos={trackingEventos} bodegaKey={paquete.bodega_destino ?? 'medellin'} estadoUsaco={paquete.estado_usaco} pasoMinimo={paso} />
+          </div>
+        </div>
+      </FadeUpScroll>
+
+      {/* Historial */}
       {paquete.eventos_paquete && paquete.eventos_paquete.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Historial de movimientos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+        <FadeUpScroll delay={0.05}>
+          <div className="glass-card overflow-hidden">
+            <div className="px-5 py-4" style={{ borderBottom: `1px solid ${tw}0.07)` }}>
+              <h2 className="font-semibold text-white">Historial de movimientos</h2>
+            </div>
+            <div className="p-5 space-y-3">
               {[...paquete.eventos_paquete].reverse().map((evento: any) => (
                 <div key={evento.id} className="flex gap-3">
                   <div className="flex flex-col items-center">
-                    <div className="w-2 h-2 rounded-full bg-orange-400 mt-1.5" />
-                    <div className="w-px flex-1 bg-gray-200 mt-1" />
+                    <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: '#F5B800' }} />
+                    <div className="w-px flex-1 mt-1" style={{ background: `${tw}0.08)` }} />
                   </div>
                   <div className="pb-3">
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium text-white">
                       {ESTADO_LABELS[evento.estado_nuevo as EstadoPaquete]}
                     </p>
                     {evento.descripcion && (
-                      <p className="text-xs text-gray-500">{evento.descripcion}</p>
+                      <p className="text-xs mt-0.5" style={{ color: `${tw}0.5)` }}>{evento.descripcion}</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {format(new Date(evento.created_at), "d 'de' MMMM, h:mm a", { locale: es })}
+                    <p className="text-xs mt-0.5" style={{ color: `${tw}0.3)` }}>
+                      {fechaHoraLarga(evento.created_at)}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </FadeUpScroll>
       )}
+
+    </div>
+  )
+}
+
+function InfoRow({ icon, label, value, mono, capitalize }: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  mono?: boolean
+  capitalize?: boolean
+}) {
+  const tw = 'rgba(255,255,255,'
+  return (
+    <div className="flex items-start gap-3">
+      {icon}
+      <div>
+        <dt className="text-xs" style={{ color: `${tw}0.4)` }}>{label}</dt>
+        <dd className={`text-sm font-medium text-white ${mono ? 'font-mono' : ''} ${capitalize ? 'capitalize' : ''}`}>
+          {value}
+        </dd>
+      </div>
     </div>
   )
 }

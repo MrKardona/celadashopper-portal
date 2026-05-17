@@ -1,0 +1,22 @@
+name = "PORTAL CELADA"
+client_id = "16b189c05ec67fca715496e60ec47465"
+application_url = "https://portal.celadashopper.com"
+embedded = false
+
+[access_scopes]
+scopes = "read_customers,write_customers"
+
+[auth]
+redirect_urls = [
+  "https://portal.celadashopper.com/api/shopify/callback"
+]
+
+[webhooks]
+api_version = "2024-01"
+
+  [[webhooks.subscriptions]]
+  topics = ["customers/create"]
+  uri = "/api/shopify/customers/webhook"
+
+[pos]
+embedded = false

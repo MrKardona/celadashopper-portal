@@ -1,0 +1,28 @@
+name: USACO Sync diario
+
+on:
+  schedule:
+    # Todos los días a las 9:00 AM hora Colombia (UTC-5 = 14:00 UTC)
+    - cron: '0 14 * * *'
+  workflow_dispatch: # permite correrlo manualmente desde GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar endpoint USACO sync
+        run: |
+          for attempt in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              "${{ secrets.PRODUCTION_URL }}/api/cron/usaco-sync")
+            echo "Intento $attempt — HTTP status: $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Sync completado exitosamente"
+              exit 0
+            fi
+            echo "Falló con $STATUS — esperando 15s antes de reintentar..."
+            sleep 15
+          done
+          echo "ERROR: falló después de 3 intentos"
+          exit 1

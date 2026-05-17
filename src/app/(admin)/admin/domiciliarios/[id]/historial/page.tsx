@@ -1,0 +1,340 @@
+export const dynamic = 'force-dynamic'
+
+import { createClient } from '@supabase/supabase-js'
+import { notFound } from 'next/navigation'
+import { ArrowLeft, CheckCircle2, FileText, Package, Camera, MapPin, StickyNote, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import FotoViewer from '@/components/admin/FotoViewer'
+
+const tw = 'rgba(255,255,255,'
+const BODEGA_LABELS: Record<string, string> = {
+  medellin: 'Medellín', bogota: 'Bogotá', barranquilla: 'Barranquilla',
+}
+
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
+
+function fechaBogota(iso: string) {
+  return new Date(iso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  })
+}
+function soloDiaBogota(iso: string) {
+  return new Date(iso).toLocaleDateString('es-CO', {
+    timeZone: 'America/Bogota',
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
+}
+
+interface Props { params: Promise<{ id: string }> }
+
+export default async function AdminHistorialDomiciliarioPage({ params }: Props) {
+  const { id } = await params
+  const admin = getAdmin()
+
+  const [perfilRes, paquetesRes, manualesRes] = await Promise.all([
+    admin.from('perfiles')
+      .select('id, nombre_completo')
+      .eq('id', id)
+      .eq('rol', 'domiciliario')
+      .single(),
+    admin.from('paquetes')
+      .select('id, tracking_casilla, tracking_origen, descripcion, bodega_destino, cliente_id, direccion_entrega, barrio_entrega, updated_at')
+      .eq('domiciliario_id', id)
+      .eq('estado', 'entregado')
+      .is('paquete_origen_id', null)
+      .order('updated_at', { ascending: false })
+      .limit(120),
+    admin.from('domicilios_manuales')
+      .select('id, nombre, direccion, telefono, notas, notas_entrega, foto_url, completado_at')
+      .eq('domiciliario_id', id)
+      .eq('estado', 'completado')
+      .order('completado_at', { ascending: false })
+      .limit(120),
+  ])
+
+  if (!perfilRes.data) notFound()
+  const perfil   = perfilRes.data
+  const paquetes = paquetesRes.data ?? []
+  const manuales = manualesRes.data ?? []
+
+  // Fotos: separar foto del producto vs evidencia de entrega
+  const paqIds = paquetes.map(p => p.id)
+  const fotoProductoMap: Record<string, string> = {}
+  const fotoEntregaMap:  Record<string, string> = {}
+
+  if (paqIds.length > 0) {
+    const { data: fotos } = await admin
+      .from('fotos_paquetes')
+      .select('paquete_id, url, descripcion, created_at')
+      .in('paquete_id', paqIds)
+      .order('created_at', { ascending: false }) // más reciente primero
+
+    for (const f of fotos ?? []) {
+      const esEntrega = f.descripcion?.toLowerCase().includes('entrega')
+      if (esEntrega) {
+        if (!fotoEntregaMap[f.paquete_id]) fotoEntregaMap[f.paquete_id] = f.url
+      } else {
+        if (!fotoProductoMap[f.paquete_id]) fotoProductoMap[f.paquete_id] = f.url
+      }
+    }
+
+    // Si un paquete solo tiene foto de entrega, úsala también como producto
+    for (const [pid, url] of Object.entries(fotoEntregaMap)) {
+      if (!fotoProductoMap[pid]) fotoProductoMap[pid] = url
+    }
+  }
+
+  // Nombres de clientes
+  const clienteIds = [...new Set(paquetes.map(p => p.cliente_id).filter(Boolean))] as string[]
+  const clienteNombres: Record<string, string> = {}
+  if (clienteIds.length > 0) {
+    const { data: pfs } = await admin.from('perfiles').select('id, nombre_completo').in('id', clienteIds)
+    for (const p of pfs ?? []) clienteNombres[p.id] = p.nombre_completo
+  }
+
+  // Unificar y ordenar por fecha desc
+  type Item =
+    | { kind: 'paquete'; ts: string; data: typeof paquetes[0] }
+    | { kind: 'manual';  ts: string; data: typeof manuales[0] }
+
+  const items: Item[] = [
+    ...paquetes.map(p => ({ kind: 'paquete' as const, ts: p.updated_at ?? '', data: p })),
+    ...manuales.map(m => ({ kind: 'manual'  as const, ts: m.completado_at ?? '', data: m })),
+  ].sort((a, b) => b.ts.localeCompare(a.ts))
+
+  const total = items.length
+
+  // Agrupar por día (hora Bogotá)
+  const grupos: { dia: string; items: typeof items }[] = []
+  for (const item of items) {
+    const dia = soloDiaBogota(item.ts)
+    const ultimo = grupos[grupos.length - 1]
+    if (ultimo?.dia === dia) ultimo.items.push(item)
+    else grupos.push({ dia, items: [item] })
+  }
+
+  return (
+    <div className="space-y-5">
+
+      {/* Header */}
+      <div className="flex items-start gap-3 flex-wrap">
+        <Link href={`/admin/domiciliarios/${id}`}
+          className="flex items-center gap-1.5 text-xs mt-1 transition-opacity hover:opacity-70 flex-shrink-0"
+          style={{ color: `${tw}0.4)` }}>
+          <ArrowLeft className="h-3.5 w-3.5" /> Ruta
+        </Link>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0" style={{ color: '#34d399' }} />
+            Historial de entregas
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: `${tw}0.4)` }}>
+            {perfil.nombre_completo} · {total === 0 ? 'Sin entregas registradas' : `${total} entrega${total !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+      </div>
+
+      {total === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 opacity-15 text-white" />
+          <p style={{ color: `${tw}0.4)` }}>Sin entregas aún</p>
+          <p className="text-xs mt-1" style={{ color: `${tw}0.25)` }}>
+            Las entregas completadas aparecerán aquí con sus comprobantes
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {grupos.map(({ dia, items: grupo }) => (
+            <div key={dia} className="space-y-3">
+
+              {/* Separador de día */}
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1" style={{ background: `${tw}0.07)` }} />
+                <span className="text-[11px] font-semibold uppercase tracking-widest px-2"
+                  style={{ color: `${tw}0.3)` }}>
+                  {dia}
+                </span>
+                <div className="h-px flex-1" style={{ background: `${tw}0.07)` }} />
+              </div>
+
+              {/* Cards del día */}
+              {grupo.map(item => {
+
+                /* ── Domicilio manual ── */
+                if (item.kind === 'manual') {
+                  const m = item.data
+                  return (
+                    <div key={`manual-${m.id}`} className="glass-card p-4"
+                      style={{ borderColor: 'rgba(129,140,248,0.18)' }}>
+                      <div className="flex gap-3">
+
+                        {/* Foto de entrega (izquierda 72×72) o ícono si no hay */}
+                        <div className="flex-shrink-0">
+                          {m.foto_url ? (
+                            <FotoViewer
+                              src={m.foto_url}
+                              alt="Evidencia de entrega"
+                              borderColor="rgba(129,140,248,0.35)"
+                              width={72}
+                              height={72}
+                            />
+                          ) : (
+                            <div className="rounded-xl flex flex-col items-center justify-center gap-1"
+                              style={{ width: 72, height: 72, background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.15)' }}>
+                              <FileText className="h-5 w-5" style={{ color: '#818cf8' }} />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-white truncate">{m.nombre}</p>
+                              <p className="text-[11px]" style={{ color: '#818cf8' }}>
+                                {m.foto_url ? '📸 Domicilio manual' : 'Domicilio manual'}
+                              </p>
+                            </div>
+                            <p className="text-[11px] flex-shrink-0 mt-0.5" style={{ color: `${tw}0.3)` }}>
+                              {fechaBogota(m.completado_at ?? '')}
+                            </p>
+                          </div>
+
+                          {m.direccion && (
+                            <div className="flex items-start gap-1.5">
+                              <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
+                              <p className="text-xs" style={{ color: `${tw}0.5)` }}>{m.direccion}</p>
+                            </div>
+                          )}
+                          {m.telefono && (
+                            <p className="text-[11px]" style={{ color: `${tw}0.35)` }}>📞 {m.telefono}</p>
+                          )}
+                          {(m.notas_entrega || m.notas) && (
+                            <div className="flex items-start gap-1.5">
+                              <StickyNote className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.2)` }} />
+                              <p className="text-xs italic" style={{ color: `${tw}0.4)` }}>
+                                {m.notas_entrega ?? m.notas}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                /* ── Paquete del sistema ── */
+                const p = item.data
+                const fotoProducto = fotoProductoMap[p.id] ?? null
+                const fotoEntrega  = fotoEntregaMap[p.id] ?? null
+                const clienteNombre = p.cliente_id ? (clienteNombres[p.cliente_id] ?? null) : null
+
+                return (
+                  <Link
+                    key={`paquete-${p.id}`}
+                    href={`/admin/paquetes/${p.id}`}
+                    className="glass-card p-4 block transition-all hover:brightness-125"
+                    style={{ borderColor: 'rgba(52,211,153,0.15)' }}
+                  >
+                    <div className="flex gap-3">
+
+                      {/* Foto del producto */}
+                      <div className="flex-shrink-0">
+                        {fotoProducto ? (
+                          <FotoViewer
+                            src={fotoProducto}
+                            alt="Foto del producto"
+                            borderColor="rgba(52,211,153,0.2)"
+                          />
+                        ) : (
+                          <div className="rounded-xl flex flex-col items-center justify-center gap-1"
+                            style={{ width: 72, height: 72, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
+                            <Package className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
+                            <p className="text-[9px]" style={{ color: `${tw}0.2)` }}>Sin foto</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-mono text-sm font-bold truncate" style={{ color: '#F5B800' }}>
+                              {p.tracking_origen ?? p.tracking_casilla}
+                            </p>
+                            <p className="text-[11px]" style={{ color: '#34d399' }}>
+                              {BODEGA_LABELS[p.bodega_destino ?? ''] ?? p.bodega_destino}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <p className="text-[11px]" style={{ color: `${tw}0.3)` }}>
+                              {fechaBogota(p.updated_at ?? '')}
+                            </p>
+                            <ChevronRight className="h-3.5 w-3.5" style={{ color: `${tw}0.2)` }} />
+                          </div>
+                        </div>
+
+                        {p.descripcion && (
+                          <p className="text-xs font-medium text-white leading-snug">{p.descripcion}</p>
+                        )}
+                        {clienteNombre && (
+                          <p className="text-[11px]" style={{ color: `${tw}0.4)` }}>{clienteNombre}</p>
+                        )}
+                        {(p.direccion_entrega || p.barrio_entrega) && (
+                          <div className="flex items-start gap-1.5">
+                            <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: `${tw}0.25)` }} />
+                            <p className="text-[11px]" style={{ color: `${tw}0.45)` }}>
+                              {[p.direccion_entrega, p.barrio_entrega].filter(Boolean).join(', ')}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Evidencia de entrega — siempre visible */}
+                        <div className="flex items-center gap-2 pt-1">
+                          {fotoEntrega ? (
+                            <>
+                              <FotoViewer
+                                src={fotoEntrega}
+                                alt="Evidencia de entrega"
+                                borderColor="rgba(52,211,153,0.35)"
+                                width={44}
+                                height={44}
+                              />
+                              <p className="text-[10px]" style={{ color: `${tw}0.35)` }}>📸 Evidencia de entrega</p>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex-shrink-0 rounded-lg flex items-center justify-center"
+                                style={{ width: 44, height: 44, background: `${tw}0.03)`, border: `1px dashed ${tw}0.1)` }}>
+                                <Camera className="h-4 w-4" style={{ color: `${tw}0.18)` }} />
+                              </div>
+                              <p className="text-[10px]" style={{ color: `${tw}0.2)` }}>Sin evidencia fotográfica</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Link href={`/admin/domiciliarios/${id}`}
+        className="flex items-center justify-center gap-1.5 text-xs pt-2 transition-opacity hover:opacity-70"
+        style={{ color: `${tw}0.3)` }}>
+        <ArrowLeft className="h-3.5 w-3.5" /> Volver a la ruta
+      </Link>
+    </div>
+  )
+}

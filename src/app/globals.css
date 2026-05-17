@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -48,73 +49,145 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Fallbacks hex para Safari < 15.4 (no soporta oklch) ── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --destructive: #e53e3e;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a3a3a3;
+  --chart-1: #d4d4d4;
+  --chart-2: #737373;
+  --chart-3: #525252;
+  --chart-4: #404040;
+  --chart-5: #262626;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #a3a3a3;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
+  --primary: #e5e5e5;
+  --primary-foreground: #171717;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --destructive: #f87171;
+  --border: rgba(255,255,255,0.1);
+  --input: rgba(255,255,255,0.15);
+  --ring: #737373;
+  --chart-1: #d4d4d4;
+  --chart-2: #737373;
+  --chart-3: #525252;
+  --chart-4: #404040;
+  --chart-5: #262626;
+  --sidebar: #171717;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: rgba(255,255,255,0.1);
+  --sidebar-ring: #737373;
+}
+
+/* ── Valores oklch para navegadores modernos (Safari 15.4+, Chrome, Firefox) ── */
+@supports (color: oklch(0 0 0)) {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+  }
+
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
 }
 
 @layer base {
@@ -127,4 +200,293 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ── Neo Glassmorphism Design System ─────────────────────────────── */
+.portal-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #07070f 0%, #0b0b1d 40%, #080c14 100%);
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Orbes de fondo */
+.portal-orb-gold {
+  position: fixed;
+  top: -15%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245,184,0,0.07) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.portal-orb-blue {
+  position: fixed;
+  bottom: -20%;
+  left: -12%;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(80,100,200,0.06) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+.portal-orb-mid {
+  position: fixed;
+  top: 50%;
+  left: 40%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245,184,0,0.03) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Cards de vidrio */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+}
+.glass-card-gold {
+  background: rgba(245, 184, 0, 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 184, 0, 0.18);
+  border-radius: 16px;
+}
+.glass-nav {
+  background: rgba(7, 7, 15, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.glass-input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+}
+.glass-input::placeholder {
+  color: rgba(255,255,255,0.3) !important;
+}
+.glass-input:focus {
+  border-color: rgba(245, 184, 0, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(245, 184, 0, 0.1) !important;
+  outline: none !important;
+}
+
+/* Botón dorado */
+.btn-gold {
+  background: linear-gradient(135deg, #F5B800 0%, #D4A000 100%);
+  color: #000 !important;
+  font-weight: 700;
+  border-radius: 10px;
+  border: none;
+  transition: all 0.2s ease;
+}
+.btn-gold:hover {
+  background: linear-gradient(135deg, #FFD000 0%, #F5B800 100%);
+  box-shadow: 0 0 24px rgba(245,184,0,0.35);
+  transform: translateY(-1px);
+}
+.btn-gold:disabled {
+  opacity: 0.5;
+  transform: none;
+}
+
+/* Nav item activo */
+.nav-item-active {
+  background: rgba(245, 184, 0, 0.12);
+  color: #F5B800 !important;
+  border: 1px solid rgba(245, 184, 0, 0.2);
+}
+.nav-item {
+  color: rgba(255,255,255,0.55);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+.nav-item:hover {
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.06);
+}
+
+/* Stat icon glow */
+.stat-icon-gold { background: rgba(245,184,0,0.12); }
+.stat-icon-blue  { background: rgba(99,130,255,0.12); }
+.stat-icon-green { background: rgba(52,211,153,0.12); }
+.stat-icon-white { background: rgba(255,255,255,0.08); }
+
+/* Badge de estado */
+.badge-glass {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.85);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+}
+
+/* Divider */
+.glass-divider { border-color: rgba(255,255,255,0.07); }
+
+/* Glow dorado */
+.glow-gold-text {
+  color: #F5B800;
+  text-shadow: 0 0 20px rgba(245,184,0,0.4);
+}
+
+/* ── Secondary button ──────────────────────────────────────────────── */
+.btn-ghost {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.9);
+  border-color: rgba(255,255,255,0.18);
+}
+.btn-ghost:disabled { opacity: 0.4; }
+
+/* ── Native select dark theme ───────────────────────────────────────── */
+select.glass-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+select.glass-input option {
+  background: #0c0c1e;
+  color: #fff;
+}
+
+/* ── Glass section (info/alert) ─────────────────────────────────────── */
+.glass-section-gold  { background: rgba(245,184,0,0.06); border: 1px solid rgba(245,184,0,0.18); border-radius: 12px; }
+.glass-section-blue  { background: rgba(99,130,255,0.07); border: 1px solid rgba(99,130,255,0.2); border-radius: 12px; }
+.glass-section-green { background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; }
+.glass-section-red   { background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; }
+.glass-section-amber { background: rgba(245,160,0,0.07); border: 1px solid rgba(245,160,0,0.22); border-radius: 12px; }
+
+/* ── Tracker pulse (card de paquetes) ──────────────────────────────── */
+@keyframes csCardPulse {
+  0%, 100% { opacity: 1; transform: scale(1);    }
+  50%       { opacity: .82; transform: scale(1.1); }
+}
+
+/* ── Orb animations ────────────────────────────────────────────────── */
+@keyframes orb-float-gold {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(-20px, 30px) scale(1.06); }
+  66%       { transform: translate(16px, -18px) scale(0.96); }
+}
+@keyframes orb-float-blue {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(24px, -32px) scale(1.08); }
+  75%       { transform: translate(-14px, 22px) scale(0.94); }
+}
+@keyframes orb-pulse-mid {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.35); }
+}
+
+.portal-orb-gold { animation: orb-float-gold 20s ease-in-out infinite; }
+.portal-orb-blue { animation: orb-float-blue 25s ease-in-out infinite; }
+.portal-orb-mid  { animation: orb-pulse-mid 14s ease-in-out infinite; }
+
+/* ── Input shimmer on focus ─────────────────────────────────────────── */
+@keyframes shimmer-border {
+  0%   { box-shadow: 0 0 0 2px rgba(245,184,0,0); }
+  50%  { box-shadow: 0 0 0 3px rgba(245,184,0,0.18), 0 0 18px rgba(245,184,0,0.12); }
+  100% { box-shadow: 0 0 0 2px rgba(245,184,0,0); }
+}
+.glass-input:focus {
+  animation: shimmer-border 1.8s ease-in-out infinite;
+}
+
+/* Scrollbar oscuro */
+.portal-bg ::-webkit-scrollbar { width: 6px; }
+.portal-bg ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+.portal-bg ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+.portal-bg ::-webkit-scrollbar-thumb:hover { background: rgba(245,184,0,0.3); }
+
+/* ── Aurora atmosphere ──────────────────────────────────────────── */
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33%       { transform: translate(-65px, 85px) scale(1.14) rotate(7deg); }
+  66%       { transform: translate(75px, -48px) scale(0.9) rotate(-5deg); }
+}
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  42%       { transform: translate(95px, -68px) scale(1.22) rotate(-9deg); }
+  78%       { transform: translate(-48px, 58px) scale(0.87) rotate(6deg); }
+}
+@keyframes aurora-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(52px, 78px) scale(1.28); }
+}
+.aurora-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+.aurora-blob-1 {
+  width: 60vw; height: 45vh;
+  top: -8%; left: 0%;
+  background: radial-gradient(ellipse, rgba(55, 35, 185, 0.55) 0%, transparent 65%);
+  animation: aurora-drift-1 22s ease-in-out infinite;
+}
+.aurora-blob-2 {
+  width: 52vw; height: 48vh;
+  top: 15%; right: -8%;
+  background: radial-gradient(ellipse, rgba(18, 95, 160, 0.45) 0%, transparent 65%);
+  animation: aurora-drift-2 29s ease-in-out infinite;
+}
+.aurora-blob-3 {
+  width: 48vw; height: 36vh;
+  bottom: -6%; left: 14%;
+  background: radial-gradient(ellipse, rgba(90, 18, 148, 0.40) 0%, transparent 65%);
+  animation: aurora-drift-3 36s ease-in-out infinite;
+}
+
+/* ── Cargo plane (importaciones) ────────────────────────────────── */
+@keyframes plane-cross {
+  0%      { transform: translate(-110px, 0) rotate(-4deg); opacity: 0; }
+  7%, 93% { opacity: 0.18; }
+  100%    { transform: translate(calc(100vw + 110px), -55px) rotate(-4deg); opacity: 0; }
+}
+.login-plane {
+  position: fixed;
+  bottom: 30%;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  animation: plane-cross 32s linear infinite;
+  animation-delay: 5s;
+}
+
+/* ── Shipping route dash ─────────────────────────────────────────── */
+@keyframes route-dash-1 {
+  from { stroke-dashoffset: 800; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes route-dash-2 {
+  from { stroke-dashoffset: 650; }
+  to   { stroke-dashoffset: 0; }
 }
