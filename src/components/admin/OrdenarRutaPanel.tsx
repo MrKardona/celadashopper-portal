@@ -2,24 +2,12 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import {
   GripVertical, Sparkles, Loader2, MapPin, CheckCircle2,
   Package, FileText, Pencil, X, Check, Trash2, Phone,
 } from 'lucide-react'
 
 const tw = 'rgba(255,255,255,'
-
-const RutaMapa = dynamic(() => import('./RutaMapaInner'), {
-  ssr: false,
-  loading: () => (
-    <div className="rounded-2xl flex items-center justify-center gap-2"
-      style={{ height: 340, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="h-4 w-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-      <span className="text-xs" style={{ color: `${tw}0.3)` }}>Cargando mapa...</span>
-    </div>
-  ),
-})
 
 export interface ParadaRuta {
   tipo: 'paquete' | 'manual'
@@ -75,10 +63,6 @@ export default function OrdenarRutaPanel({ domiciliarioId, paradas: inicial }: P
   const overIdx = useRef<number | null>(null)
   const [dragging, setDragging] = useState<number | null>(null)
   const [over,     setOver]     = useState<number | null>(null)
-
-  const paradasMapa = lista
-    .filter(p => p.direccion)
-    .map(p => ({ num: lista.indexOf(p) + 1, label: p.label, direccion: p.direccion!, tipo: p.tipo }))
 
   if (lista.length === 0) return null
 
@@ -466,10 +450,6 @@ export default function OrdenarRutaPanel({ domiciliarioId, paradas: inicial }: P
         </p>
       )}
 
-      {/* Mapa */}
-      <div className="pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <RutaMapa paradas={paradasMapa} />
-      </div>
     </div>
   )
 }
