@@ -9,6 +9,34 @@ import {
   notificarTrackingActualizado,
   notificarCostoCalculado,
 } from '@/lib/notificaciones/por-estado'
+import { consultarGuias } from '@/lib/usaco/cliente'
+import { insertarEventoTracking } from '@/lib/tracking'
+
+// ── Constantes USACO (mismas que en sync-cajas/route.ts) ─────────────────────
+const USACO_IGNORAR = new Set(['RecibidoOrigen', 'IncluidoEnGuia', 'Pre-Alertado', 'GuiaCreadaColaborador'])
+const USACO_A_ESTADO_PAQ: Record<string, string> = {
+  'TransitoInternacional': 'en_transito',
+  'ProcesoDeAduana':       'en_transito',
+  'BodegaDestino':         'en_colombia',
+  'EnRuta':                'en_colombia',
+  'En ruta transito':      'en_colombia',
+  'EnTransportadora':      'en_colombia',
+  'EntregaFallida':        'en_colombia',
+}
+const USACO_A_EVENTO_TRACKING: Record<string, string> = {
+  'TransitoInternacional': 'transito_internacional',
+  'ProcesoDeAduana':       'proceso_aduana',
+  'BodegaDestino':         'llego_colombia',
+  'EnRuta':                'en_ruta',
+  'En ruta transito':      'en_ruta_transito',
+  'EnTransportadora':      'en_transportadora',
+  'EntregaFallida':        'entrega_fallida',
+}
+const ORDEN_ESTADO: Record<string, number> = {
+  reportado: 0, recibido_usa: 1, en_consolidacion: 2, listo_envio: 3,
+  en_transito: 4, en_colombia: 5, en_bodega_local: 6, en_camino_cliente: 7, entregado: 8,
+}
+const normGuia = (g: string) => g.trim().replace(/^0+/, '') || '0'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -43,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   // Estado actual del paquete antes del update (para detectar cambios reales)
   const { data: paqueteAntes } = await supabaseAdmin
     .from('paquetes')
-    .select('estado, tracking_usaco, costo_servicio, visible_cliente, paquete_origen_id')
+    .select('estado, tracking_usaco, costo_servicio, visible_cliente, paquete_origen_id, bodega_destino, caja_id')
     .eq('id', id)
     .single()
 
@@ -175,6 +203,137 @@ export async function PATCH(req: NextRequest, { params }: Props) {
         notificacionesEnviadas.push('estado_via_origen')
       } catch (err) {
         console.error('[PATCH] notificar origen desde sub-paquete falló:', err)
+      }
+    }
+  }
+
+  // ── Auto-crear caja USACO y sincronizar estado ───────────────────────────────
+  // Se activa cuando el tracking_usaco es asignado o cambiado a un valor numérico nuevo
+  const trackingUsacoNuevo =
+    tracking_usaco !== undefined &&
+    tracking_usaco !== null &&
+    String(tracking_usaco).trim() !== '' &&
+    String(tracking_usaco).trim() !== String(paqueteAntes?.tracking_usaco ?? '').trim()
+
+  if (trackingUsacoNuevo) {
+    const guia = String(tracking_usaco).trim()
+    const esNumerico = /^\d+$/.test(guia)
+
+    if (esNumerico) {
+      try {
+        const ahora = new Date().toISOString()
+        const bodegaPaquete = (bodega_destino ?? paqueteAntes?.bodega_destino ?? 'medellin') as string
+
+        // 1. Buscar caja existente con ese tracking_usaco (exacto o sin ceros iniciales)
+        const { data: cajas } = await supabaseAdmin
+          .from('cajas_consolidacion')
+          .select('id, estado_usaco')
+          .or(`tracking_usaco.eq.${guia},tracking_usaco.eq.${normGuia(guia)}`)
+          .limit(1)
+        const cajaExistente = cajas?.[0] ?? null
+        let cajaId: string = cajaExistente?.id ?? ''
+
+        // 2. Si no existe, crear una caja despachada para este tracking
+        if (!cajaExistente) {
+          const { data: nuevaCaja, error: errCaja } = await supabaseAdmin
+            .from('cajas_consolidacion')
+            .insert({
+              tracking_usaco:  guia,
+              codigo_interno:  guia,
+              estado:          'despachada',
+              courier:         'USACO',
+              bodega_destino:  bodegaPaquete,
+              fecha_despacho:  ahora,
+            })
+            .select('id')
+            .single()
+
+          if (errCaja) {
+            console.error('[PATCH usaco] Error creando caja:', errCaja.message)
+          } else {
+            cajaId = nuevaCaja.id
+          }
+        }
+
+        // 3. Vincular paquete a la caja (si no estaba ya vinculado)
+        if (cajaId && cajaId !== (paqueteAntes?.caja_id as string | null)) {
+          await supabaseAdmin
+            .from('paquetes')
+            .update({ caja_id: cajaId, updated_at: ahora })
+            .eq('id', id)
+        }
+
+        // 4. Consultar USACO en tiempo real para este tracking
+        const resultados = await consultarGuias([guia])
+        const estadoUsaco = resultados
+          .filter(r => r.estado && !r.estado.toLowerCase().includes('no se encontró'))
+          .find(r => normGuia(r.guia) === normGuia(guia))
+          ?.estado?.trim() ?? null
+
+        if (estadoUsaco && cajaId) {
+          // 5. Actualizar estado_usaco en la caja
+          await supabaseAdmin
+            .from('cajas_consolidacion')
+            .update({ estado_usaco: estadoUsaco, usaco_sync_at: ahora })
+            .eq('id', cajaId)
+
+          // 6. Propagar estado al paquete si corresponde (sin retroceder)
+          if (!USACO_IGNORAR.has(estadoUsaco)) {
+            const estadoPaqNuevo = USACO_A_ESTADO_PAQ[estadoUsaco]
+            const eventoTracking = USACO_A_EVENTO_TRACKING[estadoUsaco]
+
+            if (estadoPaqNuevo) {
+              // Estado actual del paquete tras el PATCH ya aplicado
+              const estadoActual = estado ?? paqueteAntes?.estado ?? 'reportado'
+              const ordenActual  = ORDEN_ESTADO[estadoActual] ?? 0
+              const ordenNuevo   = ORDEN_ESTADO[estadoPaqNuevo] ?? 0
+
+              if (ordenNuevo > ordenActual) {
+                const { error: errPaq } = await supabaseAdmin
+                  .from('paquetes')
+                  .update({ estado: estadoPaqNuevo, updated_at: ahora })
+                  .eq('id', id)
+
+                if (!errPaq) {
+                  // Evento interno
+                  await supabaseAdmin.from('eventos_paquete').insert({
+                    paquete_id:      id,
+                    estado_anterior: estadoActual,
+                    estado_nuevo:    estadoPaqNuevo,
+                    descripcion:     `Actualizado vía USACO (${estadoUsaco}) al asignar tracking ${guia}`,
+                    ubicacion: estadoUsaco === 'TransitoInternacional' || estadoUsaco === 'ProcesoDeAduana'
+                      ? 'En tránsito' : 'Colombia',
+                  }).then(() => null, () => null)
+
+                  // Notificar cambio de estado si corresponde
+                  if (paqueteAntes?.visible_cliente !== false) {
+                    try { await notificarCambioEstado(id, estadoPaqNuevo) } catch { /* ok */ }
+                  }
+                }
+              }
+            }
+
+            // 7. Insertar evento de tracking visible al cliente (si no existe)
+            if (eventoTracking) {
+              const { data: existe } = await supabaseAdmin
+                .from('paquetes_tracking')
+                .select('id')
+                .eq('paquete_id', id)
+                .eq('evento', eventoTracking)
+                .maybeSingle()
+
+              if (!existe) {
+                await insertarEventoTracking(
+                  supabaseAdmin, id, eventoTracking, 'usaco',
+                  `${estadoUsaco} — caja ${guia}`,
+                )
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // No bloqueamos la respuesta si USACO falla — el tracking ya fue guardado
+        console.error('[PATCH usaco] Error en auto-sync:', err)
       }
     }
   }
