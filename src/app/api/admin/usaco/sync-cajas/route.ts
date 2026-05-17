@@ -118,11 +118,13 @@ export async function POST() {
     const tracking    = norm(caja.tracking_usaco as string)
     const estadoUsaco = estadoMap.get(tracking)
 
-    if (!estadoUsaco || IGNORAR.has(estadoUsaco)) continue
+    // USACO no devolvió resultado para esta guía — saltar
+    if (!estadoUsaco) continue
 
     const huboCambioCaja = estadoUsaco !== caja.estado_usaco
 
-    // 3. Actualizar caja
+    // 3. Siempre guardar el estado USACO en la caja (incluye estados iniciales como
+    //    RecibidoOrigen, GuiaCreadaColaborador, etc.) para que el admin los vea.
     await admin
       .from('cajas_consolidacion')
       .update({ estado_usaco: estadoUsaco, usaco_sync_at: ahora })
@@ -130,7 +132,10 @@ export async function POST() {
 
     if (huboCambioCaja) cajasActualizadas++
 
-    // 4. Propagar a paquetes dentro de esta caja si hay un estado mapeado
+    // 4. Propagar a paquetes SOLO si el estado representa progreso real
+    //    (estados en IGNORAR son administrativos/iniciales, no se propagan)
+    if (IGNORAR.has(estadoUsaco)) continue
+
     const estadoNuevoPaq = USACO_A_ESTADO_PAQ[estadoUsaco]
     const eventoTracking = USACO_A_EVENTO_TRACKING[estadoUsaco]
 
