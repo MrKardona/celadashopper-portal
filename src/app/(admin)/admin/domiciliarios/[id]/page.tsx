@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { Bike, Phone, Package, ArrowLeft, CheckCircle2, History, Camera, MapPin, FileText, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import OrdenarRutaPanel, { type ParadaRuta } from '@/components/admin/OrdenarRutaPanel'
-import FotoThumb from '@/components/FotoThumb'
+import FotoThumb from '@/components/ui/FotoThumb'
 
 const tw = 'rgba(255,255,255,'
 
